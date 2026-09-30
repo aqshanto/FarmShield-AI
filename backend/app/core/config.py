@@ -26,7 +26,14 @@ class Settings(BaseSettings):
     default_region_lon: float = 90.3563
     default_region_zoom: int = 7
 
-    # Optional secrets, used by later phases.
+    # NASA data pipeline.
+    pipeline_db_path: str = "data/farmshield.db"
+    # Refresh NASA data in the background when the API starts (respects cache freshness).
+    pipeline_auto_refresh: bool = True
+    pipeline_days: int = 60
+
+    # Optional secrets.
+    # Earthdata Login token: unlocks mission-native GPM IMERG and SMAP data.
     earthdata_token: str | None = None
     anthropic_api_key: str | None = None
 
