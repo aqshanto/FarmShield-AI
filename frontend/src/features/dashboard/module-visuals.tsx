@@ -39,4 +39,7 @@ export const sourceDescriptions: Record<string, string> = {
   SMAP: 'How wet the top layer of soil is',
   MODIS: 'Plant greenness and land temperature',
   VIIRS: 'A second view of plants and land, day and night',
+  SRTM: 'Land height, mapped by radar from the Space Shuttle',
+  'NASA POWER': 'Satellite-based weather records and monthly normals',
+  Forecast: 'Weather forecast (Open-Meteo: NOAA, DWD and ECMWF models)',
 }

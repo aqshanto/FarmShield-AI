@@ -2,6 +2,54 @@
 
 Short records of choices that shape the project. Newest first.
 
+## 2026-10-01: Flood risk module (Prompt 06)
+
+Verified live with the user's Earthdata token:
+- ✅ SMAP via OPeNDAP returns real soil moisture (0.20–0.56 m³/m³), and the EASE-Grid 2.0 index matches the data.
+- ⚠ GPM returns 403 "EULA Acceptance Failure": the account must approve GES DISC once.
+
+| Topic | Decision | Why |
+|---|---|---|
+| Engine style | Weighted scorecard of 4 factors with plain-language evidence | Explainable to farmers and judges; testable; no training data needed |
+| Terrain | NASA SRTM via OpenTopoData | A 5th NASA dataset; a few metres decide who floods in Bangladesh |
+| Historical pattern | NASA POWER monthly climatology | "3× wetter than normal for September" is meaningful and simple |
+| Forecast | Open-Meteo (NOAA/DWD/ECMWF blend), clearly labelled | Early warning needs the future; NASA offers no simple point forecast |
+| Dry cap | ≤ 45 when the 6-day window has < 20 mm | Local flash-flooding needs water; avoids alarm on dry weeks |
+| Missing data | Drop the factor, re-normalise, lower confidence | Honest instead of guessing |
+| Live map | Same engine per cell, inputs cached, pre-computed after refresh | Map and farm agree by construction; first visit is instant |
+| Default mode | `DATA_MODE=live`, per-module Live/Demo marker | Real where possible; the demo scenario is still one setting away |
+| Single-cell OPeNDAP | Request 2 cells, read ours | Hyrax returns an empty value for 1-element selections (verified live) |
+
+Real-world check (1 Oct 2026, monsoon ending): haor 27 watch (very low land, light
+rain), Barind 22 safe, Bogura 14 safe. The dramatic demo scenario remains in `sample` mode.
+
+## 2026-10-01: NASA data integration (Prompt 05)
+
+Access was probed live before designing anything:
+- ✅ ORNL DAAC, NASA POWER, CMR (no login).
+- ✅ Earthdata Cloud OPeNDAP for IMERG and SMAP, which redirects to Earthdata Login (token needed).
+- ❌ GES DISC Data Rods, which has been discontinued.
+
+| Topic | Decision | Why |
+|---|---|---|
+| Works without login | POWER + MODIS + VIIRS + CMR | The demo runs live with zero setup |
+| GPM & SMAP | Mission-native via OPeNDAP point subsets when `EARTHDATA_TOKEN` is set; NASA POWER stands in otherwise | Real mission data when possible; never a dead end |
+| Point subsets | One grid cell per day (DAP4 CSV) | Bytes instead of whole global HDF5 files; no netCDF/HDF5 libraries |
+| VIIRS role | 2013–2023 seasonal NDVI normal | ORNL's VIIRS archive ends in 2024; a "normal for this time of year" baseline is exactly what crop-health needs |
+| MODIS | Terra + Aqua | Interleaved composites double the chance of a cloud-free view |
+| QA | Per-product reliability tables; rejected rows kept for audit, never served | VIIRS and MODIS use different flag scales (found in real data) |
+| Storage | SQLite with upserts, fetch log, cache table | Zero-ops, file-based, plenty for farm-scale data |
+| Freshness | TTL per source + incremental windows with overlap | Restarts and reloads cost nothing; providers revise recent days |
+| Chart palette | `--color-chart-1` #0284c7, `--color-chart-2` #d97706 | Only pair to pass every dataviz validator check on our dark surface |
+| Dev reload | Custom file watcher instead of `uvicorn --reload` | Windows reloader's Ctrl+C killed the whole dev stack |
+
+### Known limits
+- ORNL publishes MODIS composites about 6 weeks after capture, and the monsoon hides fields
+  for months. The UI shows "last clear view" plus the cloud gap instead of pretending.
+- The token path (GPM/SMAP) is unit-tested with mocked responses in the expected Hyrax
+  DAP4 CSV / DAP2 ASCII formats. Its CMR lookup and OPeNDAP URLs were verified live up to the
+  Earthdata Login redirect, but it hasn't run end to end without a real token.
+
 ## 2026-10-01: Interactive NASA map (Prompt 04)
 
 | Topic | Decision | Why |

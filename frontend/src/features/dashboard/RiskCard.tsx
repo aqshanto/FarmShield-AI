@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { ChevronDown, Minus, TrendingDown, TrendingUp } from 'lucide-react'
 import { AnimatedNumber } from '@/components/ui/AnimatedNumber'
+import { Badge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Card'
 import { RiskBadge } from '@/components/ui/RiskBadge'
 import { cn } from '@/lib/cn'
@@ -66,7 +67,22 @@ export function RiskCard({ module, selected, onSelect }: RiskCardProps) {
             </span>
             <h3 className="font-bold text-ink">{module.title}</h3>
           </div>
-          <RiskBadge level={module.level} />
+          <div className="flex flex-wrap items-center gap-1.5">
+            <RiskBadge level={module.level} />
+            {module.data_source === 'live' ? (
+              <Badge tone="leaf" className="px-2 text-[10px]" title="Computed today from NASA data">
+                <span className="relative mr-0.5 flex size-1.5" aria-hidden="true">
+                  <span className="absolute inset-0 animate-ping-soft rounded-full bg-leaf-300" />
+                  <span className="relative size-1.5 rounded-full bg-leaf-300" />
+                </span>
+                Live
+              </Badge>
+            ) : (
+              <Badge className="px-2 text-[10px]" title="Demo scenario until this risk's engine lands">
+                Demo
+              </Badge>
+            )}
+          </div>
         </div>
         <div className="-my-2 -mr-2 shrink-0">{visual.illustration(module.score, 88)}</div>
       </div>

@@ -1,15 +1,17 @@
 import { motion } from 'framer-motion'
-import { ShieldCheck } from 'lucide-react'
+import { Home, LayoutDashboard, Map as MapIcon, Palette, Satellite, ShieldCheck } from 'lucide-react'
 import { Link, NavLink, Outlet, ScrollRestoration, useLocation } from 'react-router-dom'
 import { cn } from '@/lib/cn'
 import { spring } from '@/lib/motion'
 import { Starfield } from './Starfield'
 
+// On phones the nav shows icons only (labels stay available to screen readers).
 const navItems = [
-  { to: '/', label: 'Home' },
-  { to: '/dashboard', label: 'Dashboard' },
-  { to: '/map', label: 'Map' },
-  { to: '/design', label: 'Design' },
+  { to: '/', label: 'Home', icon: Home },
+  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/map', label: 'Map', icon: MapIcon },
+  { to: '/data', label: 'Data', icon: Satellite },
+  { to: '/design', label: 'Design', icon: Palette },
 ]
 
 export function AppLayout() {
@@ -41,7 +43,7 @@ export function AppLayout() {
               end
               className={({ isActive }) =>
                 cn(
-                  'focus-ring relative rounded-full px-2.5 py-1.5 text-sm font-semibold transition-colors sm:px-4',
+                  'focus-ring relative rounded-full px-3 py-2 text-sm font-semibold transition-colors sm:px-3.5 sm:py-1.5 lg:px-4',
                   isActive ? 'text-night-950' : 'text-ink-muted hover:text-ink',
                 )
               }
@@ -55,7 +57,10 @@ export function AppLayout() {
                       className="absolute inset-0 rounded-full bg-gradient-to-b from-leaf-300 to-leaf-500"
                     />
                   )}
-                  <span className="relative">{item.label}</span>
+                  <span className="relative flex items-center gap-1.5">
+                    <item.icon className="size-4 sm:hidden" aria-hidden="true" />
+                    <span className="sr-only sm:not-sr-only">{item.label}</span>
+                  </span>
                 </>
               )}
             </NavLink>

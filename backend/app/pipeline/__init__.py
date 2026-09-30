@@ -6,14 +6,25 @@ from app.core.config import get_settings
 from app.data.sample.farms import SAMPLE_FARMS
 from app.pipeline.models import Location
 from app.pipeline.service import PipelineService
+from app.pipeline.sources.forecast import ForecastSource
 from app.pipeline.sources.opendap import ImergSource, SmapSource
 from app.pipeline.sources.ornl import ModisNdviSource, ViirsNormalSource
 from app.pipeline.sources.power import PowerSource
+from app.pipeline.sources.static import PowerClimatologySource, SrtmElevationSource
 from app.pipeline.store import ObservationStore
 
 
 def build_sources(earthdata_token: str | None):
-    return [PowerSource(), ModisNdviSource(), ViirsNormalSource(), ImergSource(earthdata_token), SmapSource(earthdata_token)]
+    return [
+        PowerSource(),
+        ModisNdviSource(),
+        ViirsNormalSource(),
+        ImergSource(earthdata_token),
+        SmapSource(earthdata_token),
+        ForecastSource(),
+        SrtmElevationSource(),
+        PowerClimatologySource(),
+    ]
 
 
 @lru_cache

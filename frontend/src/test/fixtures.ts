@@ -7,9 +7,9 @@ export const mapOverviewFixture: MapOverview = {
   cell_size_deg: 0.2,
   bbox: [88, 20.6, 92.8, 26.8],
   layers: [
-    { id: 'flood_risk', title: 'Flood risk', description: 'Where heavy rain could flood fields.', sources: ['GPM', 'SMAP'] },
-    { id: 'water_stress', title: 'Water stress', description: 'Where soil is drying out.', sources: ['SMAP'] },
-    { id: 'crop_health', title: 'Crop health', description: 'Where plants look stressed.', sources: ['MODIS'] },
+    { id: 'flood_risk', title: 'Flood risk', description: 'Where heavy rain could flood fields.', sources: ['GPM', 'SMAP'], live: true },
+    { id: 'water_stress', title: 'Water stress', description: 'Where soil is drying out.', sources: ['SMAP'], live: false },
+    { id: 'crop_health', title: 'Crop health', description: 'Where plants look stressed.', sources: ['MODIS'], live: false },
   ],
   cells: [
     { lat: 23.8, lon: 90.4, flood_risk: 12, water_stress: 9, crop_health: 11 },
@@ -61,6 +61,9 @@ export function makeDashboard(farm: FarmSummary = farmsFixture[0], overrides: Pa
         trend: [22, 24, 23, 27, 30, 29, 34, 38, 45, 51, 58, 64, 71, 78],
         change_7d: 44,
         sources: ['GPM', 'SMAP'],
+        data_source: 'sample',
+        confidence: null,
+        factors: [],
       },
       {
         id: 'water_stress',
@@ -73,6 +76,9 @@ export function makeDashboard(farm: FarmSummary = farmsFixture[0], overrides: Pa
         trend: [18, 17, 16, 15, 15, 14, 14, 13, 13, 12, 12, 12, 12, 12],
         change_7d: -2,
         sources: ['SMAP'],
+        data_source: 'sample',
+        confidence: null,
+        factors: [],
       },
       {
         id: 'crop_health',
@@ -85,6 +91,9 @@ export function makeDashboard(farm: FarmSummary = farmsFixture[0], overrides: Pa
         trend: [22, 22, 23, 23, 24, 24, 25, 25, 26, 27, 28, 28, 29, 30],
         change_7d: 5,
         sources: ['MODIS'],
+        data_source: 'sample',
+        confidence: null,
+        factors: [],
       },
     ],
     forecast: Array.from({ length: 7 }, (_, i) => ({

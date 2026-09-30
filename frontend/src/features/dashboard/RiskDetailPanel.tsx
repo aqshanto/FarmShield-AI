@@ -5,6 +5,7 @@ import { RiskBadge } from '@/components/ui/RiskBadge'
 import { TrendChart } from '@/components/ui/TrendChart'
 import { riskMeta } from '@/lib/risk'
 import type { RiskModuleSummary } from '@/types/api'
+import { FactorBreakdown } from './FactorBreakdown'
 import { sourceDescriptions } from './module-visuals'
 
 interface RiskDetailPanelProps {
@@ -37,9 +38,12 @@ export function RiskDetailPanel({ module, onClose }: RiskDetailPanelProps) {
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[3fr_2fr]">
-        <div>
-          <h3 className="mb-2 text-sm font-semibold text-ink">Risk over the last 2 weeks</h3>
-          <TrendChart values={module.trend} color={meta.color} label={`${module.title} risk, last 14 days`} />
+        <div className="space-y-6">
+          <div>
+            <h3 className="mb-2 text-sm font-semibold text-ink">Risk over the last 2 weeks</h3>
+            <TrendChart values={module.trend} color={meta.color} label={`${module.title} risk, last 14 days`} />
+          </div>
+          <FactorBreakdown module={module} />
         </div>
 
         <div>

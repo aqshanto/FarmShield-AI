@@ -3,7 +3,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-SourceState = Literal["ok", "pending", "needs_token", "error"]
+SourceState = Literal["ok", "pending", "needs_token", "needs_approval", "error"]
 
 
 class SourceStatus(BaseModel):
@@ -17,7 +17,9 @@ class SourceStatus(BaseModel):
     state: SourceState
     message: str | None
     last_success: datetime | None
+    # Observations that passed quality checks, and ones rejected (e.g. cloudy views).
     observations: int
+    rejected: int
 
 
 class MissionFreshness(BaseModel):
@@ -28,9 +30,20 @@ class MissionFreshness(BaseModel):
     error: str | None
 
 
+class LastRun(BaseModel):
+    finished_at: datetime
+    # How many (source, farm) jobs ended in each state.
+    ok: int = 0
+    skipped: int = 0
+    error: int = 0
+    needs_token: int = 0
+    needs_approval: int = 0
+
+
 class DataStatus(BaseModel):
     token_configured: bool
     refreshing: bool
+    last_run: LastRun | None
     sources: list[SourceStatus]
     missions: list[MissionFreshness]
 

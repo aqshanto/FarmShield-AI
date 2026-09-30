@@ -4,7 +4,7 @@ import { RISK_LEVELS, riskMeta } from '@/lib/risk'
 import type { MapLayer } from '@/types/api'
 
 // Legend for the active layer: what it shows, where it comes from, and the four levels.
-export function MapLegend({ layer, demo }: { layer: MapLayer; demo: boolean }) {
+export function MapLegend({ layer }: { layer: MapLayer }) {
   return (
     <div className="glass w-64 rounded-2xl bg-night-900/85 p-4">
       <AnimatePresence mode="wait" initial={false}>
@@ -29,8 +29,12 @@ export function MapLegend({ layer, demo }: { layer: MapLayer; demo: boolean }) {
             {s}
           </Badge>
         ))}
-        {demo && (
-          <Badge tone="harvest" className="px-2 text-[10px]" title="Modelled demo surface. Live NASA grids arrive in the data pipeline phase.">
+        {layer.live ? (
+          <Badge tone="leaf" className="px-2 text-[10px]" title="Computed for every cell from today's NASA data">
+            Live
+          </Badge>
+        ) : (
+          <Badge tone="harvest" className="px-2 text-[10px]" title="Modelled demo surface until this layer's risk engine lands.">
             Demo data
           </Badge>
         )}

@@ -1,5 +1,6 @@
 import asyncio
-from datetime import UTC, datetime
+import logging
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -14,10 +15,22 @@ router = APIRouter(tags=["data"])
 _background: set[asyncio.Task] = set()
 
 
+async def _refresh_and_warm(pipeline: PipelineService, days: int, force: bool) -> None:
+    await pipeline.refresh(farm_locations(), days=days, force=force)
+    if get_settings().data_mode == "live":
+        from app.risk.flood_grid import live_flood_grid
+
+        try:
+            # Pre-compute the live flood map so the first map visit is instant.
+            await live_flood_grid(pipeline, farm_locations(), (datetime.now(UTC) + timedelta(hours=6)).date())
+        except Exception as error:
+            logging.getLogger("farmshield.pipeline").warning("Could not warm the flood grid: %s", error)
+
+
 def start_background_refresh(pipeline: PipelineService, days: int, force: bool = False) -> bool:
     if pipeline.refreshing:
         return False
-    task = asyncio.create_task(pipeline.refresh(farm_locations(), days=days, force=force))
+    task = asyncio.create_task(_refresh_and_warm(pipeline, days, force))
     _background.add(task)
     task.add_done_callback(_background.discard)
     return True
@@ -30,6 +43,7 @@ async def data_status(
     return DataStatus(
         token_configured=bool(settings.earthdata_token),
         refreshing=pipeline.refreshing,
+        last_run=pipeline.last_run(),
         sources=pipeline.source_status(),
         missions=await pipeline.mission_freshness(),
     )

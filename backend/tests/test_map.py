@@ -1,3 +1,5 @@
+import asyncio
+
 from fastapi.testclient import TestClient
 
 from app.data.sample.grid import BBOX, CELL_SIZE_DEG, cell_centres, risk_surface
@@ -29,7 +31,7 @@ def test_surface_is_deterministic_and_bounded():
 
 
 def test_hotspots_land_in_the_right_regions():
-    dash = build_map_overview("sample")
+    dash = asyncio.run(build_map_overview("sample"))
     haor = _nearest(dash.cells, 24.95, 91.2)
     barind = _nearest(dash.cells, 24.65, 88.5)
     centre = _nearest(dash.cells, 23.8, 90.4)  # Dhaka: none of the hotspots
@@ -39,7 +41,7 @@ def test_hotspots_land_in_the_right_regions():
 
 
 def test_map_agrees_with_farm_dashboards_near_each_farm():
-    overview = build_map_overview("sample")
+    overview = asyncio.run(build_map_overview("sample"))
     for farm in overview.farms:
         cell = _nearest(overview.cells, farm.lat, farm.lon)
         for module_id, module in farm.modules.items():

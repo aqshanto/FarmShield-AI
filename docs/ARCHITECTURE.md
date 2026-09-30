@@ -88,6 +88,95 @@ types to `types/api.ts`, then add a route in `app/router.tsx`.
 `lib/useAsync.ts` is the data-fetching hook: keyed requests, abort on change, previous
 data kept while loading, `retry()`.
 
+## NASA data pipeline (`backend/app/pipeline/`)
+
+```
+sources (fetch) ──► clean & grade ──► SQLite store ──► serve (best source per variable)
+      ▲                                     │
+      └──── CMR: newest granule per mission (freshness)
+```
+
+| Mission | Source (`sources/`) | Login | What we get |
+|---|---|---|---|
+| GPM | `opendap.ImergSource`: GPM_3IMERGDL v07 via Earthdata Cloud OPeNDAP | token | Daily rainfall, one 0.1° cell |
+| SMAP | `opendap.SmapSource`: SPL3SMP_E v006 via OPeNDAP (EASE-Grid 2.0 9 km lookup in `grids.py`) | token | Soil moisture m³/m³ (AM pass, PM fallback) |
+| MODIS | `ornl.ModisNdviSource`: MOD13Q1 + MYD13Q1 v061 (Terra + Aqua) via ORNL DAAC | none | 16-day NDVI, graded by pixel reliability |
+| VIIRS | `ornl.ViirsNormalSource`: VNP13A1 via ORNL DAAC | none | 2013–2023 seasonal NDVI **normal** (median) |
+| (stand-in) | `power.PowerSource`: NASA POWER daily point API | none | Rainfall, surface/root-zone wetness, max temperature |
+| all four | `catalog.py`: CMR granule search | none | Newest granule time per mission |
+
+**How it runs** (`service.PipelineService`):
+- Every (source × farm) job runs concurrently, with a timeout and **isolated failures**.
+- **Cache-aware:** each source has a TTL, so fresh data isn't re-downloaded.
+- **Incremental:** only days after the newest stored day, minus an overlap (providers revise recent data).
+- Slow or cloud-prone data (NDVI) always looks back 120 days.
+- **Serving** merges each variable from its preferred sources in order (e.g. GPM → POWER), keeping the source on every point.
+
+**Quality control:** fill values dropped, NDVI scaled, pixel-reliability flags mapped **per
+product** (MODIS 0–3 and VIIRS 0–11 differ). Rejected (cloudy) rows are stored for audit but
+never served. Monsoon clouds hide optical sensors for months; the UI says so.
+
+**Storage:** `store.py`, SQLite (`backend/data/farmshield.db`, git-ignored). Tables:
+`observations` (upserted by source/variable/location/date), `fetch_log`, `cache`.
+
+**Entry points:** API startup (background, `PIPELINE_AUTO_REFRESH`), `POST /api/v1/data/refresh`,
+and the CLI `python -m app.pipeline refresh|status`.
+
+| Method | Path | Returns |
+|---|---|---|
+| GET | `/api/v1/data/status` | Sources' state, mission freshness (CMR), last run summary |
+| POST | `/api/v1/data/refresh` | 202; starts a background refresh (`?force=true` ignores cache) |
+| GET | `/api/v1/farms/{id}/observations?days=60` | Merged series per variable, with provenance |
+
+**Frontend:** `/data` (`pages/DataPage.tsx`, `features/data/`) shows the pipeline flow,
+the missions' states, a token how-to, and the farm's charts via `components/ui/TimeSeriesChart.tsx`.
+
+## Flood risk engine (`backend/app/risk/`)
+
+An explainable scorecard. Each factor is scored 0–100 and weighted:
+
+| Factor | Weight | Inputs | Scale |
+|---|---|---|---|
+| Water arriving | 40% | Rain in the last 3 days + the next 3 (GPM → POWER → forecast) | 200 mm over the 6 days = 100 |
+| Ground is full | 25% | Soil saturation: SMAP ÷ 0.50 porosity, else POWER wetness | 40% → 0, 90% → 100 |
+| Unusually wet | 15% | Last 7 days against the NASA POWER normal for this month | normal → 0, 3× → 100 |
+| Low-lying land | 20% | NASA SRTM elevation | ≥ 40 m → 0, ≤ 8 m → 100 |
+
+- Under 20 mm of rain across the 6-day window, the score is capped at 45 (watch).
+- Missing inputs drop out and the weights re-normalise. **Confidence** is high (SMAP + all
+  factors), medium (stand-ins) or low (missing inputs).
+- The explanation cites the two strongest factors. A *safe* result explains why it's safe instead of listing alarms.
+- The 14-day trend re-scores each day with the rain actually around it.
+
+| File | Role |
+|---|---|
+| `flood.py` | Pure engine: `assess_flood`, `score_factors`, `flood_trend`, advice per level |
+| `inputs.py` | Pipeline observations → `FloodInputs` (source preference, SMAP freshness, porosity) |
+| `live.py` | Engine → dashboard module, recommendations, and the live 7-day forecast (WMO codes) |
+| `flood_grid.py` | Same engine per 0.2° land cell: SRTM (batched, cached for a year), forecast (multi-point, 3 h), SMAP bounding-box subsets (newest valid pass over 3 days, 6 h) |
+
+`DATA_MODE=live` (default) puts the engine on the dashboard, the map's flood layer and
+`GET /api/v1/farms/{id}/flood` (the full evidence). Modules without an engine yet stay on
+the demo scenario and are marked **Demo** in the UI. The grid is pre-computed after each
+background refresh, so the map loads instantly.
+
+New pipeline sources:
+- `forecast.ForecastSource` (Open-Meteo; the one non-NASA input)
+- `static.SrtmElevationSource`
+- `static.PowerClimatologySource`
+
+Earthdata errors are explained:
+- 401 → token missing or invalid.
+- 403 "EULA" → `needs_approval`, with the archive's approval link. GES DISC (GPM) needs this once per account.
+- OPeNDAP returns a blank for single-cell selections, so point subsets request two cells (`pair_slice`).
+
+## Dev server note (Windows)
+
+`npm run dev:api` runs `scripts/api-dev.mjs`, which watches `backend/app` and restarts
+uvicorn itself instead of using `uvicorn --reload`. On Windows the reloader restarts its
+worker with a console-wide Ctrl+C that also killed npm, `concurrently` and the frontend
+on every backend edit.
+
 ## Map (`/map`)
 
 **Backend:** `app/data/sample/grid.py` builds three risk surfaces on a 0.2° grid (~20 km)

@@ -61,7 +61,8 @@ export function MapPage() {
       if (value === null) next.delete(key)
       else next.set(key, value)
     }
-    setParams(next, { replace: true })
+    // In-page state: update the URL without jumping to the top.
+    setParams(next, { replace: true, preventScrollReset: true })
   }
 
   const flyTo = (lng: number, lat: number, zoom: number) => setFocus({ center: [lng, lat], zoom, key: Date.now() })
@@ -164,7 +165,7 @@ export function MapPage() {
 
           {activeLayer && data && (
             <div className="absolute top-3 left-3 z-10 hidden sm:block">
-              <MapLegend layer={activeLayer} demo={data.data_mode === 'sample'} />
+              <MapLegend layer={activeLayer} />
             </div>
           )}
 
@@ -195,7 +196,7 @@ export function MapPage() {
         <Card className="p-5 lg:max-h-[calc(100vh-13rem)] lg:overflow-y-auto">
           {activeLayer && data && (
             <div className="mb-5 sm:hidden">
-              <MapLegend layer={activeLayer} demo={data.data_mode === 'sample'} />
+              <MapLegend layer={activeLayer} />
             </div>
           )}
           <AnimatePresence mode="wait" initial={false}>

@@ -122,6 +122,12 @@ class ObservationStore:
         with self._connect() as db:
             return dict(db.execute("SELECT source, COUNT(*) FROM observations GROUP BY source").fetchall())
 
+    def rejected_counts(self) -> dict[str, int]:
+        """Observations that failed quality checks (e.g. cloudy satellite views), per source."""
+        with self._connect() as db:
+            rows = db.execute("SELECT source, COUNT(*) FROM observations WHERE quality = 'rejected' GROUP BY source").fetchall()
+        return dict(rows)
+
     # --- fetch log --------------------------------------------------------------------
     def log_fetch(
         self,

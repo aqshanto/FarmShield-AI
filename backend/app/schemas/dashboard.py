@@ -32,6 +32,17 @@ class Metric(BaseModel):
     source: str
 
 
+class RiskFactor(BaseModel):
+    """One reason behind a live risk score (0–100 each, weighted)."""
+
+    id: str
+    label: str
+    score: int
+    weight: float
+    detail: str
+    source: str
+
+
 class RiskModuleSummary(BaseModel):
     id: RiskModule
     title: str
@@ -46,6 +57,10 @@ class RiskModuleSummary(BaseModel):
     # Score change vs 7 days ago (positive = risk rising).
     change_7d: int
     sources: list[str]
+    # "live": computed by a risk engine from NASA data · "sample": demo scenario.
+    data_source: Literal["live", "sample"] = "sample"
+    confidence: Literal["high", "medium", "low"] | None = None
+    factors: list[RiskFactor] = []
 
 
 class OverallCondition(BaseModel):

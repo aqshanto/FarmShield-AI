@@ -12,7 +12,15 @@ class SourceError(Exception):
 
 
 class TokenRequiredError(SourceError):
-    """The source needs an Earthdata token that isn't configured."""
+    """The source needs an Earthdata token that isn't configured (or was rejected)."""
+
+
+class ApprovalRequiredError(SourceError):
+    """The token works, but the data archive needs its terms accepted once in Earthdata Login."""
+
+    def __init__(self, message: str, approve_url: str | None = None):
+        super().__init__(message)
+        self.approve_url = approve_url
 
 
 @dataclass(frozen=True)

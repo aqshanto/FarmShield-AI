@@ -51,6 +51,15 @@ export interface Metric {
   source: string
 }
 
+export interface RiskFactor {
+  id: string
+  label: string
+  score: number
+  weight: number
+  detail: string
+  source: string
+}
+
 export interface RiskModuleSummary {
   id: RiskModule
   title: string
@@ -63,6 +72,10 @@ export interface RiskModuleSummary {
   trend: number[]
   change_7d: number
   sources: string[]
+  // live: computed by a risk engine from NASA data · sample: demo scenario
+  data_source: 'live' | 'sample'
+  confidence: 'high' | 'medium' | 'low' | null
+  factors: RiskFactor[]
 }
 
 export interface DayForecast {
@@ -95,6 +108,7 @@ export interface MapLayer {
   title: string
   description: string
   sources: string[]
+  live: boolean
 }
 
 export interface MapFarm extends FarmSummary {
@@ -123,4 +137,79 @@ export interface Dashboard {
   modules: RiskModuleSummary[]
   forecast: DayForecast[]
   recommendations: Recommendation[]
+}
+
+export type SourceState = 'ok' | 'pending' | 'needs_token' | 'needs_approval' | 'error'
+
+export interface SourceStatus {
+  id: string
+  mission: string
+  provider: string
+  product: string
+  variables: string[]
+  requires_token: boolean
+  note: string
+  state: SourceState
+  message: string | null
+  last_success: string | null
+  observations: number
+  rejected: number
+}
+
+export interface MissionFreshness {
+  mission: string
+  product: string
+  latest_granule: string | null
+  granule_id: string | null
+  error: string | null
+}
+
+export interface LastRun {
+  finished_at: string
+  ok: number
+  skipped: number
+  error: number
+  needs_token: number
+  needs_approval?: number
+}
+
+export interface DataStatus {
+  token_configured: boolean
+  refreshing: boolean
+  last_run: LastRun | null
+  sources: SourceStatus[]
+  missions: MissionFreshness[]
+}
+
+export type ObservedVariable =
+  | 'precipitation'
+  | 'soil_moisture'
+  | 'soil_wetness'
+  | 'root_zone_wetness'
+  | 'temperature_max'
+  | 'ndvi'
+  | 'ndvi_normal'
+
+export interface ObservationPoint {
+  date: string // YYYY-MM-DD
+  value: number
+  source: string
+  quality: 'good' | 'marginal'
+}
+
+export interface VariableSeries {
+  id: ObservedVariable
+  label: string
+  unit: string
+  description: string
+  sources_used: string[]
+  points: ObservationPoint[]
+  latest: ObservationPoint | null
+}
+
+export interface FarmObservations {
+  farm_id: string
+  generated_at: string
+  days: number
+  variables: VariableSeries[]
 }

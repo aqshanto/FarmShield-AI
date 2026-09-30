@@ -64,6 +64,11 @@
   --color-risk-warning: #fb923c;
   --color-risk-danger: #f43f5e;
 
+  /* Chart series, in fixed order (never cycled). Validated on night-900 with the dataviz
+   * validator: all checks pass (CVD ΔE 23.4, normal-vision ΔE 30.6). */
+  --color-chart-1: #0284c7;
+  --color-chart-2: #d97706;
+
   /* Depth */
   --shadow-card: 0 1px 0 0 rgb(255 255 255 / 0.06) inset, 0 12px 32px -12px rgb(0 0 0 / 0.6);
   --shadow-glow-leaf: 0 0 0 1px rgb(74 222 128 / 0.35), 0 8px 30px -6px rgb(34 197 94 / 0.45);

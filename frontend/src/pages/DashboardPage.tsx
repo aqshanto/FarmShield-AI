@@ -33,7 +33,7 @@ export function DashboardPage() {
     requestAnimationFrame(() => document.getElementById(DETAIL_PANEL_ID)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }))
   }
 
-  const changeFarm = (id: string) => setParams({ farm: id })
+  const changeFarm = (id: string) => setParams({ farm: id }, { preventScrollReset: true })
 
   const data = dashboard.data
   const error = farms.status === 'error' ? farms.error : dashboard.status === 'error' ? dashboard.error : null

@@ -11,7 +11,7 @@ from datetime import date, datetime
 
 import httpx2
 
-from app.pipeline.grids import ease2_m09_index, imerg_index
+from app.pipeline.grids import IMERG_NLAT, M09_COLS, ease2_m09_index, imerg_index
 from app.pipeline.http import get
 from app.pipeline.models import Location, Observation, VariableId
 from app.pipeline.sources.base import SourceInfo, TokenRequiredError
@@ -20,26 +20,31 @@ CMR_GRANULES = "https://cmr.earthdata.nasa.gov/search/granules.json"
 NUMBER = re.compile(r"-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?")
 
 
-def parse_opendap_values(text: str, variables: list[str]) -> list[float | None]:
-    """Values for each requested variable from a Hyrax DAP4 CSV / DAP2 ASCII response.
+def parse_opendap_values(text: str, variables: list[str]) -> list[list[float]]:
+    """All values for each requested variable from a Hyrax DAP4 CSV / DAP2 ASCII response.
 
-    Lines look like `/Group/var[0][12][34], 0.271` or `var, 0.271`. Index brackets are
-    ignored; the value is the last number on the variable's line.
+    Lines look like `/Group/var[0], 0.271, 0.283` (one line per leading index) or
+    `var, 0.271`. Index brackets are ignored; numbers after the first comma are values.
     """
-    found: list[float | None] = []
+    found: list[list[float]] = []
     lines = text.splitlines()
     for name in variables:
         base = name.rsplit("/", 1)[-1]
-        value = None
+        values: list[float] = []
         for line in lines:
             head, _, tail = line.partition(",")
             if tail and re.search(rf"(^|/){re.escape(base)}(\[|\s*$)", head.strip()):
-                numbers = NUMBER.findall(tail)
-                if numbers:
-                    value = float(numbers[-1])
-                    break
-        found.append(value)
+                values.extend(float(n) for n in NUMBER.findall(tail))
+        found.append(values)
     return found
+
+
+def pair_slice(index: int, size: int) -> tuple[str, int]:
+    """Hyrax returns an empty value for a single-element selection (verified live), so ask
+    for two neighbouring cells and remember which one is ours."""
+    if index + 1 < size:
+        return f"[{index}:{index + 1}]", 0
+    return f"[{index - 1}:{index}]", 1
 
 
 async def granule_links(client: httpx2.AsyncClient, collection: str, location: Location, start: date, end: date) -> dict[date, str]:
@@ -72,7 +77,8 @@ class _OpendapPointSource:
     def __init__(self, token: str | None):
         self.token = token
 
-    def constraint(self, location: Location) -> tuple[str, list[str]]:
+    def constraint(self, location: Location) -> tuple[str, list[str], int]:
+        """DAP4 constraint, variable names in preference order, and our cell's position in each result."""
         raise NotImplementedError
 
     def valid(self, value: float) -> bool:
@@ -83,16 +89,16 @@ class _OpendapPointSource:
             raise TokenRequiredError("Set EARTHDATA_TOKEN in backend/.env to use this mission's own data")
 
         links = await granule_links(client, self.collection, location, start, end)
-        ce, names = self.constraint(location)
+        ce, names, position = self.constraint(location)
         headers = {"Authorization": f"Bearer {self.token}"}
         semaphore = asyncio.Semaphore(6)
 
         async def one(day: date, url: str) -> Observation | None:
             async with semaphore:
                 response = await get(client, f"{url}.dap.csv", params={"dap4.ce": ce}, headers=headers)
-            for value in parse_opendap_values(response.text, names):
-                if value is not None and self.valid(value):
-                    return Observation(self.info.id, self.variable, day, round(value, 4), self.unit)
+            for values in parse_opendap_values(response.text, names):
+                if len(values) > position and self.valid(values[position]):
+                    return Observation(self.info.id, self.variable, day, round(values[position], 4), self.unit)
             return None
 
         results = await asyncio.gather(*(one(day, url) for day, url in sorted(links.items())))
@@ -114,9 +120,10 @@ class ImergSource(_OpendapPointSource):
     variable = "precipitation"
     unit = "mm/day"
 
-    def constraint(self, location: Location) -> tuple[str, list[str]]:
+    def constraint(self, location: Location) -> tuple[str, list[str], int]:
         ilon, ilat = imerg_index(location.lat, location.lon)
-        return f"/precipitation[0][{ilon}][{ilat}]", ["precipitation"]
+        lat_slice, position = pair_slice(ilat, IMERG_NLAT)
+        return f"/precipitation[0][{ilon}]{lat_slice}", ["precipitation"], position
 
     def valid(self, value: float) -> bool:
         return 0 <= value < 2000  # fill is -9999.9
@@ -137,12 +144,13 @@ class SmapSource(_OpendapPointSource):
     variable = "soil_moisture"
     unit = "m³/m³"
 
-    def constraint(self, location: Location) -> tuple[str, list[str]]:
+    def constraint(self, location: Location) -> tuple[str, list[str], int]:
         row, col = ease2_m09_index(location.lat, location.lon)
-        am = f"/Soil_Moisture_Retrieval_Data_AM/soil_moisture[{row}][{col}]"
-        pm = f"/Soil_Moisture_Retrieval_Data_PM/soil_moisture_pm[{row}][{col}]"
+        col_slice, position = pair_slice(col, M09_COLS)
+        am = f"/Soil_Moisture_Retrieval_Data_AM/soil_moisture[{row}]{col_slice}"
+        pm = f"/Soil_Moisture_Retrieval_Data_PM/soil_moisture_pm[{row}]{col_slice}"
         # Morning overpass first (better quality); evening fills gaps.
-        return f"{am};{pm}", ["soil_moisture", "soil_moisture_pm"]
+        return f"{am};{pm}", ["soil_moisture", "soil_moisture_pm"], position
 
     def valid(self, value: float) -> bool:
         return 0.0 <= value <= 0.7  # fill is -9999

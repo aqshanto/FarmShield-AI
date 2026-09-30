@@ -21,6 +21,8 @@ class MapLayer(BaseModel):
     title: str
     description: str
     sources: list[str]
+    # True when computed by a risk engine from live NASA data (else demo surface).
+    live: bool = False
 
 
 class ModuleLevel(BaseModel):

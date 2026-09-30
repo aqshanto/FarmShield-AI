@@ -18,7 +18,7 @@ import httpx2
 from app.pipeline import catalog
 from app.pipeline.http import make_client
 from app.pipeline.models import VARIABLES, Location, VariableId
-from app.pipeline.sources.base import Source, TokenRequiredError
+from app.pipeline.sources.base import ApprovalRequiredError, Source, TokenRequiredError
 from app.pipeline.store import ObservationStore
 
 log = logging.getLogger("farmshield.pipeline")
@@ -31,7 +31,7 @@ FRESHNESS_TTL = timedelta(hours=1)
 class RefreshResult:
     source: str
     location: str
-    status: str  # ok · skipped · needs_token · error
+    status: str  # ok · skipped · needs_token · needs_approval · error
     count: int = 0
     message: str | None = None
 
@@ -84,7 +84,12 @@ class PipelineService:
         for r in results:
             summary[r.status] += 1
         log.info("Pipeline refresh finished: %s", summary)
+        self.store.cache_set("last_run", {"finished_at": self.now().isoformat(), **summary}, self.now())
         return results
+
+    def last_run(self) -> dict | None:
+        cached = self.store.cache_get("last_run")
+        return cached[0] if cached else None  # type: ignore[return-value]
 
     async def _refresh_one(self, client: httpx2.AsyncClient, source: Source, location: Location, days: int, force: bool) -> RefreshResult:
         info = source.info
@@ -104,6 +109,9 @@ class PipelineService:
             observations = await asyncio.wait_for(source.fetch(client, location, start, end), FETCH_TIMEOUT_S)
         except TokenRequiredError as error:
             result = RefreshResult(info.id, location.id, "needs_token", message=str(error))
+        except ApprovalRequiredError as error:
+            message = f"{error} · {error.approve_url}" if error.approve_url else str(error)
+            result = RefreshResult(info.id, location.id, "needs_approval", message=message)
         except Exception as error:  # isolate: one broken source never stops the others
             log.warning("Source %s failed for %s: %s", info.id, location.id, error)
             result = RefreshResult(info.id, location.id, "error", message=str(error) or type(error).__name__)
@@ -116,10 +124,14 @@ class PipelineService:
 
     # --- serve --------------------------------------------------------------------------
     def observations(self, location: Location, days: int = 60) -> list[VariableSeries]:
-        end = self.now().date()
+        today = self.now().date()
         output = []
         for variable in VARIABLES.values():
-            start = end - timedelta(days=max(days, variable.lookback_days))
+            if variable.static:
+                start, end = date.min, date.max
+            else:
+                start = today - timedelta(days=max(days, variable.lookback_days))
+                end = today + timedelta(days=variable.lookahead_days)
             chosen: dict[date, SeriesPoint] = {}
             # Walk sources from least to most preferred so better sources overwrite.
             for source_id in reversed(variable.sources):
@@ -133,6 +145,7 @@ class PipelineService:
 
     def source_status(self) -> list[dict]:
         counts = self.store.counts()
+        rejected = self.store.rejected_counts()
         statuses = []
         for source in self.sources.values():
             info = source.info
@@ -154,9 +167,10 @@ class PipelineService:
                     "requires_token": info.requires_token,
                     "note": info.note,
                     "state": state,
-                    "message": last.message if last and last.status in ("error", "needs_token") else None,
+                    "message": last.message if last and last.status in ("error", "needs_token", "needs_approval") else None,
                     "last_success": last_ok.finished_at if last_ok else None,
-                    "observations": counts.get(info.id, 0),
+                    "observations": counts.get(info.id, 0) - rejected.get(info.id, 0),
+                    "rejected": rejected.get(info.id, 0),
                 }
             )
         return statuses

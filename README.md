@@ -21,6 +21,8 @@ npm run dev
 - App: http://localhost:5173
 - Farm dashboard: http://localhost:5173/dashboard
 - Risk map: http://localhost:5173/map
+- Satellite data (pipeline): http://localhost:5173/data
+- Flood report API: http://127.0.0.1:8000/api/v1/farms/sunamganj-haor/flood
 - Design system showcase: http://localhost:5173/design
 - API: http://127.0.0.1:8000/api/v1/health
 - API docs (Swagger): http://127.0.0.1:8000/docs
@@ -34,6 +36,30 @@ npm run dev
 | `npm test` | Runs backend (pytest) and frontend (Vitest) tests |
 | `npm run build` | Type-checks and builds the frontend into `frontend/dist` |
 | `npm run lint` | Lints the frontend with oxlint |
+
+### NASA data pipeline
+
+The API refreshes NASA data in the background on startup (cached, so restarts are
+instant). You can also run it by hand, for example from a scheduled task. Run these
+from `backend/` with the virtualenv's Python:
+
+```bash
+python -m app.pipeline refresh
+```
+
+```bash
+python -m app.pipeline status
+```
+
+```bash
+python -m pytest -m live
+```
+
+The last one runs the live smoke test against real NASA services.
+
+**Optional:** add a free [NASA Earthdata](https://urs.earthdata.nasa.gov) token as
+`EARTHDATA_TOKEN` in `backend/.env` to read GPM and SMAP directly. Without it, NASA POWER
+stands in for rainfall and soil moisture.
 
 ## Configuration
 

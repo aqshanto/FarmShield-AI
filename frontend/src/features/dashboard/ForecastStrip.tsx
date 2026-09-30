@@ -31,7 +31,7 @@ export function ForecastStrip({ forecast }: { forecast: DayForecast[] }) {
         <div>
           <h2 className="text-xl font-bold text-ink">Next 7 days</h2>
           <p className="text-sm text-ink-muted">
-            {Math.round(totalRain)} mm of rain expected this week · GPM rainfall forecast
+            {Math.round(totalRain)} mm of rain expected this week · weather forecast
           </p>
         </div>
         <div className="flex flex-wrap gap-2">

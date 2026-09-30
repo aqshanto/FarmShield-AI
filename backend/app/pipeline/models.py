@@ -15,6 +15,12 @@ VariableId = Literal[
     "temperature_max",
     "ndvi",
     "ndvi_normal",
+    "precipitation_forecast",
+    "temperature_max_forecast",
+    "temperature_min_forecast",
+    "weather_code",
+    "elevation",
+    "precipitation_normal",
 ]
 
 
@@ -45,6 +51,10 @@ class Variable:
     sources: tuple[str, ...]
     # Serve at least this many days (e.g. cloud-prone vegetation needs a longer look-back).
     lookback_days: int = 0
+    # Serve this many days past today (forecasts).
+    lookahead_days: int = 0
+    # Not a time series (terrain, monthly normals): served whatever the date window.
+    static: bool = False
 
 
 VARIABLES: dict[VariableId, Variable] = {
@@ -57,5 +67,11 @@ VARIABLES: dict[VariableId, Variable] = {
         Variable("temperature_max", "Max temperature", "°C", "Daily maximum air temperature", ("nasa_power",)),
         Variable("ndvi", "Plant greenness (NDVI)", "0–1", "16-day vegetation greenness, cloud-filtered", ("modis",), lookback_days=120),
         Variable("ndvi_normal", "Normal greenness", "0–1", "Seasonal normal NDVI for this time of year, 2013–2023", ("viirs",), lookback_days=120),
+        Variable("precipitation_forecast", "Rain forecast", "mm/day", "Forecast daily rain (last 3 days + next 7)", ("open_meteo",), lookahead_days=7),
+        Variable("temperature_max_forecast", "High forecast", "°C", "Forecast daily high", ("open_meteo",), lookahead_days=7),
+        Variable("temperature_min_forecast", "Low forecast", "°C", "Forecast daily low", ("open_meteo",), lookahead_days=7),
+        Variable("weather_code", "Weather", "WMO", "Forecast weather type (WMO code)", ("open_meteo",), lookahead_days=7),
+        Variable("elevation", "Elevation", "m", "Height above sea level (SRTM)", ("srtm",), static=True),
+        Variable("precipitation_normal", "Normal rainfall", "mm/day", "Average daily rain for each month", ("power_climatology",), static=True),
     ]
 }

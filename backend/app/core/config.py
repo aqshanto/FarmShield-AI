@@ -17,8 +17,9 @@ class Settings(BaseSettings):
     # Comma-separated list of allowed frontend origins.
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
 
-    # "sample" serves bundled demo data; "live" calls NASA services (Phase 4).
-    data_mode: Literal["sample", "live"] = "sample"
+    # "live": risk engines run on NASA data where available (demo data fills the rest).
+    # "sample": the bundled demo scenario only, e.g. for an offline presentation.
+    data_mode: Literal["sample", "live"] = "live"
 
     # Default focus region: Bangladesh.
     default_region_name: str = "Bangladesh"

@@ -18,6 +18,10 @@ export const router = createBrowserRouter([
         lazy: async () => ({ Component: (await import('@/pages/MapPage')).MapPage }),
       },
       {
+        path: 'data',
+        lazy: async () => ({ Component: (await import('@/pages/DataPage')).DataPage }),
+      },
+      {
         path: 'design',
         // Showcase is code-split so it never weighs down the farmer-facing bundle.
         lazy: async () => ({ Component: (await import('@/pages/DesignSystemPage')).DesignSystemPage }),

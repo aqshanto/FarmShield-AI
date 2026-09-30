@@ -47,9 +47,13 @@ export function FarmHeader({ dashboard, farms, onFarmChange }: FarmHeaderProps) 
           >
             <MapIcon className="size-3.5" aria-hidden="true" /> See on map
           </Link>
-          {dashboard.data_mode === 'sample' && (
-            <Badge tone="harvest" title="Demo data. Live NASA data arrives in a later phase.">
+          {dashboard.data_mode === 'sample' ? (
+            <Badge tone="harvest" title="Demo scenario. Set DATA_MODE=live for NASA data.">
               Demo data
+            </Badge>
+          ) : (
+            <Badge tone="leaf" title="Risks marked Live are computed from NASA data; others still use the demo scenario.">
+              Live NASA data
             </Badge>
           )}
         </motion.div>

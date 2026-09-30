@@ -1,5 +1,14 @@
 import { env } from '@/config/env'
-import type { Dashboard, DataSource, FarmSummary, HealthStatus, MapOverview, Region } from '@/types/api'
+import type {
+  Dashboard,
+  DataSource,
+  DataStatus,
+  FarmObservations,
+  FarmSummary,
+  HealthStatus,
+  MapOverview,
+  Region,
+} from '@/types/api'
 
 export class ApiError extends Error {
   readonly status: number
@@ -30,4 +39,9 @@ export const api = {
   dashboard: (farmId: string, init?: RequestInit) =>
     request<Dashboard>(`/farms/${encodeURIComponent(farmId)}/dashboard`, init),
   mapOverview: (init?: RequestInit) => request<MapOverview>('/map/overview', init),
+  dataStatus: (init?: RequestInit) => request<DataStatus>('/data/status', init),
+  refreshData: (force = false) =>
+    request<{ started: boolean; message: string }>(`/data/refresh${force ? '?force=true' : ''}`, { method: 'POST' }),
+  farmObservations: (farmId: string, days = 60, init?: RequestInit) =>
+    request<FarmObservations>(`/farms/${encodeURIComponent(farmId)}/observations?days=${days}`, init),
 }
