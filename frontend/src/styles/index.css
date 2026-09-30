@@ -1,0 +1,221 @@
+@import '@fontsource-variable/plus-jakarta-sans';
+@import '@fontsource-variable/noto-sans-bengali';
+@import 'tailwindcss';
+
+/*
+ * FarmShield AI design tokens.
+ * Theme: "night field under the satellites". Deep green surfaces, leaf-green brand,
+ * sky-blue for water & satellites, harvest-gold for sun & highlights.
+ * Every token is a Tailwind utility, e.g. bg-surface-2, text-ink-muted, text-risk-danger.
+ */
+@theme {
+  /* Typography */
+  --font-sans: 'Plus Jakarta Sans Variable', 'Noto Sans Bengali Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-bengali: 'Noto Sans Bengali Variable', 'Plus Jakarta Sans Variable', sans-serif;
+
+  --text-display: 3.75rem;
+  --text-display--line-height: 1.05;
+  --text-display--letter-spacing: -0.03em;
+  --text-display--font-weight: 800;
+
+  /* Surfaces (darkest → lightest) */
+  --color-night-950: #06120e;
+  --color-night-900: #0b1d17;
+  --color-night-800: #12302a;
+  --color-night-700: #1c3f37;
+  --color-surface-1: rgb(255 255 255 / 0.04);
+  --color-surface-2: rgb(255 255 255 / 0.07);
+  --color-surface-3: rgb(255 255 255 / 0.11);
+  --color-line: rgb(255 255 255 / 0.1);
+  --color-line-strong: rgb(255 255 255 / 0.18);
+
+  /* Text */
+  --color-ink: #ecfdf5;
+  --color-ink-muted: #b4cfc3;
+  --color-ink-subtle: #7fa495;
+
+  /* Brand */
+  --color-leaf-200: #bbf7d0;
+  --color-leaf-300: #86efac;
+  --color-leaf-400: #4ade80;
+  --color-leaf-500: #22c55e;
+  --color-leaf-600: #16a34a;
+  --color-leaf-700: #15803d;
+
+  --color-sky-200: #bae6fd;
+  --color-sky-300: #7dd3fc;
+  --color-sky-400: #38bdf8;
+  --color-sky-500: #0ea5e9;
+
+  --color-harvest-200: #fde68a;
+  --color-harvest-300: #fcd34d;
+  --color-harvest-400: #fbbf24;
+  --color-harvest-500: #f59e0b;
+
+  --color-alert-300: #fca5a5;
+  --color-alert-400: #f87171;
+  --color-alert-500: #ef4444;
+
+  /* Risk scale: the heart of every farmer-facing signal.
+   * Validated on night-900 (dataviz validator): CVD ΔE ≥ 8.2, normal-vision ΔE ≥ 17.7, contrast ≥ 3:1.
+   * Always shipped with a text label (RiskBadge), never color alone. */
+  --color-risk-safe: #4ade80;
+  --color-risk-watch: #fde047;
+  --color-risk-warning: #fb923c;
+  --color-risk-danger: #f43f5e;
+
+  /* Depth */
+  --shadow-card: 0 1px 0 0 rgb(255 255 255 / 0.06) inset, 0 12px 32px -12px rgb(0 0 0 / 0.6);
+  --shadow-glow-leaf: 0 0 0 1px rgb(74 222 128 / 0.35), 0 8px 30px -6px rgb(34 197 94 / 0.45);
+  --shadow-glow-sky: 0 0 0 1px rgb(125 211 252 / 0.35), 0 8px 30px -6px rgb(56 189 248 / 0.4);
+
+  --radius-card: 1.5rem;
+
+  /* Motion */
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --animate-shimmer: shimmer 1.6s ease-in-out infinite;
+  --animate-float: float 4s ease-in-out infinite;
+  --animate-ping-soft: ping-soft 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+  --animate-spin-slow: spin 12s linear infinite;
+
+  @keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+  }
+  @keyframes ping-soft {
+    0% { transform: scale(1); opacity: 0.7; }
+    80%, 100% { transform: scale(2.4); opacity: 0; }
+  }
+}
+
+/* Frosted glass surface used by cards and panels. */
+@utility glass {
+  background-color: var(--color-surface-1);
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--color-line);
+  backdrop-filter: blur(14px);
+}
+
+@utility text-gradient-brand {
+  background-image: linear-gradient(90deg, var(--color-leaf-300), var(--color-leaf-400) 40%, var(--color-sky-300));
+  background-clip: text;
+  color: transparent;
+}
+
+@utility focus-ring {
+  outline: 2px solid transparent;
+  &:focus-visible {
+    outline: 2px solid var(--color-leaf-300);
+    outline-offset: 3px;
+  }
+}
+
+/* Range slider: filled track up to --fill in --slider-color, with a glowing thumb. */
+.fs-slider {
+  appearance: none;
+  height: 1.5rem;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 999px;
+}
+.fs-slider::-webkit-slider-runnable-track {
+  height: 0.5rem;
+  border-radius: 999px;
+  background: linear-gradient(to right, var(--slider-color) var(--fill), var(--color-surface-3) var(--fill));
+}
+.fs-slider::-moz-range-track {
+  height: 0.5rem;
+  border-radius: 999px;
+  background: linear-gradient(to right, var(--slider-color) var(--fill), var(--color-surface-3) var(--fill));
+}
+.fs-slider::-webkit-slider-thumb {
+  appearance: none;
+  margin-top: -0.375rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 999px;
+  background: white;
+  border: 3px solid var(--slider-color);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--slider-color) 25%, transparent);
+  transition: transform 0.15s var(--ease-out-soft);
+}
+.fs-slider::-moz-range-thumb {
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 999px;
+  background: white;
+  border: 3px solid var(--slider-color);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--slider-color) 25%, transparent);
+}
+.fs-slider:active::-webkit-slider-thumb {
+  transform: scale(1.2);
+}
+
+/* MapLibre controls, restyled for the night theme. */
+.maplibregl-ctrl-group {
+  background: rgb(11 29 23 / 0.9) !important;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 0.875rem !important;
+  box-shadow: var(--shadow-card) !important;
+  overflow: hidden;
+}
+.maplibregl-ctrl-group button + button {
+  border-top: 1px solid var(--color-line) !important;
+}
+.maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+  filter: invert(1) brightness(0.9);
+}
+.maplibregl-ctrl-group button:hover {
+  background-color: var(--color-surface-2) !important;
+}
+.maplibregl-ctrl-attrib {
+  background: rgb(6 18 14 / 0.75) !important;
+  color: var(--color-ink-subtle);
+  font-size: 10px;
+}
+.maplibregl-ctrl-attrib a {
+  color: var(--color-ink-muted);
+}
+.maplibregl-ctrl-attrib-button {
+  filter: invert(1);
+}
+.maplibregl-canvas:focus-visible {
+  outline: 2px solid var(--color-leaf-300);
+  outline-offset: -2px;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-night-950);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+:lang(bn) {
+  font-family: var(--font-bengali);
+}
+
+::selection {
+  background: rgb(74 222 128 / 0.35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
