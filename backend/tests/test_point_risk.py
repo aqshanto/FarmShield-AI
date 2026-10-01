@@ -10,8 +10,10 @@ from app.main import create_app
 from app.pipeline import get_pipeline
 from app.pipeline.service import PipelineService
 from app.pipeline.store import ObservationStore
-from app.services import custom_farms, point_risk as pr
-from app.services.point_risk import Place, PointRiskError, local_today, point_location, point_risk, reverse_geocode
+from app.services import custom_farms, geocode as geo, point_risk as pr
+from app.risk.region import local_today
+from app.services.geocode import Place, reverse_geocode
+from app.services.point_risk import PointRiskError, point_location, point_risk
 from tests.test_custom_farms import NOW, make_pipeline, seeded_sources
 
 NAIROBI = (-1.29, 36.82)
@@ -70,8 +72,8 @@ def test_unsupported_requests(lat, crop, message):
 
 
 def test_reverse_geocode_names_the_place_caches_it_and_spots_the_sea(monkeypatch):
-    monkeypatch.setattr(pr, "_last_geocode", 0.0)
-    monkeypatch.setattr(pr, "_geocode_paused_until", None)
+    monkeypatch.setattr(geo, "_last_geocode", 0.0)
+    monkeypatch.setattr(geo, "_geocode_paused_until", None)
     calls = []
 
     def handler(request: httpx2.Request) -> httpx2.Response:
@@ -92,8 +94,8 @@ def test_reverse_geocode_names_the_place_caches_it_and_spots_the_sea(monkeypatch
 
 
 def test_reverse_geocode_failure_is_quick_and_pauses_lookups(monkeypatch):
-    monkeypatch.setattr(pr, "_last_geocode", 0.0)
-    monkeypatch.setattr(pr, "_geocode_paused_until", None)
+    monkeypatch.setattr(geo, "_last_geocode", 0.0)
+    monkeypatch.setattr(geo, "_geocode_paused_until", None)
     real_sleep = asyncio.sleep
     monkeypatch.setattr(asyncio, "sleep", lambda *_: real_sleep(0))
     pipeline = PipelineService(
@@ -109,9 +111,9 @@ def test_reverse_geocode_failure_is_quick_and_pauses_lookups(monkeypatch):
 
 
 def test_slow_geocoder_is_abandoned(monkeypatch):
-    monkeypatch.setattr(pr, "_last_geocode", 0.0)
-    monkeypatch.setattr(pr, "_geocode_paused_until", None)
-    monkeypatch.setattr(pr, "GEOCODE_TIMEOUT_S", 0.05)
+    monkeypatch.setattr(geo, "_last_geocode", 0.0)
+    monkeypatch.setattr(geo, "_geocode_paused_until", None)
+    monkeypatch.setattr(geo, "GEOCODE_TIMEOUT_S", 0.05)
     real_sleep = asyncio.sleep
 
     async def slow(request):

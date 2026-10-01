@@ -25,6 +25,8 @@ class Farm(FarmSummary):
     story: str
     # True for a farm the farmer added (id "my_<lat>_<lon>_<crop>").
     custom: bool = False
+    # Set for farms outside Bangladesh (district/division then hold the place and country).
+    country: str | None = None
 
 
 class Metric(BaseModel):

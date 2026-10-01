@@ -20,7 +20,6 @@ import asyncio
 import json
 import logging
 from datetime import date, datetime, timedelta
-from pathlib import Path
 from statistics import fmean
 
 import httpx2
@@ -39,12 +38,12 @@ from app.risk.crop import score_factors as crop_score
 from app.risk.flood import DailyRain, FloodInputs
 from app.risk.flood import score_factors as flood_score
 from app.risk.inputs import POROSITY, flood_inputs, water_inputs
+from app.risk.region import in_bangladesh
 from app.risk.water import Reading, WaterInputs
 from app.risk.water import score_factors as water_score
 
 log = logging.getLogger("farmshield.grid")
 
-OUTLINE = json.loads((Path(__file__).resolve().parent.parent / "data" / "bangladesh.geo.json").read_text())
 FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 POWER_REGIONAL_URL = "https://power.larc.nasa.gov/api/temporal/daily/regional"
 # POWER regional serves one parameter per request: grid variable → POWER parameter.
@@ -59,24 +58,6 @@ WEATHER_STEP_DEG = 0.4
 WEATHER_PAUSE = timedelta(minutes=30)
 _weather_paused_until: datetime | None = None
 SMAP_TTL = timedelta(hours=6)
-
-
-def _in_ring(lon: float, lat: float, ring: list) -> bool:
-    inside = False
-    j = len(ring) - 1
-    for i in range(len(ring)):
-        xi, yi = ring[i]
-        xj, yj = ring[j]
-        if (yi > lat) != (yj > lat) and lon < (xj - xi) * (lat - yi) / (yj - yi) + xi:
-            inside = not inside
-        j = i
-    return inside
-
-
-def in_bangladesh(lat: float, lon: float) -> bool:
-    geometry = OUTLINE["geometry"]
-    polygons = geometry["coordinates"] if geometry["type"] == "MultiPolygon" else [geometry["coordinates"]]
-    return any(_in_ring(lon, lat, outer) and not any(_in_ring(lon, lat, hole) for hole in holes) for outer, *holes in polygons)
 
 
 def land_cells() -> list[tuple[float, float]]:

@@ -96,4 +96,5 @@ export function formatDate(date: string | Date, lang: Lang, options: Intl.DateTi
 
 const BN_VOWEL_ENDINGS = new Set('ািীুূৃেৈোৌঅআইঈউঊঋএঐওঔ')
 /** Bengali possessive: বগুড়া → বগুড়ার, ধান → ধানের, রোগ → রোগের. */
-export const bnOf = (word: string) => (BN_VOWEL_ENDINGS.has(word.at(-1) ?? '') ? `${word}র` : `${word}ের`)
+export const bnOf = (word: string) =>
+  /[A-Za-z0-9]$/.test(word) ? `${word}-এর` : BN_VOWEL_ENDINGS.has(word.at(-1) ?? '') ? `${word}র` : `${word}ের` // Latin-script names: Komothai-এর

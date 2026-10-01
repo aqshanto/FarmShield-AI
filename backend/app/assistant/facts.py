@@ -52,14 +52,20 @@ def _module_lines(m: RiskModuleSummary) -> list[str]:
     return lines
 
 
+def _farm_line(farm) -> str:
+    where = f"near {farm.district}, {farm.country}" if farm.country else f"{farm.district} district, {farm.division} division, Bangladesh"
+    size = f" Size: {farm.area_acres:g} acres." if farm.area_acres is not None else ""
+    return f"Farm: {farm.name}, {where}. Crop: {farm.crop}.{size}"
+
+
 def fact_sheet(d: Dashboard, today: date, lang: str) -> str:
     farm = d.farm
     language = "Bengali (বাংলা)" if lang == "bn" else "English"
     lines = [
         "FARM FACTS",
         f"Farmer's chosen language: {language}",
-        f"Today: {today:%A %d %B %Y} (Bangladesh)",
-        f"Farm: {farm.name}, {farm.district} district, {farm.division} division. Crop: {farm.crop}. Size: {farm.area_acres:g} acres.",
+        f"Today: {today:%A %d %B %Y} (the farm's local date)",
+        _farm_line(farm),
         f"About the place: {farm.story}",
         "",
         f"Overall today: {LEVEL_WORDS[d.overall.level]}. {d.overall.summary}",

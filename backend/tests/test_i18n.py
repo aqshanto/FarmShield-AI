@@ -44,7 +44,7 @@ def test_source_lists_keep_mission_names_and_translate_words():
 
 
 def test_bengali_possessive():
-    assert [bn_of(w) for w in ("ধান", "আলু", "বগুড়া", "রোগ")] == ["ধানের", "আলুর", "বগুড়ার", "রোগের"]
+    assert [bn_of(w) for w in ("ধান", "আলু", "বগুড়া", "রোগ", "Komothai")] == ["ধানের", "আলুর", "বগুড়ার", "রোগের", "Komothai-এর"]
 
 
 def test_whole_dashboard_in_bengali():

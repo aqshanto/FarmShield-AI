@@ -104,9 +104,15 @@ class FarmDataPendingError(RuntimeError):
 
 
 def build_custom_dashboard(
-    farm: "CustomFarm", pipeline: "PipelineService", name: str | None = None, now: datetime | None = None
+    farm: "CustomFarm",
+    pipeline: "PipelineService",
+    name: str | None = None,
+    now: datetime | None = None,
+    place: tuple[str, str] | None = None,
 ) -> Dashboard:
-    """A farmer's own field: every risk from the live engines, nothing from the demo."""
+    """A farmer's own field: every risk from the live engines, nothing from the demo.
+
+    `place` is (nearest named place, country) for fields outside Bangladesh."""
     from app.risk.live import (
         crop_module,
         crop_recommendations,
@@ -119,10 +125,11 @@ def build_custom_dashboard(
         water_module,
         water_recommendations,
     )
+    from app.risk.region import local_today
     from app.services.custom_farms import last_data_time
 
     now = now or datetime.now(UTC)
-    today = _local_today(now)
+    today = local_today(now, farm.lon)
     location = farm.location
     flood = live_flood(pipeline, location, today)
     water = live_water(pipeline, location, today)
@@ -138,17 +145,7 @@ def build_custom_dashboard(
     score = overall_score([m.score for m in modules])
     level = score_to_level(score)
     return Dashboard(
-        farm=Farm(
-            id=farm.id,
-            name=name or f"My {farm.crop.name.lower()} field",
-            district=farm.district.name,
-            division=farm.division.name,
-            crop=farm.crop.name,
-            lat=farm.lat,
-            lon=farm.lon,
-            story=f"Your field near {farm.district.name}, {farm.division.name} division, watched from space by NASA satellites.",
-            custom=True,
-        ),
+        farm=_custom_farm(farm, name, place),
         generated_at=now,
         last_satellite_pass=last_data_time(pipeline, farm, now),
         data_mode="live",
@@ -157,6 +154,29 @@ def build_custom_dashboard(
         forecast=forecast or [],
         recommendations=sorted(recommendations, key=lambda r: PRIORITY_ORDER[r.priority]),
     )
+
+
+def _custom_farm(farm: "CustomFarm", name: str | None, place: tuple[str, str] | None) -> Farm:
+    common = {"id": farm.id, "name": name or f"My {farm.crop.name.lower()} field", "crop": farm.crop.name, "lat": farm.lat, "lon": farm.lon, "custom": True}
+    if farm.district is not None and farm.division is not None:
+        return Farm(
+            **common,
+            district=farm.district.name,
+            division=farm.division.name,
+            story=f"Your field near {farm.district.name}, {farm.division.name} division, watched from space by NASA satellites.",
+        )
+    town, country = place or (_coordinates(farm.lat, farm.lon), "")
+    return Farm(
+        **common,
+        district=town,
+        division=country,
+        country=country or None,
+        story=f"Your field near {town}{', ' + country if country else ''}, watched from space by NASA satellites.",
+    )
+
+
+def _coordinates(lat: float, lon: float) -> str:
+    return f"{abs(lat):.2f}°{'N' if lat >= 0 else 'S'}, {abs(lon):.2f}°{'E' if lon >= 0 else 'W'}"
 
 
 def _local_today(now: datetime) -> date:

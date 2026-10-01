@@ -2,6 +2,17 @@
 
 Short records of choices that shape the project. Newest first.
 
+## 2026-10-01: Global map, Stage B (farms anywhere)
+
+| Topic | Decision | Why |
+|---|---|---|
+| Where it applies | Bangladesh keeps its tuned rules, districts and crop seasons; the new rules apply only outside it | The home calibration is backed by local sources; we don't change what already works |
+| Flood terrain | Height above the lowest land within ~2 km (SRTM, 9 points in one request) | A valley floor floods at any altitude; "≤8 m above sea level" only fits deltas (Kenya's highlands at 1,600 m would always read safe) |
+| Soil type | Porosity from SMAP ÷ POWER wetness on shared days, clamped 0.30–0.60 | Uses NASA data we already fetch. SoilGrids was too slow to rely on (a query timed out at 40 s) |
+| Crops | 8 plain names outside Bangladesh, same engine profiles | Bangladeshi season names and calendars don't travel |
+| Place names | OpenStreetMap reverse geocode in the farmer's language at dashboard time; coordinates if it's down | Free, global, Bengali names where OSM has them; Latin names get "-এর" in Bengali possessives |
+| Finding a field | Place search (Nominatim), GPS anywhere, tap the map | District buttons only make sense for Bangladesh |
+
 ## 2026-10-01: Background map warm-up
 
 | Topic | Decision | Why |

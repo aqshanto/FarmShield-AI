@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowLeft, ArrowRight, Bean, Carrot, Check, Cherry, CloudOff, Flower2, Leaf, LocateFixed, MapPin, RotateCw, Sprout, Wheat } from 'lucide-react'
-import { lazy, Suspense, useRef, useState } from 'react'
+import { ArrowLeft, ArrowRight, Bean, Carrot, Check, Cherry, CloudOff, Flower2, Globe2, Leaf, LocateFixed, MapPin, RotateCw, Search, Sprout, Waves, Wheat } from 'lucide-react'
+import { type FormEvent, lazy, Suspense, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
@@ -11,7 +11,7 @@ import type { PickedPoint, PickerFocus } from '@/features/add-farm/LocationPicke
 import { addFarmText } from '@/features/add-farm/strings'
 import { FieldScene } from '@/features/field/FieldScene'
 import { previewState } from '@/features/field/fieldState'
-import { isInBangladesh } from '@/features/map/geo'
+import { formatLatLon, isInBangladesh } from '@/features/map/geo'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/cn'
 import { type Lang, setLang, useLang } from '@/lib/i18n'
@@ -24,6 +24,7 @@ import type { CropOption, PlaceInfo } from '@/types/api'
 const LocationPickerMap = lazy(async () => ({ default: (await import('@/features/add-farm/LocationPickerMap')).LocationPickerMap }))
 
 const CROP_ICONS: Record<string, typeof Sprout> = {
+  rice: Sprout,
   'boro-rice': Sprout,
   'aman-rice': Sprout,
   'aus-rice': Sprout,
@@ -36,7 +37,7 @@ const CROP_ICONS: Record<string, typeof Sprout> = {
   tomato: Cherry,
 }
 
-type GpsState = 'idle' | 'locating' | 'denied' | 'unavailable' | 'outside'
+type GpsState = 'idle' | 'locating' | 'denied' | 'unavailable'
 
 function pointFromParams(params: URLSearchParams): PickedPoint | null {
   const lat = Number(params.get('lat'))
@@ -76,17 +77,23 @@ export function AddFarmPage() {
   const lang = useLang()
   const t = addFarmText[lang]
 
-  const places = useAsync('places', (signal) => api.places({ signal }), { retries: 3 })
-  const crops = useAsync('crops', (signal) => api.crops({ signal }), { retries: 3 })
-
   const [initial] = useState(() => pointFromParams(params))
   const [point, setPoint] = useState<PickedPoint | null>(initial)
   const [focus, setFocus] = useState<PickerFocus | null>(initial ? { ...initial, zoom: 9, key: 0 } : null)
+  // Bangladesh has districts and its own crop calendar; elsewhere, places and plain crop names.
+  const inside = point === null || isInBangladesh(point.lon, point.lat)
+  const region = inside ? 'bangladesh' : 'world'
+
+  const places = useAsync('places', (signal) => api.places({ signal }), { retries: 3 })
+  const crops = useAsync(`crops|${region}`, (signal) => api.crops({ signal }, region), { retries: 3 })
+
   const pointKey = point ? `${point.lat.toFixed(4)},${point.lon.toFixed(4)}` : null
-  const located = useAsync(pointKey && point && isInBangladesh(point.lon, point.lat) ? pointKey : null, (signal) =>
-    api.locate(point!.lat, point!.lon, { signal }),
-  )
+  const located = useAsync(pointKey ? `${pointKey}|${lang}` : null, (signal) => api.locate(point!.lat, point!.lon, { signal }, lang))
   const locatedHere = located.data && pointKey === `${located.data.lat.toFixed(4)},${located.data.lon.toFixed(4)}` ? located.data : null
+
+  const [query, setQuery] = useState('')
+  const [submitted, setSubmitted] = useState<string | null>(null)
+  const found = useAsync(submitted ? `search|${submitted}|${lang}` : null, (signal) => api.searchPlaces(submitted!, { signal }, lang))
 
   const focusCount = useRef(0) // each fly-to request gets a new key
   const [step, setStep] = useState(0)
@@ -100,8 +107,10 @@ export function AddFarmPage() {
   const crop = crops.data?.find((c) => c.id === cropId) ?? null
   const cropLabel = (c: CropOption) => (lang === 'bn' ? c.name_bn : c.name)
   const placeLabel = (p: PlaceInfo) => (lang === 'bn' ? p.name_bn : p.name)
-  const outside = point !== null && !isInBangladesh(point.lon, point.lat)
-  const locationReady = Boolean(locatedHere?.inside)
+  const water = locatedHere?.land === false
+  // Outside Bangladesh a spot is fine unless it's open water (a missing name is OK).
+  const locationReady = Boolean(locatedHere && (locatedHere.inside || !water))
+  const worldName = locatedHere && !locatedHere.inside ? (locatedHere.place ?? formatLatLon(locatedHere.lat, locatedHere.lon)) : null
 
   const changeLang = (next: Lang) => setLang(next)
   const go = (next: number) => {
@@ -118,10 +127,8 @@ export function AddFarmPage() {
     setGps('locating')
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const p = { lat: pos.coords.latitude, lon: pos.coords.longitude }
-        if (!isInBangladesh(p.lon, p.lat)) return setGps('outside')
         setGps('idle')
-        pick(p, 12)
+        pick({ lat: pos.coords.latitude, lon: pos.coords.longitude }, 12)
       },
       (error) => setGps(error.code === error.PERMISSION_DENIED ? 'denied' : 'unavailable'),
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 },
@@ -131,8 +138,14 @@ export function AddFarmPage() {
     pick({ lat: d.lat, lon: d.lon }, 10)
     setPickedDistrict(d.name)
   }
+  const searchSubmit = (e: FormEvent) => {
+    e.preventDefault()
+    const q = query.trim()
+    if (q.length >= 2) setSubmitted(q)
+  }
   const save = () => {
-    if (!point || !crop || !locatedHere?.district || !locatedHere.division) return
+    if (!point || !crop || !locatedHere || !locationReady) return
+    const home = locatedHere.inside && locatedHere.district && locatedHere.division
     const id = myFarmId(point.lat, point.lon, crop.id)
     const finalName = name.trim() || t.defaultName(cropLabel(crop))
     myFarms.save({
@@ -143,9 +156,9 @@ export function AddFarmPage() {
       cropNameBn: crop.name_bn,
       lat: Number(point.lat.toFixed(4)),
       lon: Number(point.lon.toFixed(4)),
-      district: locatedHere.district.name,
-      districtBn: locatedHere.district.name_bn,
-      division: locatedHere.division.name,
+      district: home ? locatedHere.district!.name : (worldName ?? ''),
+      districtBn: home ? locatedHere.district!.name_bn : (worldName ?? ''),
+      division: home ? locatedHere.division!.name : (locatedHere.country ?? ''),
     })
     toast({ title: t.saved(finalName), description: t.savedHint, tone: 'success' })
     navigate(`/dashboard?farm=${encodeURIComponent(id)}`)
@@ -165,12 +178,17 @@ export function AddFarmPage() {
     )
   }
 
-  const where = locatedHere?.district && locatedHere.division && (
+  const where = locatedHere?.inside && locatedHere.district && locatedHere.division ? (
     <>
       <span className="font-semibold text-ink">{t.near(placeLabel(locatedHere.district), placeLabel(locatedHere.division))}</span>
       <span className="text-ink-subtle"> · {t.kmFrom(locatedHere.km_to_district_town ?? 0, placeLabel(locatedHere.district))}</span>
     </>
-  )
+  ) : worldName && !water ? (
+    <>
+      <span className="font-semibold text-ink">{locatedHere?.place ? t.nearWorld(worldName, locatedHere.country ?? '') : t.unnamed}</span>
+      <span className="mt-0.5 block text-xs text-ink-subtle">{t.worldNote}</span>
+    </>
+  ) : null
 
   return (
     <motion.div variants={stagger(0.08)} initial="hidden" animate="show" className="mx-auto max-w-5xl space-y-6 py-6" lang={lang}>
@@ -219,11 +237,59 @@ export function AddFarmPage() {
                   <Button icon={gps === 'locating' ? <Spinner className="size-4" /> : <LocateFixed className="size-4" />} onClick={useMyLocation} disabled={gps === 'locating'}>
                     {gps === 'locating' ? t.locating : t.useLocation}
                   </Button>
-                  {(gps === 'denied' || gps === 'unavailable' || gps === 'outside') && (
+                  {(gps === 'denied' || gps === 'unavailable') && (
                     <p role="alert" className="rounded-xl bg-harvest-400/10 p-3 text-sm text-harvest-200 ring-1 ring-harvest-300/30">
-                      {gps === 'denied' ? t.denied : gps === 'outside' ? t.gpsOutside : t.unavailable}
+                      {gps === 'denied' ? t.denied : t.unavailable}
                     </p>
                   )}
+
+                  <form onSubmit={searchSubmit} role="search" className="space-y-2">
+                    <label htmlFor="place-search" className="block text-sm font-semibold text-ink">
+                      {t.search}
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        id="place-search"
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)}
+                        maxLength={100}
+                        placeholder={t.searchPlaceholder}
+                        className="focus-ring min-w-0 flex-1 rounded-xl bg-surface-1 px-3 py-2 text-sm text-ink ring-1 ring-line placeholder:text-ink-subtle"
+                      />
+                      <Button type="submit" size="sm" variant="secondary" icon={found.status === 'loading' && submitted ? <Spinner className="size-4" /> : <Search className="size-4" />}>
+                        {t.searchButton}
+                      </Button>
+                    </div>
+                    <AnimatePresence>
+                      {submitted && found.status !== 'loading' && (
+                        <motion.div key={submitted} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+                          {found.status === 'error' ? (
+                            <p className="text-xs text-harvest-200">{t.searchDown}</p>
+                          ) : found.data?.length ? (
+                            <ul className="space-y-1" aria-label={t.search}>
+                              {found.data.map((p) => (
+                                <li key={`${p.lat},${p.lon}`}>
+                                  <button
+                                    type="button"
+                                    onClick={() => pick({ lat: p.lat, lon: p.lon }, 12)}
+                                    className="focus-ring flex w-full cursor-pointer items-start gap-2 rounded-xl bg-surface-1 px-3 py-2 text-left text-sm ring-1 ring-line transition hover:bg-surface-2"
+                                  >
+                                    <Globe2 className="mt-0.5 size-4 shrink-0 text-sky-300" aria-hidden="true" />
+                                    <span>
+                                      <span className="font-semibold text-ink">{p.name}</span>
+                                      {p.detail && <span className="block text-xs text-ink-subtle">{p.detail}</span>}
+                                    </span>
+                                  </button>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="text-xs text-ink-subtle">{t.noResults}</p>
+                          )}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </form>
 
                   <div className="space-y-2">
                     <p className="text-sm font-semibold text-ink">{t.chooseDivision}</p>
@@ -295,8 +361,11 @@ export function AddFarmPage() {
                   <div aria-live="polite" className="min-h-12 rounded-2xl bg-surface-1 px-4 py-3 text-sm ring-1 ring-line">
                     {!point ? (
                       <span className="text-ink-subtle">{t.tapMap}</span>
-                    ) : outside ? (
-                      <span className="text-harvest-200">{t.outside}</span>
+                    ) : water ? (
+                      <span className="flex items-start gap-2 text-sky-200">
+                        <Waves className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                        {t.water}
+                      </span>
                     ) : where ? (
                       <span className="flex items-start gap-2">
                         <MapPin className="mt-0.5 size-4 shrink-0 text-leaf-300" aria-hidden="true" />

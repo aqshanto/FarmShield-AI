@@ -158,7 +158,7 @@ export function FarmHeader({ dashboard, farms, myFarm, onFarmChange, onRemoveFar
             </Badge>
           )}
           <Badge icon={<MapPin className="size-3.5" />}>
-            {farm.custom ? t.near(farm.district) : farm.district}, {farm.division}
+            {[farm.custom ? t.near(farm.district) : farm.district, farm.division].filter(Boolean).join(', ')}
           </Badge>
           <Badge icon={<Sprout className="size-3.5" />}>{farm.crop}</Badge>
           {farm.area_acres != null && <Badge icon={<Ruler className="size-3.5" />}>{t.acres(digits(farm.area_acres, lang))}</Badge>}

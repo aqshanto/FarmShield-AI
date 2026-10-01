@@ -43,6 +43,9 @@ class FloodInputs:
     saturation_date: date | None
     normal_mm_per_day: float | None  # this month's normal
     elevation_m: float | None
+    # Outside Bangladesh: height above the lowest land nearby, used instead of height above
+    # sea level (a valley floor floods at any altitude; the delta rule only fits deltas).
+    relief_m: float | None = None
 
 
 @dataclass(frozen=True)
@@ -80,6 +83,15 @@ def saturation_words(saturation: float) -> str:
     if saturation >= 0.6:
         return f"{pct} and can't hold much more rain"
     return f"{pct} and can still soak up rain"
+
+
+def relief_words(relief_m: float) -> str:
+    height = f"The field sits {relief_m:.0f} m above the lowest land nearby"
+    if relief_m <= 4:
+        return f"{height}, where water collects first"
+    if relief_m >= 20:
+        return f"{height}, high enough to drain well"
+    return height
 
 
 def terrain_words(elevation_m: float) -> str:
@@ -143,7 +155,18 @@ def score_factors(inputs: FloodInputs, day: date) -> tuple[int, list[Factor], fl
             )
         )
 
-    if inputs.elevation_m is not None:
+    if inputs.relief_m is not None:
+        factors.append(
+            Factor(
+                "terrain",
+                "Low-lying land",
+                round(100 * _clamp01((25 - inputs.relief_m) / 22)),  # ≤3 m above the low ground → 100, ≥25 m → 0
+                WEIGHTS["terrain"],
+                relief_words(inputs.relief_m),
+                "srtm",
+            )
+        )
+    elif inputs.elevation_m is not None:
         factors.append(
             Factor(
                 "terrain",

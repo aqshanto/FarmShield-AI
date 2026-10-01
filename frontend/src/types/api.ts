@@ -43,6 +43,8 @@ export interface Farm extends FarmSummary {
   lon: number
   story: string
   custom?: boolean // a farmer's own field (id "my_<lat>_<lon>_<crop>")
+  // Outside Bangladesh: district/division hold the nearest place and the country.
+  country?: string | null
 }
 
 // --- adding your own farm ----------------------------------------------------------------
@@ -72,10 +74,22 @@ export interface CropOption {
 export interface LocateResult {
   lat: number
   lon: number
-  inside: boolean
+  inside: boolean // in Bangladesh: district and division
   district: PlaceInfo | null
   division: PlaceInfo | null
   km_to_district_town: number | null
+  // Elsewhere: the nearest named place and country (OpenStreetMap).
+  place?: string | null
+  country?: string | null
+  land?: boolean | null // false for open water; null when the place service didn't answer
+}
+
+export interface FoundPlace {
+  name: string
+  detail: string // region and country
+  country: string | null
+  lat: number
+  lon: number
 }
 
 export interface Metric {

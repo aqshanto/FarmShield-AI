@@ -43,7 +43,7 @@ npm run dev
 - Risk map: http://localhost:5173/map
 - Satellite data (pipeline): http://localhost:5173/data
 - AI Farmer Assistant (English / বাংলা, voice): http://localhost:5173/assistant
-- Add my farm (any field in Bangladesh, 10 crops): http://localhost:5173/farms/new
+- Add my farm (any field on Earth; in Bangladesh with local crop seasons): http://localhost:5173/farms/new
 - Flood report API: http://127.0.0.1:8000/api/v1/farms/sunamganj-haor/flood
 - Water report API: http://127.0.0.1:8000/api/v1/farms/bogura-potato/water
 - Crop report API: http://127.0.0.1:8000/api/v1/farms/bogura-potato/crop

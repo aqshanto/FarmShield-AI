@@ -32,3 +32,19 @@ CROPS: list[Crop] = [
 ]
 
 CROPS_BY_ID = {c.id: c for c in CROPS}
+
+
+# Outside Bangladesh, crops go by their plain names (season names like "Boro rice" and local
+# sowing calendars don't travel). Each uses the same engine profile as at home.
+_ANY = ("Your local season", "আপনার এলাকার মৌসুম")
+WORLD_CROPS: list[Crop] = [
+    Crop("rice", "Rice", "ধান", *_ANY, "rice"),
+    Crop("wheat", "Wheat", "গম", *_ANY, "wheat"),
+    Crop("maize", "Maize", "ভুট্টা", *_ANY, "wheat"),
+    Crop("potato", "Potato", "আলু", *_ANY, "potato"),
+    Crop("tomato", "Tomato", "টমেটো", *_ANY, "potato"),
+    Crop("lentil", "Lentil", "মসুর ডাল", *_ANY, "potato"),
+    Crop("mustard", "Mustard", "সরিষা", *_ANY, "wheat"),
+    Crop("jute", "Jute", "পাট", *_ANY, "wheat"),
+]
+WORLD_CROPS_BY_ID = {c.id: c for c in WORLD_CROPS}

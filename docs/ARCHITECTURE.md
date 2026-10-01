@@ -271,7 +271,20 @@ Frontend (`features/assistant/`):
 
 ## Add my farm (`/farms/new`, `services/custom_farms.py`)
 
-Farmers add their own fields: any point in Bangladesh, any of 10 crops.
+Farmers add their own fields anywhere on Earth (Stage B of the global map). In Bangladesh: any of
+10 crops with their seasons, described by district and division. Elsewhere: 8 crops by plain name
+(`WORLD_CROPS`), described by the nearest place and country from OpenStreetMap (named in the
+farmer's language when the dashboard loads, `services/geocode.py`), and found with a place search.
+
+**Per-region tuning** (`risk/region.py`, `risk/inputs.py`): Bangladesh keeps the engines' home
+calibration. Elsewhere:
+- *Terrain:* SRTM is read at the field and 8 points ~2 km around it (one OpenTopoData request);
+  the flood engine scores the height above the lowest land nearby (≤3 m → 100, ≥25 m → 0)
+  instead of height above sea level, which only fits deltas.
+- *Soil:* SMAP volumetric moisture ÷ NASA POWER surface wetness (a fraction of saturation) on
+  days with both estimates that soil's porosity (0.30–0.60; needs ≥3 days, else 0.50), so
+  "saturation" means the same on sand and clay.
+- *Calendar:* "today" is the farm's own day (longitude ÷ 15 h).
 
 ```
 /farms/new  ──►  1 Where: GPS · division → district · tap the map (street map or NASA satellite)
@@ -282,7 +295,8 @@ Farmers add their own fields: any point in Bangladesh, any of 10 crops.
 | Piece | Role |
 |---|---|
 | `my_<lat>_<lon>_<crop>` id | The whole farm. The server keeps no per-user state, and the id works in every existing endpoint (dashboard, assistant). |
-| `GET /places`, `/crops`, `/locate` | 8 divisions and 64 district towns (EN/BN); crop list; "is this point in Bangladesh, near which district town?" |
+| `GET /places`, `/crops?region=`, `/locate?lang=` | 8 divisions and 64 district towns (EN/BN); Bangladesh or world crop list; nearest district town in Bangladesh, else nearest place, country, and land/open water |
+| `GET /places/search?q=&lang=` | Villages, towns and regions anywhere (OpenStreetMap; cached, ≤1 request/s, 503 when it's down) |
 | `ensure_data()` | Fetches the quick sources (POWER, forecast, SRTM, climatology) for the ~1 km point on the first visit, in about 2 seconds, without waiting for the global refresh lock. MODIS, VIIRS, GPM and SMAP follow in the background and raise confidence on the next visit. |
 | `build_custom_dashboard()` | Every risk from the live engines; no demo fallback. Missing data → 503 "Still downloading…", and the page retries. Demo mode → 409. |
 | Crop profiles | 5 new crops (maize, jute, mustard, lentil, tomato) with heat limits and disease weather; sources in DECISIONS.md. |

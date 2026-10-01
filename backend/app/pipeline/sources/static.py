@@ -18,6 +18,10 @@ from app.pipeline.sources.base import SourceError, SourceInfo
 
 SRTM_URL = "https://api.opentopodata.org/v1/srtm90m"
 SRTM_DATE = date(2000, 2, 11)  # SRTM mission launch
+# Neighbours ~2 km away in 8 directions: how far the field sits above the lowest land nearby,
+# which says more about flooding than height above sea level away from river deltas.
+RELIEF_STEP_DEG = 0.02
+NEIGHBOURS = [(dy, dx) for dy in (-1, 0, 1) for dx in (-1, 0, 1) if (dy, dx) != (0, 0)]
 
 POWER_CLIMATOLOGY_URL = "https://power.larc.nasa.gov/api/temporal/climatology/point"
 MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
@@ -30,7 +34,7 @@ class SrtmElevationSource:
         mission="SRTM",
         provider="NASA SRTM via OpenTopoData",
         product="SRTM 90 m digital elevation model",
-        variables=("elevation",),
+        variables=("elevation", "height_above_low"),
         requires_token=False,
         ttl_hours=24 * 365,
         overlap_days=0,
@@ -38,14 +42,22 @@ class SrtmElevationSource:
     )
 
     async def fetch(self, client: httpx2.AsyncClient, location: Location, start: date, end: date) -> list[Observation]:
-        response = await get(client, SRTM_URL, params={"locations": f"{location.lat},{location.lon}"})
+        points = [(location.lat, location.lon)] + [
+            (round(location.lat + dy * RELIEF_STEP_DEG, 5), round(location.lon + dx * RELIEF_STEP_DEG, 5)) for dy, dx in NEIGHBOURS
+        ]
+        response = await get(client, SRTM_URL, params={"locations": "|".join(f"{lat},{lon}" for lat, lon in points)}, retry_rate_limited=True)
         try:
-            elevation = response.json()["results"][0]["elevation"]
+            heights = [r["elevation"] for r in response.json()["results"]]
+            elevation = heights[0]
         except (KeyError, IndexError, TypeError) as error:
             raise SourceError(f"Unexpected OpenTopoData payload: {error}") from None
         if elevation is None:
             return []
-        return [Observation(self.info.id, "elevation", SRTM_DATE, float(elevation), "m")]
+        observations = [Observation(self.info.id, "elevation", SRTM_DATE, float(elevation), "m")]
+        around = [h for h in heights[1:] if h is not None]
+        if len(around) >= 4:
+            observations.append(Observation(self.info.id, "height_above_low", SRTM_DATE, max(0.0, float(elevation) - min(around)), "m"))
+        return observations
 
 
 async def srtm_elevations(client: httpx2.AsyncClient, points: list[tuple[float, float]]) -> list[float | None]:

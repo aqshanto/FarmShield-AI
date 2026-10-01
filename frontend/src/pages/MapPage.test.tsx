@@ -125,7 +125,7 @@ describe('MapPage', () => {
     expect(within(panel).getByText('Check the soil in 2–3 days')).toBeInTheDocument()
     expect(within(panel).getByText(/downloading now/)).toBeInTheDocument()
     expect(pointUrls[0]).toBe('/api/v1/map/point?lat=-1.2900&lon=36.8200&crop=rice')
-    expect(screen.queryByRole('link', { name: /Add a farm here/ })).not.toBeInTheDocument()
+    expect(within(panel).getByRole('link', { name: /Add my farm here/ })).toHaveAttribute('href', '/farms/new?lat=-1.2900&lon=36.8200')
 
     // Changing the crop asks again for that crop.
     await userEvent.click(within(panel).getByRole('radio', { name: 'Wheat' }))

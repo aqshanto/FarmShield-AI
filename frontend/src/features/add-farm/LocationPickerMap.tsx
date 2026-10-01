@@ -55,7 +55,7 @@ function pinElement() {
   return el
 }
 
-// A map of Bangladesh (street map or NASA satellite view): tap your field, or drag the pin.
+// A world map that opens on Bangladesh (street map or NASA satellite view): tap your field, or drag the pin.
 export function LocationPickerMap({ value, focus, onPick, label, viewLabels }: LocationPickerMapProps) {
   const bn = useLang() === 'bn'
   const container = useRef<HTMLDivElement>(null)
@@ -75,7 +75,7 @@ export function LocationPickerMap({ value, focus, onPick, label, viewLabels }: L
       style: pickerStyle(),
       bounds: BOUNDS,
       fitBoundsOptions: { padding: 16 },
-      minZoom: 5,
+      minZoom: 1, // fields anywhere on Earth; it still opens on Bangladesh
       maxZoom: 16,
       attributionControl: false,
       dragRotate: false,

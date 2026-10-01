@@ -12,6 +12,7 @@ import type {
   FarmSummary,
   HealthStatus,
   LocateResult,
+  FoundPlace,
   MapOverview,
   PointRisk,
   Places,
@@ -77,8 +78,11 @@ export const api = {
     request<FarmObservations>(`/farms/${encodeURIComponent(farmId)}/observations?days=${days}`, init),
   assistantStatus: (init?: RequestInit) => request<AssistantStatus>('/assistant/status', init),
   places: (init?: RequestInit) => request<Places>('/places', init),
-  crops: (init?: RequestInit) => request<CropOption[]>('/crops', init),
-  locate: (lat: number, lon: number, init?: RequestInit) => request<LocateResult>(`/locate?lat=${lat}&lon=${lon}`, init),
+  crops: (init?: RequestInit, region: 'bangladesh' | 'world' = 'bangladesh') =>
+    request<CropOption[]>(region === 'world' ? '/crops?region=world' : '/crops', init),
+  locate: (lat: number, lon: number, init?: RequestInit, lang?: Lang) => request<LocateResult>(`/locate${langQuery(lang, `lat=${lat}&lon=${lon}`)}`, init),
+  searchPlaces: (query: string, init?: RequestInit, lang?: Lang) =>
+    request<FoundPlace[]>(`/places/search${langQuery(lang, new URLSearchParams({ q: query }).toString())}`, init),
 }
 
 function parseEvent(block: string): ChatEvent | null {

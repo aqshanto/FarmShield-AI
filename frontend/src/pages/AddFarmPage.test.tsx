@@ -19,6 +19,9 @@ vi.mock('@/features/add-farm/LocationPickerMap', () => ({
       <button type="button" onClick={() => onPick({ lat: 22.5, lon: 88.3 })}>
         tap Kolkata
       </button>
+      <button type="button" onClick={() => onPick({ lat: 21.0, lon: 90.0 })}>
+        tap the sea
+      </button>
     </div>
   ),
 }))
@@ -30,6 +33,10 @@ const places: Places = {
     { name: 'Dinajpur', name_bn: 'দিনাজপুর', lat: 25.63, lon: 88.64, division: 'Rangpur' },
   ],
 }
+const worldCrops: CropOption[] = [
+  { id: 'rice', name: 'Rice', name_bn: 'ধান', season: 'Your local season', season_bn: 'আপনার এলাকার মৌসুম', scene: 'rice' },
+  { id: 'wheat', name: 'Wheat', name_bn: 'গম', season: 'Your local season', season_bn: 'আপনার এলাকার মৌসুম', scene: 'wheat' },
+]
 const crops: CropOption[] = [
   { id: 'aman-rice', name: 'Aman rice', name_bn: 'আমন ধান', season: 'Monsoon (Jul–Nov)', season_bn: 'বর্ষা', scene: 'rice' },
   { id: 'maize', name: 'Maize', name_bn: 'ভুট্টা', season: 'Winter or summer', season_bn: 'শীত বা গ্রীষ্ম', scene: 'wheat' },
@@ -40,10 +47,16 @@ function mockApi() {
     const url = new URL(String(input), 'http://x')
     const json = (body: unknown) => new Response(JSON.stringify(body))
     if (url.pathname === '/api/v1/places') return json(places)
-    if (url.pathname === '/api/v1/crops') return json(crops)
+    if (url.pathname === '/api/v1/crops') return json(url.searchParams.get('region') === 'world' ? worldCrops : crops)
+    if (url.pathname === '/api/v1/places/search') {
+      return json(url.searchParams.get('q') === 'Kolkata' ? [{ name: 'Kolkata', detail: 'West Bengal, India', country: 'India', lat: 22.5, lon: 88.3 }] : [])
+    }
     if (url.pathname === '/api/v1/locate') {
       const lat = Number(url.searchParams.get('lat'))
       const lon = Number(url.searchParams.get('lon'))
+      const none = { district: null, division: null, km_to_district_town: null }
+      if (lat === 22.5) return json({ lat, lon, inside: false, ...none, place: 'Kolkata', country: 'India', land: true })
+      if (lat === 21.0) return json({ lat, lon, inside: false, ...none, place: null, country: null, land: false })
       return json({ lat, lon, inside: true, district: places.districts[1], division: places.divisions[0], km_to_district_town: lat === 25.63 ? 0 : 14 })
     }
     return new Response('{}', { status: 404 })
@@ -121,11 +134,36 @@ describe('AddFarmPage', () => {
     await waitFor(() => expect(myFarms.list()[0]?.name).toBe('My aman rice field'))
   })
 
-  it('refuses places outside Bangladesh', async () => {
+  it('adds a field anywhere in the world, found by search, with plain crop names', async () => {
+    const router = renderPage()
+    await userEvent.type(await screen.findByRole('textbox', { name: 'Find your village or town' }), 'Kolkata')
+    await userEvent.click(screen.getByRole('button', { name: 'Search' }))
+    await userEvent.click(await screen.findByRole('button', { name: /Kolkata.*West Bengal, India/ }))
+    expect(screen.getByTestId('pin')).toHaveTextContent('22.5,88.3')
+    expect(await screen.findByText('Near Kolkata, India')).toBeInTheDocument()
+    expect(screen.getByText(/fits its checks to your land’s shape and your soil/)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Next' }))
+
+    // Crops by plain name, no Bangladeshi seasons.
+    expect(await screen.findByRole('radio', { name: /Wheat/ })).toBeInTheDocument()
+    expect(screen.queryByRole('radio', { name: /Aman rice/ })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('radio', { name: /Rice/ }))
+    await userEvent.click(screen.getByRole('button', { name: 'Next' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Save my farm' }))
+
+    await waitFor(() => expect(router.state.location.search).toBe('?farm=my_22.5000_88.3000_rice'))
+    expect(myFarms.list()[0]).toEqual(expect.objectContaining({ name: 'My rice field', district: 'Kolkata', division: 'India', cropId: 'rice' }))
+  }, 15_000)
+
+  it('says when a spot is open water, and when search finds nothing', async () => {
     renderPage()
-    await userEvent.click(await screen.findByRole('button', { name: 'tap Kolkata' }))
-    expect(screen.getByText(/outside Bangladesh/)).toBeInTheDocument()
+    await userEvent.click(await screen.findByRole('button', { name: 'tap the sea' }))
+    expect(await screen.findByText(/This spot is open water/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled()
+
+    await userEvent.type(screen.getByRole('textbox', { name: 'Find your village or town' }), 'Atlantis')
+    await userEvent.click(screen.getByRole('button', { name: 'Search' }))
+    expect(await screen.findByText(/No places found/)).toBeInTheDocument()
   })
 
   it('uses the phone’s location, and explains when permission is refused', async () => {

@@ -52,6 +52,8 @@ def flood_module(live: LiveFlood) -> RiskModuleSummary:
     metrics = [Metric(label="Rain, 3 days back + 3 ahead", value=round(a.rain_past3_mm + a.rain_next3_mm), unit="mm", source=", ".join(_names(rain_source)))]
     if inputs.saturation is not None:
         metrics.append(Metric(label="Soil saturation", value=round(inputs.saturation * 100), unit="%", source=SOURCE_NAMES.get(inputs.saturation_source or "", "")))
+    elif inputs.relief_m is not None:
+        metrics.append(Metric(label="Height above low land nearby", value=round(inputs.relief_m), unit="m", source="SRTM"))
     elif inputs.elevation_m is not None:
         metrics.append(Metric(label="Field height", value=round(inputs.elevation_m), unit="m", source="SRTM"))
 

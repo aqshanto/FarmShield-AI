@@ -47,6 +47,13 @@ def localize_dashboard(d: Dashboard, lang: str, custom_name_given: bool = False)
         # A farmer's own name stays as typed; our default name and story are re-written.
         if not custom_name_given:
             farm.name = f"আমার {bn_of(crop_bn)} জমি"
+        if farm.country is not None or not farm.division:  # outside Bangladesh: names came from OSM in Bengali
+            where = ", ".join(x for x in (farm.district, farm.division) if x)
+            farm.story = f"আপনার জমি: {where}। নাসার উপগ্রহ থেকে নজর রাখা হচ্ছে।"
+            farm.crop = crop_bn
+            _modules_and_advice(d.modules, d.recommendations, lang)
+            d.overall.summary = t(d.overall.summary)
+            return d
         farm.story = f"{bn_of(district_bn)} কাছে, {division_bn} বিভাগে আপনার জমি, নাসার উপগ্রহ থেকে নজর রাখা হচ্ছে।"
     else:
         farm.name = t(farm.name)

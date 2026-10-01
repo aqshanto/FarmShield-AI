@@ -1,6 +1,6 @@
 import json
 from collections.abc import AsyncIterator
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
@@ -11,6 +11,7 @@ from app.core.config import Settings, get_settings
 from app.pipeline import get_pipeline
 from app.pipeline.service import PipelineService
 from app.schemas.assistant import AssistantStatus, ChatRequest
+from app.risk.region import local_today
 from app.services.farm_access import load_dashboard
 
 router = APIRouter(prefix="/assistant", tags=["assistant"])
@@ -39,8 +40,8 @@ async def chat(
     """Streams the reply as server-sent events: meta, delta*, (replace), done."""
     if body.messages[-1].role != "user":
         raise HTTPException(status_code=422, detail="The last message must be the farmer's question.")
-    dashboard = await load_dashboard(body.farm_id, settings.data_mode, pipeline, body.farm_name)
-    today = (datetime.now(UTC) + timedelta(hours=6)).date()  # Bangladesh calendar day
+    dashboard = await load_dashboard(body.farm_id, settings.data_mode, pipeline, body.farm_name, body.lang)
+    today = local_today(datetime.now(UTC), dashboard.farm.lon)  # the farm's own calendar day
 
     async def sse() -> AsyncIterator[str]:
         async for event, data in chat_events(dashboard, body.messages, body.lang, today, claude):

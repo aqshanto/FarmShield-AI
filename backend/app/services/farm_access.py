@@ -1,15 +1,18 @@
 """One way to load any farm's dashboard: the demo farms or a farmer's own field."""
 
+import asyncio
+
 from fastapi import HTTPException
 from fastapi.concurrency import run_in_threadpool
 
 from app.pipeline.service import PipelineService
 from app.schemas.dashboard import Dashboard
 from app.services.custom_farms import CustomFarmError, ensure_data, is_custom_id, parse_farm_id
+from app.services.geocode import reverse_geocode
 from app.services.dashboard import FarmDataPendingError, FarmNotFoundError, build_custom_dashboard, build_dashboard
 
 
-async def load_dashboard(farm_id: str, data_mode: str, pipeline: PipelineService, name: str | None = None) -> Dashboard:
+async def load_dashboard(farm_id: str, data_mode: str, pipeline: PipelineService, name: str | None = None, lang: str = "en") -> Dashboard:
     """Raises HTTPException with a farmer-friendly message when the farm can't be shown."""
     if is_custom_id(farm_id):
         try:
@@ -18,10 +21,16 @@ async def load_dashboard(farm_id: str, data_mode: str, pipeline: PipelineService
             raise HTTPException(status_code=404, detail=str(error)) from None
         if data_mode != "live":
             raise HTTPException(status_code=409, detail="Your own farms need live NASA data, and the server is running the demo scenario.")
-        await ensure_data(pipeline, farm)
+        place = None
+        if not farm.in_bangladesh:
+            found, _ = await asyncio.gather(reverse_geocode(pipeline, farm.lat, farm.lon, lang), ensure_data(pipeline, farm))
+            if found and found.name:
+                place = (found.name, found.country or "")
+        else:
+            await ensure_data(pipeline, farm)
         try:
             # SQLite reads and the risk engines: keep them off the event loop.
-            return await run_in_threadpool(build_custom_dashboard, farm, pipeline, name)
+            return await run_in_threadpool(build_custom_dashboard, farm, pipeline, name, None, place)
         except FarmDataPendingError:
             raise HTTPException(status_code=503, detail="Still downloading NASA data for this field. Try again in a moment.") from None
     try:

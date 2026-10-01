@@ -1,4 +1,8 @@
-"""Farms that farmers add themselves: any field in Bangladesh, any supported crop.
+"""Farms that farmers add themselves: any field on Earth, any supported crop.
+
+In Bangladesh a field is described by its district and division and uses the Bangladeshi
+crop list (with season names); elsewhere by the nearest named place and country (looked up
+when the dashboard is built, in the farmer's language) and plain crop names.
 
 A custom farm is fully described by its id, `my_<lat>_<lon>_<crop>`, so the server keeps
 no per-user state (farmers' saved fields live in their own browser). NASA data is cached
@@ -11,22 +15,23 @@ import re
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
-from app.data.crops import CROPS_BY_ID, Crop
+from app.data.crops import CROPS_BY_ID, WORLD_CROPS_BY_ID, Crop
 from app.data.places import DIVISIONS, Place, nearest_district
 from app.pipeline.models import Location
 from app.pipeline.service import PipelineService
-from app.risk.grid import in_bangladesh
+from app.risk.region import in_bangladesh
 
 log = logging.getLogger(__name__)
 
-FARM_ID = re.compile(r"^my_(\d{1,2}\.\d{1,6})_(\d{2,3}\.\d{1,6})_([a-z-]+)$")
+FARM_ID = re.compile(r"^my_(-?\d{1,2}\.\d{1,6})_(-?\d{1,3}\.\d{1,6})_([a-z-]+)$")
+MAX_LAT, MIN_LAT = 75.0, -60.0  # no farmland beyond (and GPM stops at ±60°)
 # Quick sources answer a new field in seconds; the rest fill in over the next minutes.
 FAST_SOURCES = ["nasa_power", "open_meteo", "srtm", "power_climatology"]
 SLOW_SOURCES = ["modis", "viirs", "gpm_imerg", "smap"]
 
 
 class CustomFarmError(ValueError):
-    """The id isn't a valid custom farm (bad format, outside Bangladesh, unknown crop)."""
+    """The id isn't a valid custom farm (bad format, unknown crop, polar latitude)."""
 
 
 @dataclass(frozen=True)
@@ -35,8 +40,13 @@ class CustomFarm:
     lat: float
     lon: float
     crop: Crop
-    district: Place
-    division: Place
+    # Bangladesh only; elsewhere the place is named from OpenStreetMap at dashboard time.
+    district: Place | None
+    division: Place | None
+
+    @property
+    def in_bangladesh(self) -> bool:
+        return self.district is not None
 
     @property
     def location(self) -> Location:
@@ -62,13 +72,18 @@ def parse_farm_id(farm_id: str) -> CustomFarm:
     if not match:
         raise CustomFarmError("Not a valid farm id.")
     lat, lon, crop_id = float(match[1]), float(match[2]), match[3]
-    crop = CROPS_BY_ID.get(crop_id)
+    if not (MIN_LAT <= lat <= MAX_LAT and -180 <= lon <= 180):
+        raise CustomFarmError("There is no farmland this close to the poles.")
+    if in_bangladesh(lat, lon):
+        crop = CROPS_BY_ID.get(crop_id)
+        if crop is None:
+            raise CustomFarmError(f"Unknown crop '{crop_id}'.")
+        district, division, _ = describe_point(lat, lon)
+        return CustomFarm(farm_id, lat, lon, crop, district, division)
+    crop = WORLD_CROPS_BY_ID.get(crop_id)
     if crop is None:
         raise CustomFarmError(f"Unknown crop '{crop_id}'.")
-    if not in_bangladesh(lat, lon):
-        raise CustomFarmError("That place is outside Bangladesh.")
-    district, division, _ = describe_point(lat, lon)
-    return CustomFarm(farm_id, lat, lon, crop, district, division)
+    return CustomFarm(farm_id, lat, lon, crop, None, None)
 
 
 # --- data ----------------------------------------------------------------------------------

@@ -38,7 +38,10 @@ def bn_digits(text: str) -> str:
 
 
 def bn_of(word: str) -> str:
-    """Bengali possessive: ধান → ধানের, আলু → আলুর, রোগ → রোগের."""
+    """Bengali possessive: ধান → ধানের, আলু → আলুর, রোগ → রোগের; a name in Latin script
+    (no Bengali name in OpenStreetMap) is hyphenated: Komothai → Komothai-এর."""
+    if word and word[-1].isascii() and word[-1].isalnum():
+        return f"{word}-এর"
     return f"{word}র" if word and word[-1] in BN_VOWEL_ENDINGS else f"{word}ের"
 
 

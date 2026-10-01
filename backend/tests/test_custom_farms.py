@@ -105,7 +105,8 @@ def test_farm_id_round_trips_and_names_the_place():
     [
         ("my_25.6_88.7", "valid"),
         ("my_25.6512_88.7021_coffee", "Unknown crop"),
-        ("my_22.5000_88.3000_wheat", "outside Bangladesh"),  # Kolkata
+        ("my_22.5000_88.3000_boro-rice", "Unknown crop"),  # Kolkata: plain crop names outside Bangladesh
+        ("my_80.0000_10.0000_wheat", "poles"),
         ("sunamganj-haor", "valid"),
     ],
 )
@@ -150,7 +151,14 @@ def test_custom_dashboard_waits_for_data_instead_of_inventing_it():
 # --- API ----------------------------------------------------------------------------------------
 
 
-def test_places_crops_and_locate():
+def test_places_crops_and_locate(monkeypatch):
+    from app.api.v1.endpoints import places as places_endpoint
+    from app.services.geocode import Place
+
+    async def kolkata(pipeline, lat, lon, lang):
+        return Place("Kolkata", "India", True)
+
+    monkeypatch.setattr(places_endpoint, "reverse_geocode", kolkata)
     client = TestClient(create_app())
     places = client.get("/api/v1/places").json()
     assert len(places["divisions"]) == 8 and len(places["districts"]) == 64
@@ -164,13 +172,16 @@ def test_places_crops_and_locate():
     assert here["inside"] and here["district"]["name"] == "Dinajpur" and here["division"]["name_bn"] == "রংপুর"
     assert client.get("/api/v1/locate", params={"lat": 22.5, "lon": 88.3}).json() == {
         "lat": 22.5, "lon": 88.3, "inside": False, "district": None, "division": None, "km_to_district_town": None,
+        "place": "Kolkata", "country": "India", "land": True,
     }
+    world = client.get("/api/v1/crops", params={"region": "world"}).json()
+    assert [c["id"] for c in world][:2] == ["rice", "wheat"] and world[0]["name_bn"] == "ধান"
 
 
 def test_custom_farm_needs_live_mode_and_a_valid_id():
     client = TestClient(create_app())  # tests run in sample mode
     assert client.get(f"/api/v1/farms/{DINAJPUR_MAIZE}/dashboard").status_code == 409
-    assert client.get("/api/v1/farms/my_22.5000_88.3000_wheat/dashboard").json()["detail"] == "That place is outside Bangladesh."
+    assert client.get("/api/v1/farms/my_22.5000_88.3000_boro-rice/dashboard").json()["detail"] == "Unknown crop 'boro-rice'."
 
 
 def test_custom_farm_dashboard_and_assistant_in_live_mode():

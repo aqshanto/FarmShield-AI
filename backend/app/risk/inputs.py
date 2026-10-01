@@ -6,12 +6,33 @@ from app.pipeline.models import Location
 from app.pipeline.service import PipelineService, VariableSeries
 from app.risk.crop import CropInputs
 from app.risk.flood import DailyRain, FloodInputs
+from app.risk.region import in_bangladesh
 from app.risk.water import Reading, WaterInputs
 
 # Typical porosity of Bangladeshi alluvial soils (m³/m³): SMAP volumetric moisture divided
 # by this gives an approximate 0–1 saturation, comparable with NASA POWER's wetness index.
 POROSITY = 0.50
 SMAP_MAX_AGE_DAYS = 5  # SMAP revisits every 2–3 days
+# Elsewhere, soils differ (sand holds far less water than clay). NASA POWER's surface wetness
+# is already a fraction of saturation, so on days with both, SMAP's volumetric moisture
+# divided by POWER's wetness estimates this soil's own porosity.
+POROSITY_RANGE = (0.30, 0.60)
+MIN_CALIBRATION_DAYS = 3
+
+
+def soil_porosity(obs: list[VariableSeries], location: Location) -> float:
+    """The soil's water-holding capacity: Bangladesh's alluvial value at home, calibrated elsewhere."""
+    if in_bangladesh(location.lat, location.lon):
+        return POROSITY
+    smap, wetness = _series(obs, "soil_moisture"), _series(obs, "soil_wetness")
+    if not smap or not wetness:
+        return POROSITY
+    wet_by_day = {p.date: p.value for p in wetness.points}
+    ratios = sorted(p.value / wet_by_day[p.date] for p in smap.points if wet_by_day.get(p.date, 0) >= 0.15)
+    if len(ratios) < MIN_CALIBRATION_DAYS:
+        return POROSITY
+    low, high = POROSITY_RANGE
+    return min(high, max(low, ratios[len(ratios) // 2]))
 
 
 def _series(observations: list[VariableSeries], variable: str) -> VariableSeries | None:
@@ -37,6 +58,7 @@ def _monthly_normals(obs: list[VariableSeries]) -> dict[int, float]:
 
 def flood_inputs(pipeline: PipelineService, location: Location, today: date) -> FloodInputs:
     obs = pipeline.observations(location, days=30)
+    porosity = soil_porosity(obs, location)
 
     # Soil saturation: SMAP if recent, otherwise NASA POWER surface wetness.
     saturation = saturation_source = saturation_date = None
@@ -44,7 +66,7 @@ def flood_inputs(pipeline: PipelineService, location: Location, today: date) -> 
     recent_smap = [p for p in smap.points if p.date >= today - timedelta(days=SMAP_MAX_AGE_DAYS)] if smap else []
     if recent_smap:
         p = recent_smap[-1]
-        saturation, saturation_source, saturation_date = min(1.0, p.value / POROSITY), "smap", p.date
+        saturation, saturation_source, saturation_date = min(1.0, p.value / porosity), "smap", p.date
     else:
         wetness = _series(obs, "soil_wetness")
         if wetness and wetness.points:
@@ -52,6 +74,8 @@ def flood_inputs(pipeline: PipelineService, location: Location, today: date) -> 
             saturation, saturation_source, saturation_date = p.value, p.source, p.date
 
     elevation = _series(obs, "elevation")
+    relief = _series(obs, "height_above_low")
+    use_relief = relief and relief.points and not in_bangladesh(location.lat, location.lon)
     return FloodInputs(
         rain=merged_rain(obs, today),
         saturation=saturation,
@@ -59,12 +83,14 @@ def flood_inputs(pipeline: PipelineService, location: Location, today: date) -> 
         saturation_date=saturation_date,
         normal_mm_per_day=_monthly_normals(obs).get(today.month),
         elevation_m=elevation.points[-1].value if elevation and elevation.points else None,
+        relief_m=relief.points[-1].value if use_relief else None,
     )
 
 
 def water_inputs(pipeline: PipelineService, location: Location, today: date) -> WaterInputs:
     # 30-day rain sums over a 14-day trend need ~45 days of history.
     obs = pipeline.observations(location, days=50)
+    porosity = soil_porosity(obs, location)
 
     surface: dict[date, Reading] = {}
     wetness = _series(obs, "soil_wetness")
@@ -72,7 +98,7 @@ def water_inputs(pipeline: PipelineService, location: Location, today: date) -> 
         surface[p.date] = Reading(p.value, p.source)
     smap = _series(obs, "soil_moisture")
     for p in smap.points if smap else []:  # SMAP replaces POWER on its days; the engine prefers it while fresh
-        surface[p.date] = Reading(min(1.0, p.value / POROSITY), "smap")
+        surface[p.date] = Reading(min(1.0, p.value / porosity), "smap")
 
     root_series = _series(obs, "root_zone_wetness")
     root = {p.date: Reading(p.value, p.source) for p in root_series.points} if root_series else {}

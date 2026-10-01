@@ -41,7 +41,7 @@ async def dashboard(
     pipeline: PipelineService = Depends(get_pipeline),
 ) -> Dashboard:
     """A demo farm, or a farmer's own field (`my_<lat>_<lon>_<crop>`, see /locate and /crops)."""
-    return localize_dashboard(await load_dashboard(farm_id, settings.data_mode, pipeline, name), lang, custom_name_given=bool(name))
+    return localize_dashboard(await load_dashboard(farm_id, settings.data_mode, pipeline, name, lang), lang, custom_name_given=bool(name))
 
 
 @router.get("/{farm_id}/flood", response_model=FloodReport)
