@@ -4,7 +4,6 @@ from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
-from fastapi.concurrency import run_in_threadpool
 
 from app.assistant.claude import ClaudeAssistant, claude_client
 from app.assistant.service import chat_events
@@ -12,7 +11,7 @@ from app.core.config import Settings, get_settings
 from app.pipeline import get_pipeline
 from app.pipeline.service import PipelineService
 from app.schemas.assistant import AssistantStatus, ChatRequest
-from app.services.dashboard import FarmNotFoundError, build_dashboard
+from app.services.farm_access import load_dashboard
 
 router = APIRouter(prefix="/assistant", tags=["assistant"])
 
@@ -40,11 +39,7 @@ async def chat(
     """Streams the reply as server-sent events: meta, delta*, (replace), done."""
     if body.messages[-1].role != "user":
         raise HTTPException(status_code=422, detail="The last message must be the farmer's question.")
-    try:
-        # Building the dashboard reads SQLite; keep it off the event loop.
-        dashboard = await run_in_threadpool(build_dashboard, body.farm_id, settings.data_mode, None, pipeline)
-    except FarmNotFoundError:
-        raise HTTPException(status_code=404, detail=f"Farm '{body.farm_id}' not found") from None
+    dashboard = await load_dashboard(body.farm_id, settings.data_mode, pipeline, body.farm_name)
     today = (datetime.now(UTC) + timedelta(hours=6)).date()  # Bangladesh calendar day
 
     async def sse() -> AsyncIterator[str]:

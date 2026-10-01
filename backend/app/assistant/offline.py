@@ -10,6 +10,8 @@ import re
 from datetime import date
 
 from app.assistant.facts import rain_total
+from app.data.crops import CROPS
+from app.data.places import DISTRICTS
 from app.schemas.dashboard import Dashboard, DayForecast, RiskModuleSummary
 
 BENGALI = re.compile(r"[ঀ-৿]")
@@ -29,13 +31,18 @@ TOPICS: dict[str, list[str]] = {
 LEVEL_BN = {"safe": "নিরাপদ", "watch": "নজরে রাখুন", "warning": "সতর্কতা", "danger": "বিপদ"}
 MODULE_BN = {"flood_risk": "বন্যা", "water_stress": "পানি", "crop_health": "ফসল"}
 MODULE_EN = {"flood_risk": "Flood", "water_stress": "Water", "crop_health": "Crop"}
-CROP_BN = {"boro rice": "বোরো ধান", "rice": "ধান", "wheat": "গম", "potato": "আলু"}
+CROP_BN = {c.name.lower(): c.name_bn for c in CROPS} | {"rice": "ধান"}
 DISEASE_BN = {
+    "rice blast": "ব্লাস্ট রোগ",
     "blast": "ব্লাস্ট রোগ",
     "wheat blast": "গমের ব্লাস্ট রোগ",
     "late blight": "নাবি ধসা (লেট ব্লাইট) রোগ",
+    "northern leaf blight": "পাতা ঝলসানো (লিফ ব্লাইট) রোগ",
+    "stem rot": "কাণ্ড পচা রোগ",
+    "Alternaria blight": "অল্টারনারিয়া ব্লাইট (পাতায় দাগ) রোগ",
+    "Stemphylium blight": "স্টেমফাইলিয়াম ব্লাইট রোগ",
 }
-DISTRICT_BN = {"Sunamganj": "সুনামগঞ্জ", "Rajshahi": "রাজশাহী", "Bogura": "বগুড়া"}
+DISTRICT_BN = {d.name: d.name_bn for d in DISTRICTS}
 WEEKDAY_BN = ["সোমবার", "মঙ্গলবার", "বুধবার", "বৃহস্পতিবার", "শুক্রবার", "শনিবার", "রবিবার"]
 
 

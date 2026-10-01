@@ -22,6 +22,7 @@ from app.services.risk import overall_score, overall_summary, score_to_level
 
 if TYPE_CHECKING:
     from app.pipeline.service import PipelineService
+    from app.services.custom_farms import CustomFarm
 
 PRIORITY_ORDER = {"high": 0, "medium": 1, "low": 2}
 
@@ -91,6 +92,65 @@ def build_dashboard(
         generated_at=now,
         last_satellite_pass=now - timedelta(hours=sample["hours_since_pass"]),
         data_mode=data_mode,
+        overall=OverallCondition(score=score, level=level, summary=overall_summary(level, worst.id)),
+        modules=modules,
+        forecast=forecast,
+        recommendations=sorted(recommendations, key=lambda r: PRIORITY_ORDER[r.priority]),
+    )
+
+
+class FarmDataPendingError(RuntimeError):
+    """A new farm's NASA data hasn't arrived yet (or a source is down); try again shortly."""
+
+
+def build_custom_dashboard(
+    farm: "CustomFarm", pipeline: "PipelineService", name: str | None = None, now: datetime | None = None
+) -> Dashboard:
+    """A farmer's own field: every risk from the live engines, nothing from the demo."""
+    from app.risk.live import (
+        crop_module,
+        crop_recommendations,
+        flood_module,
+        flood_recommendations,
+        live_crop,
+        live_flood,
+        live_forecast,
+        live_water,
+        water_module,
+        water_recommendations,
+    )
+    from app.services.custom_farms import last_data_time
+
+    now = now or datetime.now(UTC)
+    today = _local_today(now)
+    location = farm.location
+    flood = live_flood(pipeline, location, today)
+    water = live_water(pipeline, location, today)
+    crop = live_crop(pipeline, location, today, farm.crop.name, water=water, flood=flood)
+    forecast = live_forecast(pipeline, location, today)
+    if flood is None or water is None or crop is None or forecast is None:
+        raise FarmDataPendingError(farm.id)
+
+    modules = [flood_module(flood), water_module(water), crop_module(crop)]
+    recommendations = flood_recommendations(flood) + water_recommendations(water) + crop_recommendations(crop)
+    worst = max(modules, key=lambda m: m.score)
+    score = overall_score([m.score for m in modules])
+    level = score_to_level(score)
+    return Dashboard(
+        farm=Farm(
+            id=farm.id,
+            name=name or f"My {farm.crop.name.lower()} field",
+            district=farm.district.name,
+            division=farm.division.name,
+            crop=farm.crop.name,
+            lat=farm.lat,
+            lon=farm.lon,
+            story=f"Your field near {farm.district.name}, {farm.division.name} division, watched from space by NASA satellites.",
+            custom=True,
+        ),
+        generated_at=now,
+        last_satellite_pass=last_data_time(pipeline, farm, now),
+        data_mode="live",
         overall=OverallCondition(score=score, level=level, summary=overall_summary(level, worst.id)),
         modules=modules,
         forecast=forecast,

@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { ChevronDown, LayoutDashboard, Map as MapIcon, MessageCircle } from 'lucide-react'
+import { ChevronDown, LayoutDashboard, Map as MapIcon, MessageCircle, Plus } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Badge } from '@/components/ui/Badge'
 import { buttonStyles } from '@/components/ui/button-styles'
@@ -41,6 +41,10 @@ export function HomePage() {
             <Link to="/dashboard" className={buttonStyles({ size: 'lg' })}>
               <LayoutDashboard className="size-5" aria-hidden="true" />
               See a live farm
+            </Link>
+            <Link to="/farms/new" className={buttonStyles({ variant: 'secondary', size: 'lg' })}>
+              <Plus className="size-5" aria-hidden="true" />
+              Add my farm
             </Link>
             <Link to="/assistant" className={buttonStyles({ variant: 'secondary', size: 'lg' })}>
               <MessageCircle className="size-5" aria-hidden="true" />

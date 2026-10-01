@@ -1,7 +1,6 @@
 import { useReducedMotion } from 'framer-motion'
-import { AttributionControl, type GeoJSONSource, Map as MapLibreMap, Marker, NavigationControl, setWorkerUrl } from 'maplibre-gl'
-import 'maplibre-gl/dist/maplibre-gl.css'
-import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
+import { AttributionControl, type GeoJSONSource, Map as MapLibreMap, Marker, NavigationControl } from 'maplibre-gl'
+import './maplibre-setup'
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { cn } from '@/lib/cn'
@@ -33,11 +32,6 @@ interface MapCanvasProps {
   renderFarmMarker: (farmId: string) => ReactNode
   className?: string
 }
-
-// MapLibre finds its worker next to its own module at runtime, which breaks once Vite
-// relocates the library. Let Vite bundle the worker (with its shared chunk) and hand
-// MapLibre the resulting URL; this works in dev and in the production build.
-setWorkerUrl(maplibreWorkerUrl)
 
 const HOME_ZOOM = 6.3
 const BANGLADESH_BOUNDS: [[number, number], [number, number]] = [

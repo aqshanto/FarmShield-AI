@@ -16,6 +16,7 @@ Built for the NASA Space Apps Challenge.
 | Farm dashboard | https://farm-shield-ai-pi.vercel.app/dashboard |
 | Risk map | https://farm-shield-ai-pi.vercel.app/map |
 | AI Farmer Assistant (English / বাংলা) | https://farm-shield-ai-pi.vercel.app/assistant |
+| Add my farm | https://farm-shield-ai-pi.vercel.app/farms/new |
 | NASA data | https://farm-shield-ai-pi.vercel.app/data |
 | API health | https://farmshield-api.onrender.com/api/v1/health |
 | API docs (Swagger) | https://farmshield-api.onrender.com/docs |
@@ -41,6 +42,7 @@ npm run dev
 - Risk map: http://localhost:5173/map
 - Satellite data (pipeline): http://localhost:5173/data
 - AI Farmer Assistant (English / বাংলা, voice): http://localhost:5173/assistant
+- Add my farm (any field in Bangladesh, 10 crops): http://localhost:5173/farms/new
 - Flood report API: http://127.0.0.1:8000/api/v1/farms/sunamganj-haor/flood
 - Water report API: http://127.0.0.1:8000/api/v1/farms/bogura-potato/water
 - Crop report API: http://127.0.0.1:8000/api/v1/farms/bogura-potato/crop

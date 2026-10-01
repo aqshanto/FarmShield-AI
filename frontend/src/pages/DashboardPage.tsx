@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/Card'
 import { OrbitLoader } from '@/components/ui/OrbitLoader'
 import { DashboardSkeleton } from '@/features/dashboard/DashboardSkeleton'
 import { FarmHeader } from '@/features/dashboard/FarmHeader'
+import type { FarmOption } from '@/features/farms/FarmPicker'
 import { ForecastStrip } from '@/features/dashboard/ForecastStrip'
 import { OverallCard } from '@/features/dashboard/OverallCard'
 import { RecommendationList } from '@/features/dashboard/RecommendationList'
@@ -15,14 +16,24 @@ import { RiskDetailPanel } from '@/features/dashboard/RiskDetailPanel'
 import { FieldView } from '@/features/field/FieldView'
 import { ApiError, api } from '@/lib/api'
 import { fadeUp, spring, stagger } from '@/lib/motion'
+import { isMyFarmId, myFarms, useMyFarms } from '@/lib/myFarms'
 import { useAsync } from '@/lib/useAsync'
 import type { RiskModule } from '@/types/api'
 
 export function DashboardPage() {
   const [params, setParams] = useSearchParams()
   const farms = useAsync('farms', (signal) => api.farms({ signal }), { retries: 3 })
-  const farmId = params.get('farm') ?? farms.data?.[0]?.id ?? null
-  const dashboard = useAsync(farmId, (signal) => api.dashboard(farmId!, { signal }), { retries: 3 })
+  const mine = useMyFarms()
+  // The farmer's own fields come first.
+  const farmId = params.get('farm') ?? mine[0]?.id ?? farms.data?.[0]?.id ?? null
+  const myFarm = mine.find((f) => f.id === farmId) ?? null
+  const dashboard = useAsync(farmId ? `${farmId}|${myFarm?.name ?? ''}` : null, (signal) => api.dashboard(farmId!, { signal }, myFarm?.name), {
+    retries: 3,
+  })
+  const options: FarmOption[] = [
+    ...mine.map((f) => ({ id: f.id, label: f.name, mine: true })),
+    ...(farms.data ?? []).map((f) => ({ id: f.id, label: f.district, mine: false })),
+  ]
 
   // Selection belongs to a farm, so switching farms closes the detail panel.
   const [selection, setSelection] = useState<{ farmId: string | null; module: RiskModule } | null>(null)
@@ -35,12 +46,19 @@ export function DashboardPage() {
   }
 
   const changeFarm = (id: string) => setParams({ farm: id }, { preventScrollReset: true })
+  const removeFarm = (id: string) => {
+    myFarms.remove(id)
+    const next = options.find((o) => o.id !== id)
+    setParams(next ? { farm: next.id } : {}, { preventScrollReset: true })
+  }
 
   const data = dashboard.data
   const error = farms.status === 'error' ? farms.error : dashboard.status === 'error' ? dashboard.error : null
 
   if (error && !data) {
     const notFound = error instanceof ApiError && error.status === 404
+    // For a farmer's own field the server explains itself (e.g. data still downloading).
+    const serverReason = error instanceof ApiError && farmId && isMyFarmId(farmId) ? error.detail : null
     return (
       <div className="grid place-items-center py-20">
         <Card className="max-w-md space-y-4 p-8 text-center">
@@ -51,9 +69,10 @@ export function DashboardPage() {
           )}
           <h1 className="text-xl font-bold text-ink">{notFound ? 'We couldn’t find that farm' : 'We couldn’t load your farm'}</h1>
           <p className="text-ink-muted">
-            {notFound
-              ? 'The link may be old or mistyped. Pick one of your farms instead.'
-              : 'The farm brain isn’t answering right now. Check that the backend is running, then try again.'}
+            {serverReason ??
+              (notFound
+                ? 'The link may be old or mistyped. Pick one of your farms instead.'
+                : 'The farm brain isn’t answering right now. Check that the backend is running, then try again.')}
           </p>
           <div className="flex justify-center gap-2">
             {!notFound && (
@@ -122,7 +141,7 @@ export function DashboardPage() {
         className={`space-y-6 transition-opacity duration-300 ${switching ? 'pointer-events-none opacity-40' : ''}`}
         aria-busy={switching}
       >
-        <FarmHeader dashboard={data} farms={farms.data} onFarmChange={changeFarm} />
+        <FarmHeader dashboard={data} farms={options} myFarm={myFarm} onFarmChange={changeFarm} onRemoveFarm={removeFarm} />
 
         <motion.div variants={fadeUp} className="grid gap-6 lg:grid-cols-5">
           <div className="lg:col-span-2">

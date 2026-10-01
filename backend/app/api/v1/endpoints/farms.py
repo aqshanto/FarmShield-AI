@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.core.config import Settings, get_settings
 from app.pipeline import get_pipeline
@@ -19,7 +19,8 @@ from app.risk.live import (
 )
 from app.schemas.dashboard import Dashboard, FarmSummary, RiskAction, RiskFactor
 from app.schemas.flood import CropReport, FloodInputsOut, FloodReport, RainDay, WaterReport
-from app.services.dashboard import FarmNotFoundError, build_dashboard, list_farms
+from app.services.dashboard import list_farms
+from app.services.farm_access import load_dashboard
 
 router = APIRouter(prefix="/farms", tags=["farms"])
 
@@ -30,13 +31,14 @@ def farms() -> list[FarmSummary]:
 
 
 @router.get("/{farm_id}/dashboard", response_model=Dashboard)
-def dashboard(
-    farm_id: str, settings: Settings = Depends(get_settings), pipeline: PipelineService = Depends(get_pipeline)
+async def dashboard(
+    farm_id: str,
+    name: str | None = Query(default=None, max_length=60, description="Display name for a farmer's own farm"),
+    settings: Settings = Depends(get_settings),
+    pipeline: PipelineService = Depends(get_pipeline),
 ) -> Dashboard:
-    try:
-        return build_dashboard(farm_id, data_mode=settings.data_mode, pipeline=pipeline)
-    except FarmNotFoundError:
-        raise HTTPException(status_code=404, detail=f"Farm '{farm_id}' not found") from None
+    """A demo farm, or a farmer's own field (`my_<lat>_<lon>_<crop>`, see /locate and /crops)."""
+    return await load_dashboard(farm_id, settings.data_mode, pipeline, name)
 
 
 @router.get("/{farm_id}/flood", response_model=FloodReport)

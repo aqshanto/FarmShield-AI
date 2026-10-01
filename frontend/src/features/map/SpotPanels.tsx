@@ -1,4 +1,4 @@
-import { ArrowRight, Crosshair, MapPin, X } from 'lucide-react'
+import { ArrowRight, Crosshair, MapPin, Plus, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { buttonStyles } from '@/components/ui/button-styles'
 import { RiskBadge } from '@/components/ui/RiskBadge'
@@ -63,6 +63,12 @@ export function LocationPanel({ point, cell, inCountry, layers, layer, onSelectL
             active={layer}
             onSelectLayer={onSelectLayer}
           />
+          <Link
+            to={`/farms/new?lat=${point.lat.toFixed(4)}&lon=${point.lng.toFixed(4)}`}
+            className="focus-ring flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-b from-leaf-400 to-leaf-600 px-3 py-2.5 text-sm font-semibold text-night-950 shadow-glow-leaf transition hover:from-leaf-300 hover:to-leaf-500"
+          >
+            <Plus className="size-4" aria-hidden="true" /> Add a farm here
+          </Link>
         </>
       ) : (
         <p className="rounded-xl bg-surface-1 p-3 text-sm text-ink-muted ring-1 ring-line">

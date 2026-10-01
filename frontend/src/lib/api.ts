@@ -3,23 +3,38 @@ import type {
   AssistantStatus,
   ChatEvent,
   ChatRequest,
+  CropOption,
   Dashboard,
   DataSource,
   DataStatus,
   FarmObservations,
   FarmSummary,
   HealthStatus,
+  LocateResult,
   MapOverview,
+  Places,
   Region,
 } from '@/types/api'
 
 export class ApiError extends Error {
   readonly status: number
+  // The server's plain-language reason, when it gave one (FastAPI's `detail`).
+  readonly detail: string | null
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, detail: string | null = null) {
     super(message)
     this.name = 'ApiError'
     this.status = status
+    this.detail = detail
+  }
+}
+
+async function errorDetail(response: Response): Promise<string | null> {
+  try {
+    const body = (await response.json()) as { detail?: unknown }
+    return typeof body.detail === 'string' ? body.detail : null
+  } catch {
+    return null
   }
 }
 
@@ -29,7 +44,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     headers: { Accept: 'application/json', ...init?.headers },
   })
   if (!response.ok) {
-    throw new ApiError(response.status, `Request to ${path} failed with ${response.status}`)
+    throw new ApiError(response.status, `Request to ${path} failed with ${response.status}`, await errorDetail(response))
   }
   return response.json() as Promise<T>
 }
@@ -39,8 +54,9 @@ export const api = {
   sources: (init?: RequestInit) => request<DataSource[]>('/sources', init),
   defaultRegion: (init?: RequestInit) => request<Region>('/region/default', init),
   farms: (init?: RequestInit) => request<FarmSummary[]>('/farms', init),
-  dashboard: (farmId: string, init?: RequestInit) =>
-    request<Dashboard>(`/farms/${encodeURIComponent(farmId)}/dashboard`, init),
+  // `name` labels a farmer's own farm (custom ids only).
+  dashboard: (farmId: string, init?: RequestInit, name?: string) =>
+    request<Dashboard>(`/farms/${encodeURIComponent(farmId)}/dashboard${name ? `?name=${encodeURIComponent(name)}` : ''}`, init),
   mapOverview: (init?: RequestInit) => request<MapOverview>('/map/overview', init),
   dataStatus: (init?: RequestInit) => request<DataStatus>('/data/status', init),
   refreshData: (force = false) =>
@@ -48,6 +64,9 @@ export const api = {
   farmObservations: (farmId: string, days = 60, init?: RequestInit) =>
     request<FarmObservations>(`/farms/${encodeURIComponent(farmId)}/observations?days=${days}`, init),
   assistantStatus: (init?: RequestInit) => request<AssistantStatus>('/assistant/status', init),
+  places: (init?: RequestInit) => request<Places>('/places', init),
+  crops: (init?: RequestInit) => request<CropOption[]>('/crops', init),
+  locate: (lat: number, lon: number, init?: RequestInit) => request<LocateResult>(`/locate?lat=${lat}&lon=${lon}`, init),
 }
 
 function parseEvent(block: string): ChatEvent | null {

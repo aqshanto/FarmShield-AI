@@ -139,7 +139,7 @@ describe('AssistantPage', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Should I irrigate today?' }))
     await screen.findByText('Soil is drying. Check it in 2–3 days.')
 
-    await userEvent.click(screen.getByRole('radio', { name: 'Rajshahi' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Rajshahi' }))
     expect(router.state.location.search).toBe('?farm=barind')
     expect(await within(conversation()).findByText(/watching Barind Wheat Farm/)).toBeInTheDocument()
     expect(screen.queryByText('Soil is drying. Check it in 2–3 days.')).not.toBeInTheDocument()

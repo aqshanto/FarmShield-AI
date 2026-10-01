@@ -19,10 +19,12 @@ class FarmSummary(BaseModel):
 
 class Farm(FarmSummary):
     division: str
-    area_acres: float
+    area_acres: float | None = None  # unknown for farms a farmer adds
     lat: float
     lon: float
     story: str
+    # True for a farm the farmer added (id "my_<lat>_<lon>_<crop>").
+    custom: bool = False
 
 
 class Metric(BaseModel):

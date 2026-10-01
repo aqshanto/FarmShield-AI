@@ -87,6 +87,16 @@ class PipelineService:
         self.store.cache_set("last_run", {"finished_at": self.now().isoformat(), **summary}, self.now())
         return results
 
+    async def refresh_location(self, location: Location, source_ids: list[str], days: int = 60) -> list[RefreshResult]:
+        """Fetch some sources for one place now, e.g. a farmer's newly added field.
+
+        Doesn't wait for the global refresh lock: a full refresh can take minutes, and a
+        farmer adding a field needs an answer in seconds. Fresh data is skipped as usual.
+        """
+        async with self.client_factory() as client:
+            jobs = [self._refresh_one(client, self.sources[s], location, days, False) for s in source_ids if s in self.sources]
+            return list(await asyncio.gather(*jobs))
+
     def last_run(self) -> dict | None:
         cached = self.store.cache_get("last_run")
         return cached[0] if cached else None  # type: ignore[return-value]

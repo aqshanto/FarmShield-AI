@@ -15,6 +15,7 @@ export const router = createBrowserRouter([
       { path: 'dashboard', lazy: async () => ({ Component: await pageLoaders['/dashboard']() }), handle: { title: 'Farm dashboard' } },
       { path: 'map', lazy: async () => ({ Component: await pageLoaders['/map']() }), handle: { title: 'Risk map' } },
       { path: 'assistant', lazy: async () => ({ Component: await pageLoaders['/assistant']() }), handle: { title: 'Ask FarmShield' } },
+      { path: 'farms/new', lazy: async () => ({ Component: await pageLoaders['/farms/new']() }), handle: { title: 'Add my farm' } },
       { path: 'data', lazy: async () => ({ Component: await pageLoaders['/data']() }), handle: { title: 'NASA data' } },
       // Showcase is code-split so it never weighs down the farmer-facing bundle.
       { path: 'design', lazy: async () => ({ Component: await pageLoaders['/design']() }), handle: { title: 'Design system' } },

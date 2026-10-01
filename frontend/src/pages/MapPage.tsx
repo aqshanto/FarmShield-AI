@@ -13,7 +13,9 @@ import { findCell, isInBangladesh } from '@/features/map/geo'
 import { type LngLat, MapCanvas, type MapFocus } from '@/features/map/MapCanvas'
 import { MapLegend } from '@/features/map/MapLegend'
 import { FarmPanel, LocationPanel } from '@/features/map/SpotPanels'
+import { useMyMapFarms } from '@/features/farms/useMyMapFarms'
 import { api } from '@/lib/api'
+import { useMyFarms } from '@/lib/myFarms'
 import { useAsync } from '@/lib/useAsync'
 import type { RiskModule } from '@/types/api'
 
@@ -46,7 +48,13 @@ export function MapPage() {
   const [mapError, setMapError] = useState<string | null>(null)
   const baseList = useMemo(() => basemaps(), [])
 
-  const data = overview.data
+  // The farmer's saved fields join the demo farms on the map.
+  const mine = useMyFarms()
+  const myMapFarms = useMyMapFarms(mine)
+  const data = useMemo(
+    () => (overview.data && myMapFarms.length ? { ...overview.data, farms: [...myMapFarms, ...overview.data.farms] } : overview.data),
+    [overview.data, myMapFarms],
+  )
   const farm = data?.farms.find((f) => f.id === farmId) ?? null
   const activeLayer = data?.layers.find((l) => l.id === layer)
   // Opening /map?farm=… flies straight to that farm; explicit requests (jumps, picks) win.

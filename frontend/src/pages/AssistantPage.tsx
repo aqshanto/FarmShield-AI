@@ -10,12 +10,14 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { AssistantAvatar } from '@/features/assistant/AssistantAvatar'
 import { ChatBubble } from '@/features/assistant/ChatBubble'
 import { ChatComposer } from '@/features/assistant/ChatComposer'
+import { type FarmOption, FarmPicker } from '@/features/farms/FarmPicker'
 import { useSpeaker } from '@/features/assistant/speech'
 import { strings, suggestionsFor } from '@/features/assistant/strings'
 import { useChat } from '@/features/assistant/useChat'
 import { api } from '@/lib/api'
 import { type Lang, saveLang, savedLang } from '@/lib/i18n'
 import { fadeUp, spring, stagger } from '@/lib/motion'
+import { useMyFarms } from '@/lib/myFarms'
 import { useAsync } from '@/lib/useAsync'
 
 const DISTRICT_BN: Record<string, string> = { Sunamganj: 'সুনামগঞ্জ', Rajshahi: 'রাজশাহী', Bogura: 'বগুড়া' }
@@ -26,13 +28,18 @@ export function AssistantPage() {
   const t = strings[lang]
 
   const farms = useAsync('farms', (signal) => api.farms({ signal }), { retries: 3 })
-  const farmId = params.get('farm') ?? farms.data?.[0]?.id ?? null
+  const mine = useMyFarms()
+  // The farmer's own fields come first.
+  const farmId = params.get('farm') ?? mine[0]?.id ?? farms.data?.[0]?.id ?? null
   const farm = farms.data?.find((f) => f.id === farmId) ?? null
-  const dashboard = useAsync(farmId, (signal) => api.dashboard(farmId!, { signal }))
+  const myFarm = mine.find((f) => f.id === farmId) ?? null
+  const dashboard = useAsync(farmId ? `${farmId}|${myFarm?.name ?? ''}` : null, (signal) => api.dashboard(farmId!, { signal }, myFarm?.name), {
+    retries: 3,
+  })
   const status = useAsync('assistant-status', (signal) => api.assistantStatus({ signal }), { retries: 3 })
   const dash = dashboard.data?.farm.id === farmId ? dashboard.data : undefined
 
-  const { turns, send, stop, reset, busy } = useChat(farmId, lang)
+  const { turns, send, stop, reset, busy } = useChat(farmId, lang, myFarm?.name)
   const speaker = useSpeaker()
   const speakAfter = useRef<string | null>(null)
   const list = useRef<HTMLUListElement>(null)
@@ -74,7 +81,11 @@ export function AssistantPage() {
 
   const worst = dash?.modules.reduce((a, b) => (b.score > a.score ? b : a))
   const suggestions = suggestionsFor(lang, worst?.id).slice(0, turns.length ? 3 : 5)
-  const farmLabel = farm ? (lang === 'bn' ? DISTRICT_BN[farm.district] ?? farm.district : farm.name) : '…'
+  const farmLabel = myFarm ? myFarm.name : farm ? (lang === 'bn' ? DISTRICT_BN[farm.district] ?? farm.district : farm.name) : '…'
+  const farmOptions: FarmOption[] = [
+    ...mine.map((f) => ({ id: f.id, label: f.name, mine: true })),
+    ...(farms.data ?? []).map((f) => ({ id: f.id, label: lang === 'bn' ? DISTRICT_BN[f.district] ?? f.district : f.district, mine: false })),
+  ]
   const engine = status.data?.engine
   const waiting = turns.some((x) => x.status === 'waiting')
   const mood = waiting ? 'thinking' : speaker.speakingId ? 'speaking' : 'idle'
@@ -104,15 +115,6 @@ export function AssistantPage() {
             { value: 'bn', label: 'বাংলা', lang: 'bn' },
           ]}
         />
-        {farms.data && farms.data.length > 1 && farmId && (
-          <SegmentedControl
-            ariaLabel={t.farm}
-            size="sm"
-            value={farmId}
-            onChange={changeFarm}
-            options={farms.data.map((f) => ({ value: f.id, label: lang === 'bn' ? DISTRICT_BN[f.district] ?? f.district : f.district, lang }))}
-          />
-        )}
         {engine && (
           <Badge
             tone={engine === 'claude' ? 'leaf' : 'sky'}
@@ -123,6 +125,12 @@ export function AssistantPage() {
           </Badge>
         )}
       </motion.div>
+
+      {farmId && farmOptions.length > 0 && (
+        <motion.div variants={fadeUp} className="flex justify-center">
+          <FarmPicker farms={farmOptions} value={farmId} onChange={changeFarm} ariaLabel={t.farm} addLabel={t.addFarm} lang={lang} />
+        </motion.div>
+      )}
 
       {/* What the assistant is looking at */}
       <motion.div variants={fadeUp}>

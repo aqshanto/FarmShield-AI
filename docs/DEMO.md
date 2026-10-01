@@ -25,6 +25,7 @@ likely questions.
 | 2:00 | Dashboard | Switch the field to **বাংলা**, then click the **Flood risk** card | "Every risk has the reasons, each from a named NASA source, and the 14-day trend." |
 | 2:30 | Map | Switch layers Flood → Water → Crop, click a farm, try the night-lights basemap | "The same engines run across 744 land areas of Bangladesh, so this scales to every district with no sensors in the field." |
 | 3:20 | Assistant | Switch to **বাংলা**, tap "এই সপ্তাহে কি বন্যার ভয় আছে?", then ask by microphone | "Farmers can simply ask by voice, in their own language. Answers come only from the farm's facts, with no made-up numbers." |
+| 4:00 | Add my farm | Choose a division and district, pick a crop, save | "Any farmer can add their own field. In two seconds it's watched from space, with advice for that crop." |
 | 4:20 | Data | Mission cards and the pipeline flow | "Everything is open NASA data: SMAP, GPM IMERG, MODIS, VIIRS and POWER, refreshed automatically." |
 | 4:45 | Home | Closing section | "Warnings that arrive before the water does." |
 

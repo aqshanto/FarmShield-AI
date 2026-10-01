@@ -46,7 +46,13 @@ def inputs(
     ("Boro rice", "rice", 35, "rice blast"),
     ("Wheat", "wheat", 32, "wheat blast"),
     ("Potato", "potato", 29, "late blight"),
-    ("Jute", "crop", 35, "fungal disease"),
+    ("Jute", "jute", 37, "stem rot"),
+    ("Aman rice", "rice", 35, "rice blast"),
+    ("Maize", "maize", 35, "northern leaf blight"),
+    ("Mustard", "mustard", 32, "Alternaria blight"),
+    ("Lentil", "lentil", 30, "Stemphylium blight"),
+    ("Tomato", "tomato", 32, "late blight"),
+    ("Sugarcane", "crop", 35, "fungal disease"),  # unknown crops get the generic profile
 ])
 def test_crop_profiles(crop, name, limit, disease):
     p = crop_profile(crop)

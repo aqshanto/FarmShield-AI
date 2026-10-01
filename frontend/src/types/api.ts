@@ -38,10 +38,44 @@ export interface FarmSummary {
 
 export interface Farm extends FarmSummary {
   division: string
-  area_acres: number
+  area_acres: number | null // unknown for farms a farmer adds
   lat: number
   lon: number
   story: string
+  custom?: boolean // a farmer's own field (id "my_<lat>_<lon>_<crop>")
+}
+
+// --- adding your own farm ----------------------------------------------------------------
+
+export interface PlaceInfo {
+  name: string
+  name_bn: string
+  lat: number
+  lon: number
+  division: string
+}
+
+export interface Places {
+  divisions: PlaceInfo[]
+  districts: PlaceInfo[]
+}
+
+export interface CropOption {
+  id: string
+  name: string
+  name_bn: string
+  season: string
+  season_bn: string
+  scene: 'rice' | 'wheat' | 'potato'
+}
+
+export interface LocateResult {
+  lat: number
+  lon: number
+  inside: boolean
+  district: PlaceInfo | null
+  division: PlaceInfo | null
+  km_to_district_town: number | null
 }
 
 export interface Metric {
@@ -253,6 +287,7 @@ export interface ChatMessage {
 
 export interface ChatRequest {
   farm_id: string
+  farm_name?: string
   lang: 'en' | 'bn'
   messages: ChatMessage[]
 }

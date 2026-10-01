@@ -76,12 +76,14 @@ describe('MapPage', () => {
     expect(within(panel).getByText('24.62°N, 88.56°E')).toBeInTheDocument()
     expect(within(panel).getByText('Danger · 82')).toBeInTheDocument()
     expect(within(panel).getByText('Warning · 55')).toBeInTheDocument()
+    expect(within(panel).getByRole('link', { name: /Add a farm here/ })).toHaveAttribute('href', '/farms/new?lat=24.6200&lon=88.5600')
   })
 
   it('tapping outside Bangladesh explains there is no data', async () => {
     renderAt('/map')
     await userEvent.click(await screen.findByRole('button', { name: 'tap sea' }))
     expect(await screen.findByText(/outside Bangladesh/)).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /Add a farm here/ })).not.toBeInTheDocument()
   })
 
   it('tapping a farm opens its panel, flies to it and links to its dashboard', async () => {

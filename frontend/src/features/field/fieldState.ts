@@ -11,7 +11,8 @@ export type FieldFocus = 'all' | RiskModule
 export function fieldCrop(crop: string): FieldCrop {
   const c = crop.toLowerCase()
   if (c.includes('rice') || c.includes('paddy')) return 'rice'
-  if (c.includes('potato')) return 'potato'
+  // Low, leafy crops draw as bushes; tall crops (wheat, maize, jute, mustard) as stalks.
+  if (['potato', 'lentil', 'tomato'].some((k) => c.includes(k))) return 'potato'
   return 'wheat'
 }
 

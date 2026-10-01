@@ -56,6 +56,28 @@ PROFILES = {
         "potato", 29, "late blight", (10, 25),
         ("Protect against late blight", "Cool, humid days favour late blight. Spray a protective fungicide before the next rain."),
     ),
+    # Added for "Add my farm". Heat limits and disease weather from BAMIS crop-weather
+    # calendars and published crop research (sources in docs/DECISIONS.md).
+    "maize": CropProfile(
+        "maize", 35, "northern leaf blight", (18, 27),
+        ("Check leaves for leaf blight", "Mild, wet weather favours northern leaf blight. Look for long grey-green or tan streaks on leaves."),
+    ),
+    "jute": CropProfile(
+        "jute", 37, "stem rot", (25, 30),
+        ("Check stems for stem rot", "Cloudy, rainy, humid days favour stem rot. Look for dark brown patches on stems and remove sick plants."),
+    ),
+    "mustard": CropProfile(
+        "mustard", 32, "Alternaria blight", (18, 28),
+        ("Watch for Alternaria blight", "Humid weather with heavy dew favours Alternaria blight. Look for dark round spots with rings on leaves and pods."),
+    ),
+    "lentil": CropProfile(
+        "lentil", 30, "Stemphylium blight", (15, 25),
+        ("Watch for Stemphylium blight", "Mild, humid weather favours Stemphylium blight. Look for small tan spots that spread and make leaves fall."),
+    ),
+    "tomato": CropProfile(
+        "tomato", 32, "late blight", (10, 25),
+        ("Protect against late blight", "Cool, humid days favour late blight. Look for dark, wet-looking patches on leaves and fruit."),
+    ),
     "default": CropProfile(
         "crop", 35, "fungal disease", (20, 30),
         ("Check leaves for disease", "Warm, humid days favour fungal disease. Look for spots or mould on leaves."),

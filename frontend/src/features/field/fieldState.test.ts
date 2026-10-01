@@ -15,7 +15,11 @@ describe('fieldCrop', () => {
     expect(fieldCrop('Boro rice')).toBe('rice')
     expect(fieldCrop('Potato')).toBe('potato')
     expect(fieldCrop('Wheat')).toBe('wheat')
-    expect(fieldCrop('Maize')).toBe('wheat') // generic upland crop
+    expect(fieldCrop('Aman rice')).toBe('rice')
+    expect(fieldCrop('Maize')).toBe('wheat') // tall crops draw as stalks
+    expect(fieldCrop('Jute')).toBe('wheat')
+    expect(fieldCrop('Lentil')).toBe('potato') // low leafy crops draw as bushes
+    expect(fieldCrop('Tomato')).toBe('potato')
   })
 })
 

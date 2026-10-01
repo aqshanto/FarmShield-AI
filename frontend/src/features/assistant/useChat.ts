@@ -21,7 +21,7 @@ const NO_TURNS: ChatTurn[] = []
  * One conversation per farm: switching farm shows a fresh chat (and stops any answer
  * still streaming). The greeting isn't a turn; the page renders it in the current language.
  */
-export function useChat(farmId: string | null, lang: Lang) {
+export function useChat(farmId: string | null, lang: Lang, farmName?: string) {
   const [chat, setChat] = useState<{ farmId: string | null; turns: ChatTurn[] }>({ farmId, turns: [] })
   const turns = chat.farmId === farmId ? chat.turns : NO_TURNS
   const controller = useRef<AbortController | null>(null)
@@ -46,7 +46,7 @@ export function useChat(farmId: string | null, lang: Lang) {
       const abort = new AbortController()
       controller.current = abort
       try {
-        for await (const ev of streamChat({ farm_id: farmId, lang, messages: history }, abort.signal)) {
+        for await (const ev of streamChat({ farm_id: farmId, farm_name: farmName, lang, messages: history }, abort.signal)) {
           if (ev.event === 'meta') update(reply.id, () => ({ engine: ev.data.engine, lang: ev.data.lang }))
           else if (ev.event === 'delta') update(reply.id, (t) => ({ text: t.text + ev.data.text, status: 'streaming' }))
           else if (ev.event === 'replace') update(reply.id, () => ({ text: ev.data.text, engine: ev.data.engine, status: 'streaming' }))
@@ -65,7 +65,7 @@ export function useChat(farmId: string | null, lang: Lang) {
       }
       return reply.id
     },
-    [busy, farmId, lang, turns],
+    [busy, farmId, farmName, lang, turns],
   )
 
   const stop = useCallback(() => controller.current?.abort(), [])

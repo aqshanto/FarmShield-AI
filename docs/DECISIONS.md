@@ -2,6 +2,31 @@
 
 Short records of choices that shape the project. Newest first.
 
+## 2026-10-01: Add my farm
+
+| Topic | Decision | Why |
+|---|---|---|
+| Farm identity | `my_<lat>_<lon>_<crop>` id; saved list in the browser | No accounts or server state. Render's free disk resets anyway, and links still work |
+| Data | Quick sources now (~2 s), satellites in the background | A farmer adding a field needs an answer in seconds; MODIS, VIIRS, GPM and SMAP take minutes |
+| Shared cache | Point rounded to ~1 km (0.01°) | Neighbours share downloads, and NASA data is coarser than that anyway |
+| Honesty | No demo fallback for own farms; 503 "still downloading" | Showing demo risks for a real field would mislead |
+| Districts | 64 district towns, each tested to lie inside Bangladesh | "Near Bogura" is what a farmer understands; we don't have district boundaries |
+| Location map | OpenStreetMap street map by default, NASA imagery as an option | NASA imagery is ~500 m per pixel (useless for finding a field), and GIBS label layers return blank tiles. CARTO labels now need an API key |
+| Bengali bug | Disease name table now has "rice blast" (the engine's name) | Bengali rice answers said "fungal disease" instead of blast |
+
+Crop profiles added (heat limit; main disease and its temperature band):
+
+| Crop | Heat limit | Disease weather | Sources |
+|---|---|---|---|
+| Maize | 35°C | Northern leaf blight, 18–27°C | [Frontiers in Genetics 2022](https://www.frontiersin.org/articles/10.3389/fgene.2022.819849/full); [NCLB](https://en.wikipedia.org/wiki/Northern_corn_leaf_blight) |
+| Jute | 37°C | Stem rot, 25–30°C, humid | [BAMIS jute thresholds](https://www.bamis.gov.bd/en/thresholds/1/all/10/); [plantlet.org](https://plantlet.org/different-disease-of-jute/) |
+| Mustard | 32°C | Alternaria blight, 18–28°C | [BAMIS mustard calendar](https://bamis.gov.bd/res/calendars/2019/12/30/10977.pdf); [ICAR](https://epubs.icar.org.in/index.php/TJRA/article/view/168262) |
+| Lentil | 30°C | Stemphylium blight, 15–25°C | [Frontiers in Plant Science 2017](https://www.frontiersin.org/articles/10.3389/fpls.2017.00744/pdf); [BJSIR](https://banglajol.info/index.php/BJSIR/article/view/2241) |
+| Tomato | 32°C | Late blight, 10–25°C | [WorldVeg](https://worldveg.tind.io/record/28093); same pathogen as potato late blight |
+
+Real-world check (1 Oct 2026, live data): a new maize field near Dinajpur got a full dashboard in 1.8 s.
+Within minutes the background fetch added SMAP, GPM and a MODIS greenness reading, and confidence rose to high.
+
 ## 2026-10-01: Living field view (Prompt 11)
 
 | Topic | Decision | Why |

@@ -261,6 +261,29 @@ Frontend (`features/assistant/`):
 - `speech.ts` wraps the Web Speech API: recognition (`bn-BD` / `en-US`) and synthesis. The "Listen" button is disabled with a reason when the device has no voice for that language (many Windows PCs have no Bengali voice). Spoken questions get spoken answers.
 - The animated `AssistantAvatar` orbits faster while thinking, breathes while speaking and glows while listening.
 
+## Add my farm (`/farms/new`, `services/custom_farms.py`)
+
+Farmers add their own fields: any point in Bangladesh, any of 10 crops.
+
+```
+/farms/new  ──►  1 Where: GPS · division → district · tap the map (street map or NASA satellite)
+                 2 Crop: Boro/Aman/Aus rice, wheat, maize, potato, jute, mustard, lentil, tomato
+                 3 Name ──► saved in the browser (lib/myFarms.ts) ──► /dashboard?farm=my_<lat>_<lon>_<crop>
+```
+
+| Piece | Role |
+|---|---|
+| `my_<lat>_<lon>_<crop>` id | The whole farm. The server keeps no per-user state, and the id works in every existing endpoint (dashboard, assistant). |
+| `GET /places`, `/crops`, `/locate` | 8 divisions and 64 district towns (EN/BN); crop list; "is this point in Bangladesh, near which district town?" |
+| `ensure_data()` | Fetches the quick sources (POWER, forecast, SRTM, climatology) for the ~1 km point on the first visit, in about 2 seconds, without waiting for the global refresh lock. MODIS, VIIRS, GPM and SMAP follow in the background and raise confidence on the next visit. |
+| `build_custom_dashboard()` | Every risk from the live engines; no demo fallback. Missing data → 503 "Still downloading…", and the page retries. Demo mode → 409. |
+| Crop profiles | 5 new crops (maize, jute, mustard, lentil, tomato) with heat limits and disease weather; sources in DECISIONS.md. |
+| Frontend | `FarmPicker` (own fields first, then demo farms, then "+ Add my farm") on the dashboard and assistant; saved fields on the map; "Add a farm here" on any tapped map spot; rename/remove in the farm header. |
+
+Notes:
+- **Map:** the picker uses OpenStreetMap tiles (with Bengali village names) as the default view, since NASA GIBS imagery is too coarse to find a field and its label layers return blank tiles. NASA relief imagery is one tap away.
+- **Privacy:** saved fields stay on the farmer's device (`localStorage`, max 20).
+
 ## Living field view (`features/field/`)
 
 The dashboard's "My field today" card draws the farmer's field as a living picture of the
