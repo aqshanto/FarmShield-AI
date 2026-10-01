@@ -128,7 +128,8 @@ def build_custom_dashboard(
     water = live_water(pipeline, location, today)
     crop = live_crop(pipeline, location, today, farm.crop.name, water=water, flood=flood)
     forecast = live_forecast(pipeline, location, today)
-    if flood is None or water is None or crop is None or forecast is None:
+    # The forecast is welcome but optional: without it the engines use NASA's measured rain.
+    if flood is None or water is None or crop is None:
         raise FarmDataPendingError(farm.id)
 
     modules = [flood_module(flood), water_module(water), crop_module(crop)]
@@ -153,7 +154,7 @@ def build_custom_dashboard(
         data_mode="live",
         overall=OverallCondition(score=score, level=level, summary=overall_summary(level, worst.id)),
         modules=modules,
-        forecast=forecast,
+        forecast=forecast or [],
         recommendations=sorted(recommendations, key=lambda r: PRIORITY_ORDER[r.priority]),
     )
 

@@ -2,6 +2,19 @@
 
 Short records of choices that shape the project. Newest first.
 
+## 2026-10-01: Forecast resilience on the live server
+
+The live API (Render) got HTTP 429 from Open-Meteo on every request: no forecast was stored,
+"Add my farm" dashboards waited forever (503), the map grid fell back to demo data and spot
+checks took ~7 s retrying.
+
+| Topic | Decision | Why |
+|---|---|---|
+| Backup forecast | MET Norway Locationforecast (compact) when Open-Meteo refuses or fails | Free, global, no key, generous limits; daily totals built from its hourly/6-hourly steps in the place's own day |
+| 429 handling | Fail fast, pause Open-Meteo 15 min (farms) / 30 min (grid) | A quota doesn't refill in seconds, and a farmer is waiting |
+| Forecast optional | Farm dashboards and spot checks no longer require it | NASA GPM/POWER rain is enough for honest risks; the forecast card explains it's missing |
+| Lighter grid | Weather on a 0.4° lattice (≈4× fewer locations), cache 6 h, keep the last weather on refusal | The 744-cell, 35-day request counted ~2,000 Open-Meteo calls each time and drained the per-address quota |
+
 ## 2026-10-01: Global map, Stage A
 
 | Topic | Decision | Why |

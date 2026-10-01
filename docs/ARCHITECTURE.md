@@ -159,6 +159,7 @@ An explainable scorecard. Each factor is scored 0–100 and weighted:
 | `flood.py` | Pure engine: `assess_flood`, `score_factors`, `flood_trend`, advice per level |
 | `inputs.py` | Pipeline observations → `FloodInputs` (source preference, SMAP freshness, porosity) |
 | `live.py` | Engine → dashboard module, recommendations, and the live 7-day forecast (WMO codes) |
+| `grid.py` weather | Open-Meteo multi-point, sampled on a 0.4° lattice (each point serves the 0.2° cells around it), cached 6 h; on a 429 the map keeps its last weather and pauses 30 minutes |
 | `water.py` | Water-stress engine + irrigation decision (see below) |
 | `crop.py` | Crop-health engine with crop profiles (see below) |
 | `grid.py` | Flood, water **and** crop engines per 0.2° land cell from shared inputs: SRTM (batched, cached for a year), weather (30 days back + 5 ahead: rain, high/mean temperature, humidity; multi-point, 3 h), SMAP bounding-box subsets (newest valid pass over 3 days, 6 h) |
@@ -169,7 +170,13 @@ the demo scenario and are marked **Demo** in the UI. The grid is pre-computed af
 background refresh, so the map loads instantly.
 
 New pipeline sources:
-- `forecast.ForecastSource` (Open-Meteo; the one non-NASA input)
+- `forecast.ForecastSource` (Open-Meteo; the one non-NASA input). When Open-Meteo refuses
+  (HTTP 429: its free quota is per server address, and cloud hosts share addresses) or fails,
+  the forecast comes from MET Norway's Locationforecast instead, and Open-Meteo is paused for
+  15 minutes. Without any forecast, farms and spot checks still load on NASA's measured rain,
+  and the dashboard says the forecast is unavailable.
+- Rate limits: `http.get` raises `RateLimitedError` on 429 at once (no backoff), except where a
+  per-second limit is worth waiting for (OpenTopoData batches).
 - `static.SrtmElevationSource`
 - `static.PowerClimatologySource`
 

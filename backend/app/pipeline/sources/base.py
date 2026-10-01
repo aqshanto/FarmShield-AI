@@ -11,6 +11,10 @@ class SourceError(Exception):
     """A source failed in a way worth reporting (network, auth, bad payload)."""
 
 
+class RateLimitedError(SourceError):
+    """The service refused because too many requests came from this server (HTTP 429)."""
+
+
 class TokenRequiredError(SourceError):
     """The source needs an Earthdata token that isn't configured (or was rejected)."""
 

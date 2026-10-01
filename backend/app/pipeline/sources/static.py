@@ -57,7 +57,7 @@ async def srtm_elevations(client: httpx2.AsyncClient, points: list[tuple[float, 
         if i:
             await asyncio.sleep(1.1)
         batch = points[i : i + 100]
-        response = await get(client, SRTM_URL, params={"locations": "|".join(f"{lat},{lon}" for lat, lon in batch)})
+        response = await get(client, SRTM_URL, params={"locations": "|".join(f"{lat},{lon}" for lat, lon in batch)}, retry_rate_limited=True)
         out.extend(r.get("elevation") for r in response.json().get("results", []))
     return out
 

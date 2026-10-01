@@ -23,6 +23,7 @@ const text = {
     heavyDays: (n: number, s: string) => `${s} heavy rain ${n === 1 ? 'day' : 'days'}`,
     hotDays: (n: number, s: string) => `${s} very hot ${n === 1 ? 'day' : 'days'}`,
     calm: 'Calm week',
+    noForecast: 'The weather forecast isn’t available right now. Your risks still use NASA’s measured rain, and the forecast will be back on the next check.',
     mm: 'mm',
     dry: 'Dry',
     heavy: 'Heavy rain',
@@ -35,6 +36,7 @@ const text = {
     heavyDays: (_n: number, s: string) => `${s} দিন ভারী বৃষ্টি`,
     hotDays: (_n: number, s: string) => `${s} দিন খুব গরম`,
     calm: 'শান্ত সপ্তাহ',
+    noForecast: 'এই মুহূর্তে আবহাওয়ার পূর্বাভাস পাওয়া যাচ্ছে না। আপনার ঝুঁকির হিসাব নাসার মাপা বৃষ্টি দিয়েই চলছে, পরের বার পূর্বাভাস ফিরে আসবে।',
     mm: 'মিমি',
     dry: 'শুকনো',
     heavy: 'ভারী বৃষ্টি',
@@ -55,6 +57,18 @@ export function ForecastStrip({ forecast }: { forecast: DayForecast[] }) {
   const lang = useLang()
   const t = useText(text)
   const n = (v: number) => digits(Math.round(v), lang)
+
+  if (forecast.length === 0) {
+    return (
+      <Card className="flex items-start gap-4 p-6">
+        <Cloud className="mt-1 size-7 shrink-0 animate-float text-ink-muted" aria-hidden="true" />
+        <div>
+          <h2 className="text-xl font-bold text-ink">{t.title}</h2>
+          <p className="mt-1 text-sm text-ink-muted">{t.noForecast}</p>
+        </div>
+      </Card>
+    )
+  }
 
   return (
     <Card className="p-6">

@@ -26,6 +26,7 @@ import httpx2
 from app.data.sample.grid import cell_centres
 from app.pipeline.grids import M09_COLS, ease2_m09_index
 from app.pipeline.http import get
+from app.pipeline.sources.base import RateLimitedError
 from app.pipeline.models import Location
 from app.pipeline.service import PipelineService
 from app.pipeline.sources.opendap import SmapSource, granule_links
@@ -42,7 +43,13 @@ log = logging.getLogger("farmshield.grid")
 
 OUTLINE = json.loads((Path(__file__).resolve().parent.parent / "data" / "bangladesh.geo.json").read_text())
 FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
-RAIN_TTL = timedelta(hours=3)
+RAIN_TTL = timedelta(hours=6)
+# Weather is sampled on a 0.4° lattice (each point serves the 0.2° cells around it): weather
+# models are ~10–25 km anyway, and it cuts Open-Meteo usage about 4×, which matters on
+# shared cloud addresses with a per-address daily quota.
+WEATHER_STEP_DEG = 0.4
+WEATHER_PAUSE = timedelta(minutes=30)
+_weather_paused_until: datetime | None = None
 SMAP_TTL = timedelta(hours=6)
 
 
@@ -88,30 +95,59 @@ async def _elevations(pipeline: PipelineService, client: httpx2.AsyncClient, cel
     return values
 
 
+def weather_points(cells: list[tuple[float, float]]) -> tuple[list[tuple[float, float]], list[int]]:
+    """The coarse weather points to ask for, and which one serves each cell."""
+    snap = lambda v: round(round(v / WEATHER_STEP_DEG) * WEATHER_STEP_DEG, 2)  # noqa: E731
+    points: list[tuple[float, float]] = []
+    index: dict[tuple[float, float], int] = {}
+    owner = []
+    for lat, lon in cells:
+        key = (snap(lat), snap(lon))
+        if key not in index:
+            index[key] = len(points)
+            points.append(key)
+        owner.append(index[key])
+    return points, owner
+
+
 async def _weather(pipeline: PipelineService, client: httpx2.AsyncClient, cells: list[tuple[float, float]]) -> dict:
-    key = "grid_weather_v2"  # v2 adds humidity and mean temperature
+    global _weather_paused_until
+    key = "grid_weather_v3"  # v3: coarse 0.4° sampling
     cached = _cached(pipeline, key, RAIN_TTL)
     if cached is not None:
         return cached
+    # Older weather beats no weather: while Open-Meteo refuses, the map keeps its last reading.
+    stale = pipeline.store.cache_get(key)
+    if _weather_paused_until and pipeline.now() < _weather_paused_until:
+        if stale:
+            return stale[0]
+        raise RateLimitedError("Open-Meteo asked us to slow down")
+    points, owner = weather_points(cells)
     days: list[str] = []
     rain_cells: list[list[float | None]] = []
     tmax_cells: list[list[float | None]] = []
     tmean_cells: list[list[float | None]] = []
     humid_cells: list[list[float | None]] = []
-    for i in range(0, len(cells), 400):  # comfortably within Open-Meteo's multi-location limit
-        batch = cells[i : i + 400]
-        response = await get(
-            client,
-            FORECAST_URL,
-            params={
-                "latitude": ",".join(str(lat) for lat, _ in batch),
-                "longitude": ",".join(str(lon) for _, lon in batch),
-                "daily": "precipitation_sum,temperature_2m_max,temperature_2m_mean,relative_humidity_2m_mean",
-                "past_days": 30,
-                "forecast_days": 5,
-                "timezone": "Asia/Dhaka",
-            },
-        )
+    for i in range(0, len(points), 400):  # comfortably within Open-Meteo's multi-location limit
+        batch = points[i : i + 400]
+        try:
+            response = await get(
+                client,
+                FORECAST_URL,
+                params={
+                    "latitude": ",".join(str(lat) for lat, _ in batch),
+                    "longitude": ",".join(str(lon) for _, lon in batch),
+                    "daily": "precipitation_sum,temperature_2m_max,temperature_2m_mean,relative_humidity_2m_mean",
+                    "past_days": 30,
+                    "forecast_days": 5,
+                    "timezone": "Asia/Dhaka",
+                },
+            )
+        except RateLimitedError:
+            _weather_paused_until = pipeline.now() + WEATHER_PAUSE
+            if stale:
+                return stale[0]
+            raise
         payload = response.json()
         for location in payload if isinstance(payload, list) else [payload]:
             days = location["daily"]["time"]
@@ -119,7 +155,9 @@ async def _weather(pipeline: PipelineService, client: httpx2.AsyncClient, cells:
             tmax_cells.append(location["daily"]["temperature_2m_max"])
             tmean_cells.append(location["daily"]["temperature_2m_mean"])
             humid_cells.append(location["daily"]["relative_humidity_2m_mean"])
-    value = {"days": days, "rain": rain_cells, "tmax": tmax_cells, "tmean": tmean_cells, "humidity": humid_cells}
+    # Back to one row per cell, so everything downstream stays per cell.
+    spread = lambda rows: [rows[o] if o < len(rows) else [] for o in owner]  # noqa: E731
+    value = {"days": days, "rain": spread(rain_cells), "tmax": spread(tmax_cells), "tmean": spread(tmean_cells), "humidity": spread(humid_cells)}
     pipeline.store.cache_set(key, value, pipeline.now())
     return value
 

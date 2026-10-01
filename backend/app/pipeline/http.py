@@ -5,10 +5,10 @@ import json
 
 import httpx2
 
-from app.pipeline.sources.base import ApprovalRequiredError, SourceError, TokenRequiredError
+from app.pipeline.sources.base import ApprovalRequiredError, RateLimitedError, SourceError, TokenRequiredError
 
 USER_AGENT = "FarmShieldAI/0.1 (NASA Space Apps; +https://github.com/)"
-RETRY_STATUSES = {429, 500, 502, 503, 504}
+RETRY_STATUSES = {500, 502, 503, 504}
 
 # GES DISC (GPM) serves data only after its application is approved in Earthdata Login.
 GES_DISC_APPROVE_URL = "https://urs.earthdata.nasa.gov/approve_app?client_id=e2WVk8Pw6weeLUKZYOxvTQ"
@@ -47,8 +47,13 @@ async def get(
     headers: dict | None = None,
     retries: int = 2,
     backoff: float = 1.0,
+    retry_rate_limited: bool = False,
 ) -> httpx2.Response:
-    """GET with retries on timeouts and transient server errors."""
+    """GET with retries on timeouts and transient server errors.
+
+    A 429 (rate limited) fails at once, unless `retry_rate_limited` (for per-second limits
+    like OpenTopoData's, where waiting a moment helps; daily quotas don't refill in seconds).
+    """
     last_error: Exception | None = None
     for attempt in range(retries + 1):
         try:
@@ -56,7 +61,9 @@ async def get(
         except (httpx2.TimeoutException, httpx2.TransportError) as error:
             last_error = error
         else:
-            if response.status_code in RETRY_STATUSES and attempt < retries:
+            if response.status_code == 429 and not (retry_rate_limited and attempt < retries):
+                raise RateLimitedError(f"HTTP 429 (rate limited) from {response.url.host}")
+            if (response.status_code in RETRY_STATUSES or response.status_code == 429) and attempt < retries:
                 last_error = SourceError(f"HTTP {response.status_code} from {response.url.host}")
             elif response.status_code == 403:
                 raise _forbidden_error(response)
