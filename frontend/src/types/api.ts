@@ -199,6 +199,8 @@ export interface MapOverview {
   layers: MapLayer[]
   cells: GridCell[]
   farms: MapFarm[]
+  // "live", or why the live grid isn't available.
+  grid_status?: string
 }
 
 export interface Dashboard {

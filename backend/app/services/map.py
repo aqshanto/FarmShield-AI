@@ -14,6 +14,10 @@ from app.services.dashboard import build_dashboard
 
 log = logging.getLogger("farmshield.map")
 LIVE_GRID_TIMEOUT_S = 30
+# After the live grid fails, serve the modelled surface at once for a while instead of
+# making every map visitor wait for the same failure.
+LIVE_GRID_RETRY_AFTER = timedelta(minutes=10)
+_grid_failed: tuple[datetime, str] | None = None
 
 LAYERS = [
     MapLayer(
@@ -71,7 +75,11 @@ async def build_map_overview(data_mode: str, now: datetime | None = None, pipeli
     ]
 
     layers = [layer.model_copy() for layer in LAYERS]
-    if data_mode == "live" and pipeline is not None:
+    grid_status = "demo"
+    global _grid_failed
+    if data_mode == "live" and pipeline is not None and _grid_failed and now - _grid_failed[0] < LIVE_GRID_RETRY_AFTER:
+        grid_status = _grid_failed[1]
+    elif data_mode == "live" and pipeline is not None:
         from app.pipeline import farm_locations
         from app.risk.grid import live_grid
 
@@ -79,8 +87,13 @@ async def build_map_overview(data_mode: str, now: datetime | None = None, pipeli
             today = (now.astimezone(UTC) + timedelta(hours=6)).date()
             live = await asyncio.wait_for(live_grid(pipeline, farm_locations(), today), LIVE_GRID_TIMEOUT_S)
         except Exception as error:  # keep the demo surface rather than failing the map
-            log.warning("Live flood grid unavailable: %s", error)
+            reason = f"{type(error).__name__}: {error}"[:200] if str(error) else type(error).__name__
+            log.warning("Live flood grid unavailable: %s", reason)
+            _grid_failed = (now, reason)
+            grid_status = reason
         else:
+            _grid_failed = None
+            grid_status = "live"
             cells = [c.model_copy(update=live[(c.lat, c.lon)]) if (c.lat, c.lon) in live else c for c in cells]
             layers[0] = layers[0].model_copy(
                 update={"live": True, "sources": ["GPM · Forecast", "SMAP", "SRTM", "POWER"],
@@ -103,4 +116,5 @@ async def build_map_overview(data_mode: str, now: datetime | None = None, pipeli
         layers=layers,
         cells=cells,
         farms=farms,
+        grid_status=grid_status,
     )

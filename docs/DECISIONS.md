@@ -14,6 +14,8 @@ checks took ~7 s retrying.
 | 429 handling | Fail fast, pause Open-Meteo 15 min (farms) / 30 min (grid) | A quota doesn't refill in seconds, and a farmer is waiting |
 | Forecast optional | Farm dashboards and spot checks no longer require it | NASA GPM/POWER rain is enough for honest risks; the forecast card explains it's missing |
 | Lighter grid | Weather on a 0.4° lattice (≈4× fewer locations), cache 6 h, keep the last weather on refusal | The 744-cell, 35-day request counted ~2,000 Open-Meteo calls each time and drained the per-address quota |
+| Place names | 5 s budget, no retries, 10-minute pause after a failure; title falls back to "Selected spot" | Nominatim was slow or refusing from the live server and made every tap wait 10–20 s; the risk check doesn't need the name |
+| Grid failures | Remembered for 10 minutes; `grid_status` on `/map/overview` says why the grid isn't live | Every map visitor was waiting ~8 s for the same failure, and the cause was invisible without server logs |
 
 ## 2026-10-01: Global map, Stage A
 

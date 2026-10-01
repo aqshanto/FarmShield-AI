@@ -71,6 +71,7 @@ def test_unsupported_requests(lat, crop, message):
 
 def test_reverse_geocode_names_the_place_caches_it_and_spots_the_sea(monkeypatch):
     monkeypatch.setattr(pr, "_last_geocode", 0.0)
+    monkeypatch.setattr(pr, "_geocode_paused_until", None)
     calls = []
 
     def handler(request: httpx2.Request) -> httpx2.Response:
@@ -90,13 +91,34 @@ def test_reverse_geocode_names_the_place_caches_it_and_spots_the_sea(monkeypatch
     assert asyncio.run(reverse_geocode(pipeline, 30.0, -40.0, "en")) == Place(None, None, False)
 
 
-def test_reverse_geocode_failure_is_not_fatal(monkeypatch):
+def test_reverse_geocode_failure_is_quick_and_pauses_lookups(monkeypatch):
     monkeypatch.setattr(pr, "_last_geocode", 0.0)
+    monkeypatch.setattr(pr, "_geocode_paused_until", None)
     real_sleep = asyncio.sleep
     monkeypatch.setattr(asyncio, "sleep", lambda *_: real_sleep(0))
     pipeline = PipelineService(
         ObservationStore(":memory:"), [], client_factory=lambda: httpx2.AsyncClient(transport=httpx2.MockTransport(lambda r: httpx2.Response(503))), now=lambda: NOW
     )
+    calls = []
+    pipeline.client_factory = lambda: httpx2.AsyncClient(transport=httpx2.MockTransport(lambda r: calls.append(r) or httpx2.Response(503)))
+    assert asyncio.run(reverse_geocode(pipeline, *NAIROBI, "en")) is None
+    assert len(calls) == 1  # no retries
+    # While paused, taps don't even ask.
+    assert asyncio.run(reverse_geocode(pipeline, 10.0, 10.0, "en")) is None
+    assert len(calls) == 1
+
+
+def test_slow_geocoder_is_abandoned(monkeypatch):
+    monkeypatch.setattr(pr, "_last_geocode", 0.0)
+    monkeypatch.setattr(pr, "_geocode_paused_until", None)
+    monkeypatch.setattr(pr, "GEOCODE_TIMEOUT_S", 0.05)
+    real_sleep = asyncio.sleep
+
+    async def slow(request):
+        await real_sleep(1)
+        return httpx2.Response(200, json={})
+
+    pipeline = PipelineService(ObservationStore(":memory:"), [], client_factory=lambda: httpx2.AsyncClient(transport=httpx2.MockTransport(slow)), now=lambda: NOW)
     assert asyncio.run(reverse_geocode(pipeline, *NAIROBI, "en")) is None
 
 

@@ -21,6 +21,7 @@ const text = {
   en: {
     eyebrow: 'Anywhere on Earth',
     finding: 'Finding this place…',
+    unnamed: 'Selected spot',
     clear: 'Clear selected spot',
     crop: 'Your crop',
     crops: { rice: 'Rice', wheat: 'Wheat', maize: 'Maize', potato: 'Potato', tomato: 'Tomato', lentil: 'Lentil', mustard: 'Mustard', jute: 'Jute' },
@@ -38,6 +39,7 @@ const text = {
   bn: {
     eyebrow: 'পৃথিবীর যেকোনো জায়গা',
     finding: 'জায়গাটি খুঁজছি…',
+    unnamed: 'বেছে নেওয়া জায়গা',
     clear: 'বেছে নেওয়া জায়গা মুছুন',
     crop: 'আপনার ফসল',
     crops: { rice: 'ধান', wheat: 'গম', maize: 'ভুট্টা', potato: 'আলু', tomato: 'টমেটো', lentil: 'মসুর ডাল', mustard: 'সরিষা', jute: 'পাট' },
@@ -183,7 +185,11 @@ export function WorldSpotPanel({ point, crop, onCropChange, onClose }: WorldSpot
   )
   const data = risk.status === 'success' ? risk.data : undefined
   const demo = risk.error instanceof ApiError && risk.error.status === 409
-  const title = data?.place ? [data.place, data.country].filter(Boolean).join(', ') : data && !data.land ? t.water : (data?.country ?? t.finding)
+  const title = !data
+    ? t.finding
+    : !data.land
+      ? t.water
+      : [data.place, data.country].filter(Boolean).join(', ') || t.unnamed
 
   return (
     <section aria-labelledby="world-spot-title" className="space-y-4">

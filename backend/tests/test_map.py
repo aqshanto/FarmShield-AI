@@ -58,3 +58,37 @@ def test_map_overview_endpoint():
     assert {farm["id"] for farm in body["farms"]} == {"sunamganj-haor", "barind-wheat", "bogura-potato"}
     haor = next(f for f in body["farms"] if f["id"] == "sunamganj-haor")
     assert haor["modules"]["flood_risk"] == {"score": 78, "level": "danger"}
+
+
+def test_live_grid_failure_is_reported_and_not_retried_on_every_visit(monkeypatch):
+    import asyncio
+    from datetime import UTC, datetime, timedelta
+
+    from app.risk import grid
+    from app.services import map as map_service
+
+    monkeypatch.setattr(map_service, "_grid_failed", None)
+    calls = []
+
+    async def broken(*args, **kwargs):
+        calls.append(1)
+        raise RuntimeError("weather service said no")
+
+    monkeypatch.setattr(grid, "live_grid", broken)
+    now = datetime(2026, 10, 1, 6, tzinfo=UTC)
+    pipeline = object()
+    # The demo farms' own dashboards aren't under test here.
+    monkeypatch.setattr(map_service, "build_dashboard", lambda farm_id, **kw: _sample(farm_id, now))
+
+    first = asyncio.run(map_service.build_map_overview("live", now=now, pipeline=pipeline))
+    assert first.grid_status == "RuntimeError: weather service said no" and not any(l.live for l in first.layers)
+    second = asyncio.run(map_service.build_map_overview("live", now=now + timedelta(minutes=5), pipeline=pipeline))
+    assert second.grid_status == first.grid_status and len(calls) == 1
+    asyncio.run(map_service.build_map_overview("live", now=now + timedelta(minutes=11), pipeline=pipeline))
+    assert len(calls) == 2
+
+
+def _sample(farm_id, now):
+    from app.services.dashboard import build_dashboard
+
+    return build_dashboard(farm_id, data_mode="sample", now=now)

@@ -50,6 +50,8 @@ class MapOverview(BaseModel):
     layers: list[MapLayer]
     cells: list[GridCell]
     farms: list[MapFarm]
+    # "live", or why the live grid isn't available (the map then shows the modelled surface).
+    grid_status: str = "demo"
 
 
 class PointRisk(BaseModel):

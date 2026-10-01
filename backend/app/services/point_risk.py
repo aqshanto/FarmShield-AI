@@ -33,6 +33,10 @@ NOMINATIM_URL = "https://nominatim.openstreetmap.org/reverse"
 # Nominatim's usage policy: identify the app, at most one request per second, cache results.
 USER_AGENT = "FarmShield-AI/1.0 (NASA Space Apps Challenge; https://github.com/aqshanto/FarmShield-AI)"
 GEOCODE_TTL = timedelta(days=30)
+# A name is nice to have, never worth a long wait: give up quickly, and after a failure skip
+# the lookup for a while so every tap stays fast (the risk check doesn't need the name).
+GEOCODE_TIMEOUT_S = 5
+GEOCODE_PAUSE = timedelta(minutes=10)
 MAX_LAT, MIN_LAT = 75.0, -60.0  # beyond this there is no farmland (and GPM stops at ±60°)
 # Crops by their plain name (Bangladesh's season names like "Boro rice" don't travel);
 # each maps to the same engine profile as at home.
@@ -72,6 +76,7 @@ def local_today(now: datetime, lon: float) -> date:
 
 _geocode_lock = asyncio.Lock()
 _last_geocode = 0.0
+_geocode_paused_until: datetime | None = None
 
 
 def _pick_name(address: dict) -> str | None:
@@ -87,13 +92,17 @@ async def reverse_geocode(pipeline: PipelineService, lat: float, lon: float, lan
     Open water has no address, which is how we tell sea from land. None when the service
     can't be reached: the risk check still runs, just without a name.
     """
-    global _last_geocode
+    global _last_geocode, _geocode_paused_until
     location = point_location(lat, lon)
     key = f"geocode:{location.id}:{lang}"
     hit = pipeline.store.cache_get(key)
     if hit and pipeline.now() - hit[1] < GEOCODE_TTL:
         return Place(**hit[0])  # type: ignore[arg-type]
-    try:
+    if _geocode_paused_until and pipeline.now() < _geocode_paused_until:
+        return None
+
+    async def lookup():
+        global _last_geocode
         async with _geocode_lock:
             wait = 1.1 - (time.monotonic() - _last_geocode)
             if wait > 0:
@@ -104,11 +113,16 @@ async def reverse_geocode(pipeline: PipelineService, lat: float, lon: float, lan
                     NOMINATIM_URL,
                     params={"format": "jsonv2", "lat": location.lat, "lon": location.lon, "zoom": 10, "accept-language": f"{lang},en"},
                     headers={"User-Agent": USER_AGENT},
+                    retries=0,
                 )
             _last_geocode = time.monotonic()
-        payload = response.json()
-    except (SourceError, httpx2.HTTPError, ValueError, OSError) as error:
-        log.warning("Reverse geocoding failed for %s: %s", location.id, error)
+        return response.json()
+
+    try:
+        payload = await asyncio.wait_for(lookup(), GEOCODE_TIMEOUT_S)
+    except (SourceError, httpx2.HTTPError, ValueError, OSError, TimeoutError) as error:
+        log.warning("Reverse geocoding failed for %s: %s", location.id, error or type(error).__name__)
+        _geocode_paused_until = pipeline.now() + GEOCODE_PAUSE
         return None
     address = payload.get("address") if isinstance(payload, dict) else None
     place = Place(_pick_name(address), address.get("country"), True) if address else Place(None, None, False)

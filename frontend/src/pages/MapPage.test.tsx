@@ -144,6 +144,14 @@ describe('MapPage', () => {
     expect(await screen.findByText(/running the demo scenario/)).toBeInTheDocument()
   })
 
+  it('names a spot by its coordinates when no place name came back', async () => {
+    pointReply = { status: 200, body: { ...kenya, place: null, country: null } }
+    renderAt('/map')
+    await userEvent.click(await screen.findByRole('button', { name: 'tap Kenya' }))
+    const panel = await screen.findByRole('region', { name: 'Selected spot' })
+    expect(within(panel).getByText('1.29°S, 36.82°E')).toBeInTheDocument()
+  })
+
   it('does not ask about polar spots', async () => {
     renderAt('/map')
     await userEvent.click(await screen.findByRole('button', { name: 'tap Arctic' }))
