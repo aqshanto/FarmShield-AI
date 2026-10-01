@@ -159,7 +159,7 @@ An explainable scorecard. Each factor is scored 0–100 and weighted:
 | `flood.py` | Pure engine: `assess_flood`, `score_factors`, `flood_trend`, advice per level |
 | `inputs.py` | Pipeline observations → `FloodInputs` (source preference, SMAP freshness, porosity) |
 | `live.py` | Engine → dashboard module, recommendations, and the live 7-day forecast (WMO codes) |
-| `grid.py` weather | Open-Meteo multi-point, sampled on a 0.4° lattice (each point serves the 0.2° cells around it), cached 6 h; on a 429 the map keeps its last weather and pauses 30 minutes |
+| `grid.py` weather | Open-Meteo multi-point, sampled on a 0.4° lattice (each point serves the 0.2° cells around it), cached 6 h. When Open-Meteo refuses: the past 30 days from **NASA POWER's regional daily grid** (one request per variable: rain, high and mean temperature, humidity; ~2 days behind) and the next days from **MET Norway** on a 1° lattice. If both fail, the last good reading. `grid_status` on `/map/overview` says which weather the live grid used |
 | `water.py` | Water-stress engine + irrigation decision (see below) |
 | `crop.py` | Crop-health engine with crop profiles (see below) |
 | `grid.py` | Flood, water **and** crop engines per 0.2° land cell from shared inputs: SRTM (batched, cached for a year), weather (30 days back + 5 ahead: rain, high/mean temperature, humidity; multi-point, 3 h), SMAP bounding-box subsets (newest valid pass over 3 days, 6 h) |

@@ -93,7 +93,9 @@ async def build_map_overview(data_mode: str, now: datetime | None = None, pipeli
             grid_status = reason
         else:
             _grid_failed = None
-            grid_status = "live"
+            weather = pipeline.store.cache_get("grid_weather_v3")
+            backup = weather and weather[0].get("past_source") == "nasa_power"
+            grid_status = "live (weather: NASA POWER + MET Norway)" if backup else "live"
             cells = [c.model_copy(update=live[(c.lat, c.lon)]) if (c.lat, c.lon) in live else c for c in cells]
             layers[0] = layers[0].model_copy(
                 update={"live": True, "sources": ["GPM · Forecast", "SMAP", "SRTM", "POWER"],

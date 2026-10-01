@@ -144,7 +144,7 @@ def test_grid_weather_uses_a_coarser_lattice():
         assert abs(points[o][0] - lat) <= 0.2 + 1e-9 and abs(points[o][1] - lon) <= 0.2 + 1e-9
 
 
-def test_grid_keeps_its_last_weather_when_open_meteo_refuses():
+def test_grid_keeps_its_last_weather_when_every_weather_service_refuses():
     pipeline = make_pipeline({})
     cells = grid.land_cells()[:3]
     old = {"days": ["2026-09-30"], "rain": [[1.0]] * 3, "tmax": [[30.0]] * 3, "tmean": [[27.0]] * 3, "humidity": [[80.0]] * 3}
@@ -152,7 +152,65 @@ def test_grid_keeps_its_last_weather_when_open_meteo_refuses():
 
     async def go():
         async with client_for(lambda r: httpx2.Response(429)) as client:
-            return await grid._weather(pipeline, client, cells)
+            return await grid._weather(pipeline, client, cells, date(2026, 10, 1))
 
     assert asyncio.run(go()) == old
     assert grid._weather_paused_until is not None
+
+
+def power_regional(parameter: str, value: float, days: list[date]) -> dict:
+    points = [(lat, lon) for lat in (21.0, 23.5, 26.0) for lon in (88.125, 90.0, 92.5)]
+    return {
+        "header": {"fill_value": -999.0},
+        "features": [
+            {
+                "geometry": {"coordinates": [lon, lat, 0]},
+                "properties": {"parameter": {parameter: {f"{d:%Y%m%d}": (value if d < days[-2] else -999.0) for d in days}}},
+            }
+            for lat, lon in points
+        ],
+    }
+
+
+def test_power_regional_parsing_drops_fill_values():
+    days = [date(2026, 9, 28) + timedelta(days=i) for i in range(4)]
+    parsed = grid.parse_power_regional(power_regional("PRECTOTCORR", 5.0, days))
+    assert len(parsed) == 9 and parsed[(21.0, 88.125)] == {date(2026, 9, 28): 5.0, date(2026, 9, 29): 5.0}
+    with pytest.raises(Exception, match="no data"):
+        grid.parse_power_regional({"messages": ["A maximum of 1 parameters"]})
+
+
+def test_grid_weather_comes_from_nasa_power_and_met_when_open_meteo_refuses():
+    today = date(2026, 10, 1)
+    days = [today - timedelta(days=30) + timedelta(days=i) for i in range(31)]
+    values = {"PRECTOTCORR": 4.0, "T2M_MAX": 31.0, "T2M": 28.0, "RH2M": 85.0}
+    hosts = []
+
+    def handler(request):
+        hosts.append(request.url.host)
+        if request.url.host == "api.open-meteo.com":
+            return httpx2.Response(429)
+        if request.url.host == "power.larc.nasa.gov":
+            parameter = request.url.params["parameters"]
+            return httpx2.Response(200, json=power_regional(parameter, values[parameter], days))
+        return httpx2.Response(200, json=met_payload(datetime(2026, 10, 1, 0, tzinfo=UTC), hours=24, six_hourly=20))
+
+    pipeline = make_pipeline({})
+    cells = grid.land_cells()
+
+    async def go():
+        async with client_for(handler) as client:
+            return await grid._weather(pipeline, client, cells, today)
+
+    w = asyncio.run(go())
+    assert w["past_source"] == "nasa_power" and w["days"][0] == "2026-09-01" and w["days"][-1] == "2026-10-05"
+    assert hosts.count("power.larc.nasa.gov") == 4 and hosts.count("api.met.no") == len(grid.weather_points(cells, 1.0)[0])
+    row, tmax = w["rain"][0], w["tmax"][0]
+    assert row[0] == 4.0 and row[29] is None  # POWER lags a couple of days
+    assert row[30] is not None and tmax[31] is not None  # today and the coming days from MET
+    assert len(w["rain"]) == len(cells)
+
+    # Cached: the next map visit asks nobody.
+    hosts.clear()
+    asyncio.run(go())
+    assert hosts == []

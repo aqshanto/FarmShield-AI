@@ -3,7 +3,9 @@
 Per cell (0.2°, land only):
   terrain     NASA SRTM elevation (OpenTopoData, batched; cached for a year)
   weather     Open-Meteo daily rain, high/mean temperature and humidity, last 30 days + next 5, one
-              multi-point request (cached 3 h)
+              multi-point request on a 0.4° lattice (cached 6 h). When Open-Meteo refuses (its free
+              quota is per server address), the past 30 days come from NASA POWER's regional
+              daily grid and the next days from MET Norway on a 1° lattice.
   topsoil     SMAP SPL3SMP_E bounding-box subset for the last 3 days, newest valid pass
               per cell (cached 6 h). Without a token: the national NASA POWER wetness.
   normals     NASA POWER monthly normals, averaged over the farms
@@ -26,7 +28,8 @@ import httpx2
 from app.data.sample.grid import cell_centres
 from app.pipeline.grids import M09_COLS, ease2_m09_index
 from app.pipeline.http import get
-from app.pipeline.sources.base import RateLimitedError
+from app.pipeline.sources.base import RateLimitedError, SourceError
+from app.pipeline.sources.forecast import MET_URL, MET_USER_AGENT, parse_met
 from app.pipeline.models import Location
 from app.pipeline.service import PipelineService
 from app.pipeline.sources.opendap import SmapSource, granule_links
@@ -43,6 +46,11 @@ log = logging.getLogger("farmshield.grid")
 
 OUTLINE = json.loads((Path(__file__).resolve().parent.parent / "data" / "bangladesh.geo.json").read_text())
 FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
+POWER_REGIONAL_URL = "https://power.larc.nasa.gov/api/temporal/daily/regional"
+# POWER regional serves one parameter per request: grid variable → POWER parameter.
+POWER_GRID_PARAMETERS = {"rain": "PRECTOTCORR", "tmax": "T2M_MAX", "tmean": "T2M", "humidity": "RH2M"}
+MET_STEP_DEG = 1.0
+PAST_DAYS, FORECAST_DAYS = 30, 5
 RAIN_TTL = timedelta(hours=6)
 # Weather is sampled on a 0.4° lattice (each point serves the 0.2° cells around it): weather
 # models are ~10–25 km anyway, and it cuts Open-Meteo usage about 4×, which matters on
@@ -95,9 +103,9 @@ async def _elevations(pipeline: PipelineService, client: httpx2.AsyncClient, cel
     return values
 
 
-def weather_points(cells: list[tuple[float, float]]) -> tuple[list[tuple[float, float]], list[int]]:
+def weather_points(cells: list[tuple[float, float]], step: float = WEATHER_STEP_DEG) -> tuple[list[tuple[float, float]], list[int]]:
     """The coarse weather points to ask for, and which one serves each cell."""
-    snap = lambda v: round(round(v / WEATHER_STEP_DEG) * WEATHER_STEP_DEG, 2)  # noqa: E731
+    snap = lambda v: round(round(v / step) * step, 2)  # noqa: E731
     points: list[tuple[float, float]] = []
     index: dict[tuple[float, float], int] = {}
     owner = []
@@ -110,18 +118,36 @@ def weather_points(cells: list[tuple[float, float]]) -> tuple[list[tuple[float, 
     return points, owner
 
 
-async def _weather(pipeline: PipelineService, client: httpx2.AsyncClient, cells: list[tuple[float, float]]) -> dict:
+async def _weather(pipeline: PipelineService, client: httpx2.AsyncClient, cells: list[tuple[float, float]], today: date) -> dict:
+    """Open-Meteo first; NASA POWER + MET Norway when it refuses (or the last good reading)."""
     global _weather_paused_until
-    key = "grid_weather_v3"  # v3: coarse 0.4° sampling
+    key = "grid_weather_v3"
     cached = _cached(pipeline, key, RAIN_TTL)
     if cached is not None:
         return cached
-    # Older weather beats no weather: while Open-Meteo refuses, the map keeps its last reading.
-    stale = pipeline.store.cache_get(key)
-    if _weather_paused_until and pipeline.now() < _weather_paused_until:
-        if stale:
+    if not (_weather_paused_until and pipeline.now() < _weather_paused_until):
+        try:
+            value = await _weather_open_meteo(pipeline, client, cells)
+        except SourceError as error:
+            if isinstance(error, RateLimitedError):
+                _weather_paused_until = pipeline.now() + WEATHER_PAUSE
+            log.warning("Open-Meteo grid weather unavailable (%s); using NASA POWER + MET Norway", error)
+        else:
+            pipeline.store.cache_set(key, value, pipeline.now())
+            return value
+    try:
+        value = await _weather_nasa(client, cells, today)
+    except Exception as error:
+        stale = pipeline.store.cache_get(key)
+        if stale:  # older weather beats no weather
+            log.warning("Backup grid weather failed too (%s); keeping the last reading", error)
             return stale[0]
-        raise RateLimitedError("Open-Meteo asked us to slow down")
+        raise
+    pipeline.store.cache_set(key, value, pipeline.now())
+    return value
+
+
+async def _weather_open_meteo(pipeline: PipelineService, client: httpx2.AsyncClient, cells: list[tuple[float, float]]) -> dict:
     points, owner = weather_points(cells)
     days: list[str] = []
     rain_cells: list[list[float | None]] = []
@@ -130,24 +156,18 @@ async def _weather(pipeline: PipelineService, client: httpx2.AsyncClient, cells:
     humid_cells: list[list[float | None]] = []
     for i in range(0, len(points), 400):  # comfortably within Open-Meteo's multi-location limit
         batch = points[i : i + 400]
-        try:
-            response = await get(
-                client,
-                FORECAST_URL,
-                params={
-                    "latitude": ",".join(str(lat) for lat, _ in batch),
-                    "longitude": ",".join(str(lon) for _, lon in batch),
-                    "daily": "precipitation_sum,temperature_2m_max,temperature_2m_mean,relative_humidity_2m_mean",
-                    "past_days": 30,
-                    "forecast_days": 5,
-                    "timezone": "Asia/Dhaka",
-                },
-            )
-        except RateLimitedError:
-            _weather_paused_until = pipeline.now() + WEATHER_PAUSE
-            if stale:
-                return stale[0]
-            raise
+        response = await get(
+            client,
+            FORECAST_URL,
+            params={
+                "latitude": ",".join(str(lat) for lat, _ in batch),
+                "longitude": ",".join(str(lon) for _, lon in batch),
+                "daily": "precipitation_sum,temperature_2m_max,temperature_2m_mean,relative_humidity_2m_mean",
+                "past_days": PAST_DAYS,
+                "forecast_days": FORECAST_DAYS,
+                "timezone": "Asia/Dhaka",
+            },
+        )
         payload = response.json()
         for location in payload if isinstance(payload, list) else [payload]:
             days = location["daily"]["time"]
@@ -157,8 +177,84 @@ async def _weather(pipeline: PipelineService, client: httpx2.AsyncClient, cells:
             humid_cells.append(location["daily"]["relative_humidity_2m_mean"])
     # Back to one row per cell, so everything downstream stays per cell.
     spread = lambda rows: [rows[o] if o < len(rows) else [] for o in owner]  # noqa: E731
-    value = {"days": days, "rain": spread(rain_cells), "tmax": spread(tmax_cells), "tmean": spread(tmean_cells), "humidity": spread(humid_cells)}
-    pipeline.store.cache_set(key, value, pipeline.now())
+    return {
+        "days": days,
+        "rain": spread(rain_cells),
+        "tmax": spread(tmax_cells),
+        "tmean": spread(tmean_cells),
+        "humidity": spread(humid_cells),
+        "past_source": "open_meteo",
+    }
+
+
+def _nearest(points: list[tuple[float, float]], lat: float, lon: float) -> int:
+    return min(range(len(points)), key=lambda i: (points[i][0] - lat) ** 2 + (points[i][1] - lon) ** 2)
+
+
+def parse_power_regional(payload: dict) -> dict[tuple[float, float], dict[date, float]]:
+    """POWER regional GeoJSON → {(lat, lon): {day: value}}, without fill values."""
+    fill = payload.get("header", {}).get("fill_value", -999.0)
+    out: dict[tuple[float, float], dict[date, float]] = {}
+    for feature in payload.get("features", []):
+        lon, lat = feature["geometry"]["coordinates"][:2]
+        (series,) = feature["properties"]["parameter"].values()
+        out[(lat, lon)] = {datetime.strptime(d, "%Y%m%d").date(): v for d, v in series.items() if v is not None and v != fill}
+    if not out:
+        raise SourceError(f"NASA POWER regional returned no data: {payload.get('messages')}")
+    return out
+
+
+async def _weather_nasa(client: httpx2.AsyncClient, cells: list[tuple[float, float]], today: date) -> dict:
+    """Past 30 days from NASA POWER's regional grid (~0.5°, four requests, a few days behind),
+    the next days from MET Norway on a 1° lattice. Same shape as the Open-Meteo reading."""
+    lats, lons = [c[0] for c in cells], [c[1] for c in cells]
+    start, end = today - timedelta(days=PAST_DAYS), today
+    bbox = {
+        "latitude-min": round(min(lats) - 0.25, 2),
+        "latitude-max": round(max(lats) + 0.25, 2),
+        "longitude-min": round(min(lons) - 0.3, 2),
+        "longitude-max": round(max(lons) + 0.3, 2),
+    }
+
+    async def power(parameter: str):
+        response = await get(
+            client,
+            POWER_REGIONAL_URL,
+            params={"parameters": parameter, "community": "AG", **bbox, "start": f"{start:%Y%m%d}", "end": f"{end:%Y%m%d}", "format": "JSON"},
+        )
+        return parse_power_regional(response.json())
+
+    met_points, met_owner = weather_points(cells, MET_STEP_DEG)
+    limit = asyncio.Semaphore(4)  # MET asks for modest concurrency
+
+    async def met(lat: float, lon: float) -> dict[str, dict[date, float]]:
+        async with limit:
+            try:
+                response = await get(client, MET_URL, params={"lat": lat, "lon": lon}, headers={"User-Agent": MET_USER_AGENT}, retries=1)
+            except SourceError as error:
+                log.warning("MET Norway forecast failed at %s,%s: %s", lat, lon, error)
+                return {}
+        by_variable: dict[str, dict[date, float]] = {}
+        for o in parse_met(response.json(), "met_norway", lon, days=FORECAST_DAYS):
+            by_variable.setdefault(o.variable, {})[o.date] = o.value
+        return by_variable
+
+    past_list = await asyncio.gather(*(power(p) for p in POWER_GRID_PARAMETERS.values()))
+    past = dict(zip(POWER_GRID_PARAMETERS, past_list, strict=True))
+    coming = await asyncio.gather(*(met(lat, lon) for lat, lon in met_points))
+    met_variable = {"rain": "precipitation_forecast", "tmax": "temperature_max_forecast", "tmean": "temperature_mean_forecast", "humidity": "humidity_forecast"}
+
+    days = [today + timedelta(days=i) for i in range(-PAST_DAYS, FORECAST_DAYS)]
+    power_points = list(past["rain"])
+    value: dict = {"days": [d.isoformat() for d in days], "past_source": "nasa_power"}
+    for name in POWER_GRID_PARAMETERS:
+        rows = []
+        for k, (lat, lon) in enumerate(cells):
+            observed = past[name].get(power_points[_nearest(power_points, lat, lon)], {})
+            forecast = coming[met_owner[k]].get(met_variable[name], {})
+            # Measured days from NASA; today and later from the forecast.
+            rows.append([forecast.get(d, observed.get(d)) if d >= today else observed.get(d) for d in days])
+        value[name] = rows
     return value
 
 
@@ -210,7 +306,7 @@ async def live_grid(pipeline: PipelineService, farms: list[Location], today: dat
     """{"flood_risk", "water_stress", "crop_health"} scores for each land cell, keyed by (lat, lon) centre."""
     cells = land_cells()
     async with pipeline.client_factory() as client:
-        elevations, weather = await asyncio.gather(_elevations(pipeline, client, cells), _weather(pipeline, client, cells))
+        elevations, weather = await asyncio.gather(_elevations(pipeline, client, cells), _weather(pipeline, client, cells, today))
         try:
             smap = await _smap(pipeline, client, cells, today)
         except Exception as error:  # topsoil falls back to the national value
@@ -232,7 +328,8 @@ async def live_grid(pipeline: PipelineService, farms: list[Location], today: dat
     for k, (lat, lon) in enumerate(cells):
         rain_row = weather["rain"][k] if k < len(weather["rain"]) else []
         tmax_row = weather["tmax"][k] if k < len(weather["tmax"]) else []
-        daily = [DailyRain(d, mm, "open_meteo", d > today) for d, mm in zip(days, rain_row, strict=False) if mm is not None]
+        past_source = weather.get("past_source", "open_meteo")
+        daily = [DailyRain(d, mm, past_source if d < today else "open_meteo", d > today) for d, mm in zip(days, rain_row, strict=False) if mm is not None]
         has_smap = bool(smap and smap[k] is not None)
         sat = smap[k] / POROSITY if has_smap else national_saturation
         sat = min(1.0, sat) if sat is not None else None

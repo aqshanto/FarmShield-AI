@@ -15,6 +15,7 @@ checks took ~7 s retrying.
 | Forecast optional | Farm dashboards and spot checks no longer require it | NASA GPM/POWER rain is enough for honest risks; the forecast card explains it's missing |
 | Lighter grid | Weather on a 0.4° lattice (≈4× fewer locations), cache 6 h, keep the last weather on refusal | The 744-cell, 35-day request counted ~2,000 Open-Meteo calls each time and drained the per-address quota |
 | Place names | 5 s budget, no retries, 10-minute pause after a failure; title falls back to "Selected spot" | Nominatim was slow or refusing from the live server and made every tap wait 10–20 s; the risk check doesn't need the name |
+| Grid weather backup | NASA POWER regional daily (past 30 days) + MET Norway at 1° (next 5 days) when Open-Meteo refuses | Render's address stayed blocked by Open-Meteo even with the lighter request. POWER covers Bangladesh in four ~1.5 s requests (one parameter each, its limit); MET fills the days POWER hasn't reached. Compared with Open-Meteo on the same day: flood "watch" in 201 vs 218 of 302 cells |
 | Grid failures | Remembered for 10 minutes; `grid_status` on `/map/overview` says why the grid isn't live | Every map visitor was waiting ~8 s for the same failure, and the cause was invisible without server logs |
 
 ## 2026-10-01: Global map, Stage A
