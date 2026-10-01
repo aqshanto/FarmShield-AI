@@ -14,7 +14,8 @@
     "test:api": "node scripts/python.mjs -m pytest -q",
     "test:web": "npm --prefix frontend test",
     "build": "npm --prefix frontend run build",
-    "lint": "npm --prefix frontend run lint"
+    "lint": "npm --prefix frontend run lint",
+    "warm": "node scripts/warm-demo.mjs"
   },
   "devDependencies": {
     "concurrently": "^10.0.5"

@@ -58,6 +58,7 @@ npm run dev
 | `npm run setup` | Creates `backend/.venv`, installs Python and npm dependencies |
 | `npm run dev` | Starts backend (:8000) and frontend (:5173) together |
 | `npm run demo` | Same, with the bundled demo scenario (no NASA downloads; for presentations) |
+| `npm run warm` | Wakes the live API and pre-loads everything the demo shows (`-- --awake` keeps it awake, `-- --local` targets this laptop) |
 | `npm test` | Runs backend (pytest) and frontend (Vitest) tests |
 | `npm run build` | Type-checks and builds the frontend into `frontend/dist` |
 | `npm run lint` | Lints the frontend with oxlint |
