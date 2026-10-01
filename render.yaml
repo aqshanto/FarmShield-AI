@@ -1,0 +1,33 @@
+# Render Blueprint: the FarmShield AI API (FastAPI).
+# Render → New → Blueprint → pick this repo. Secrets marked `sync: false` are asked for
+# in the dashboard and never stored in git. Full guide: docs/DEPLOY.md
+services:
+  - type: web
+    name: farmshield-api
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/v1/health
+    autoDeploy: true
+    envVars:
+      # Same Python as local development and the test suite.
+      - key: PYTHON_VERSION
+        value: 3.14.3
+      - key: ENVIRONMENT
+        value: production
+      # live = NASA data (refreshed in the background on start); sample = bundled demo scenario.
+      - key: DATA_MODE
+        value: live
+      # Your Vercel site, e.g. https://farmshield-ai.vercel.app (comma-separate several).
+      - key: CORS_ORIGINS
+        sync: false
+      # Optional: allow Vercel preview deployments, e.g. https://farmshield-[a-z0-9-]+\.vercel\.app
+      - key: CORS_ORIGIN_REGEX
+        sync: false
+      # Optional secrets: GPM/SMAP via Earthdata, and Claude for the assistant.
+      - key: EARTHDATA_TOKEN
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false

@@ -35,3 +35,26 @@ def test_cors_allows_frontend_dev_origin():
         headers={"Origin": "http://localhost:5173", "Access-Control-Request-Method": "GET"},
     )
     assert response.headers.get("access-control-allow-origin") == "http://localhost:5173"
+
+
+def test_cors_allows_listed_origins_and_the_optional_pattern(monkeypatch):
+    from app.core.config import get_settings
+    from app.main import create_app
+
+    monkeypatch.setenv("CORS_ORIGINS", "https://farmshield.vercel.app")
+    monkeypatch.setenv("CORS_ORIGIN_REGEX", r"https://farmshield-[a-z0-9-]+\.vercel\.app")
+    get_settings.cache_clear()
+    try:
+        client = TestClient(create_app())
+
+        def allowed(origin):
+            res = client.options("/api/v1/health", headers={"Origin": origin, "Access-Control-Request-Method": "GET"})
+            return res.headers.get("access-control-allow-origin") == origin
+
+        assert allowed("https://farmshield.vercel.app")
+        assert allowed("https://farmshield-git-main-aqshanto.vercel.app")
+        assert not allowed("https://evil.example.com")
+    finally:
+        monkeypatch.delenv("CORS_ORIGINS")
+        monkeypatch.delenv("CORS_ORIGIN_REGEX")
+        get_settings.cache_clear()

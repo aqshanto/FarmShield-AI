@@ -16,6 +16,9 @@ class Settings(BaseSettings):
 
     # Comma-separated list of allowed frontend origins.
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+    # Optional regex for extra origins, e.g. Vercel preview URLs:
+    # https://farmshield-[a-z0-9-]+\.vercel\.app
+    cors_origin_regex: str | None = None
 
     # "live": risk engines run on NASA data where available (demo data fills the rest).
     # "sample": the bundled demo scenario only, e.g. for an offline presentation.

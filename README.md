@@ -97,5 +97,7 @@ scripts/     Cross-platform setup and run helpers
 
 Presenting? See [docs/DEMO.md](docs/DEMO.md) for the 5-minute script and checklist.
 
+Deploying? See [docs/DEPLOY.md](docs/DEPLOY.md): API on Render (`render.yaml`), website on Vercel (`frontend/vercel.json`).
+
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for details, and
 [PLAN.md](PLAN.md) / [DEVELOPMENT_PROMPTS.md](DEVELOPMENT_PROMPTS.md) for the roadmap.
