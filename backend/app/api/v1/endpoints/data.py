@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -8,6 +8,7 @@ from app.core.config import Settings, get_settings
 from app.pipeline import farm_locations, get_pipeline
 from app.pipeline.service import PipelineService
 from app.schemas.data import DataStatus, FarmObservations, ObservationPoint, RefreshStarted, VariableSeries
+from app.services.map import warm_map_overview
 
 router = APIRouter(tags=["data"])
 
@@ -16,15 +17,18 @@ _background: set[asyncio.Task] = set()
 
 
 async def _refresh_and_warm(pipeline: PipelineService, days: int, force: bool) -> None:
+    live = get_settings().data_mode == "live"
+    # The map first, so the first visitor sees it live; the farms' full NASA refresh can
+    # take minutes on a small server.
+    first = warm_map_overview(pipeline) if live else None
     await pipeline.refresh(farm_locations(), days=days, force=force)
-    if get_settings().data_mode == "live":
-        from app.risk.grid import live_grid
-
+    if first is not None:
         try:
-            # Pre-compute the live risk map so the first map visit is instant.
-            await live_grid(pipeline, farm_locations(), (datetime.now(UTC) + timedelta(hours=6)).date())
+            await asyncio.gather(first, return_exceptions=True)
+            # Again with the farms' fresh data (national soil wetness, rain normals, farm markers).
+            await warm_map_overview(pipeline)
         except Exception as error:
-            logging.getLogger("farmshield.pipeline").warning("Could not warm the risk grid: %s", error)
+            logging.getLogger("farmshield.pipeline").warning("Could not warm the risk map: %s", error)
 
 
 def start_background_refresh(pipeline: PipelineService, days: int, force: bool = False) -> bool:

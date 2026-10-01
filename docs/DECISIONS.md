@@ -2,6 +2,15 @@
 
 Short records of choices that shape the project. Newest first.
 
+## 2026-10-01: Background map warm-up
+
+| Topic | Decision | Why |
+|---|---|---|
+| Built map in memory | 30 min fresh, then stale-while-revalidate; 5 min when the live grid failed | Every visit used to rebuild the grid (~4 s on Render, ~25 s cold) |
+| Warm at startup | Build the map first, then the farms' full NASA refresh, then rebuild | The full refresh can take minutes on a free server; the map is what visitors open first |
+| Never a long wait | Cold visitors get the modelled map within 3 s, marked "warming"; the page re-asks every 8 s (max ~2 min) | Better an honest "Getting live data…" than a 25 s spinner; the swap to live happens by itself |
+| One build at a time | Visitors join the running build | Parallel cold visits would multiply the same downloads on a tiny CPU |
+
 ## 2026-10-01: Forecast resilience on the live server
 
 The live API (Render) got HTTP 429 from Open-Meteo on every request: no forecast was stored,

@@ -14,6 +14,15 @@ from app.services.dashboard import build_dashboard
 
 log = logging.getLogger("farmshield.map")
 LIVE_GRID_TIMEOUT_S = 30
+# Built in the background (nobody waiting), the grid may take longer: e.g. right after a
+# restart on a small server, when terrain, weather and SMAP all download at once.
+BACKGROUND_GRID_TIMEOUT_S = 120
+# A built live map is served from memory: fresh for 30 minutes, then served once more while
+# a new one builds in the background. A failed build is retried sooner.
+OVERVIEW_FRESH = timedelta(minutes=30)
+FAILED_OVERVIEW_FRESH = timedelta(minutes=5)
+# A cold visit waits this long for a running build before getting the modelled map.
+COLD_WAIT_S = 3.0
 # After the live grid fails, serve the modelled surface at once for a while instead of
 # making every map visitor wait for the same failure.
 LIVE_GRID_RETRY_AFTER = timedelta(minutes=10)
@@ -41,7 +50,9 @@ LAYERS = [
 ]
 
 
-async def build_map_overview(data_mode: str, now: datetime | None = None, pipeline=None) -> MapOverview:
+async def build_map_overview(
+    data_mode: str, now: datetime | None = None, pipeline=None, grid_timeout: float = LIVE_GRID_TIMEOUT_S
+) -> MapOverview:
     now = now or datetime.now(UTC)
     dashboards = [build_dashboard(farm_id, data_mode=data_mode, now=now, pipeline=pipeline) for farm_id in SAMPLE_FARMS]
 
@@ -85,7 +96,7 @@ async def build_map_overview(data_mode: str, now: datetime | None = None, pipeli
 
         try:
             today = (now.astimezone(UTC) + timedelta(hours=6)).date()
-            live = await asyncio.wait_for(live_grid(pipeline, farm_locations(), today), LIVE_GRID_TIMEOUT_S)
+            live = await asyncio.wait_for(live_grid(pipeline, farm_locations(), today), grid_timeout)
         except Exception as error:  # keep the demo surface rather than failing the map
             reason = f"{type(error).__name__}: {error}"[:200] if str(error) else type(error).__name__
             log.warning("Live flood grid unavailable: %s", reason)
@@ -120,3 +131,59 @@ async def build_map_overview(data_mode: str, now: datetime | None = None, pipeli
         farms=farms,
         grid_status=grid_status,
     )
+
+
+# --- served map: cached, built once at a time, never a long wait --------------------------------
+
+# Per pipeline (tests use their own): (built at, overview).
+_cache: dict[int, tuple[datetime, MapOverview]] = {}
+_building: dict[int, asyncio.Task] = {}
+
+
+def warm_map_overview(pipeline) -> asyncio.Task:
+    """Build the live map in the background (joins a build that's already running)."""
+    key = id(pipeline)
+    task = _building.get(key)
+    if task is None or task.done():
+        task = asyncio.create_task(_build_and_store(pipeline))
+        _building[key] = task
+    return task
+
+
+async def _build_and_store(pipeline) -> MapOverview:
+    try:
+        overview = await build_map_overview("live", pipeline=pipeline, grid_timeout=BACKGROUND_GRID_TIMEOUT_S)
+    except Exception:
+        log.exception("Building the map failed")
+        raise
+    _cache[id(pipeline)] = (datetime.now(UTC), overview)
+    log.info("Map ready: %s", overview.grid_status)
+    return overview
+
+
+async def get_map_overview(data_mode: str, pipeline=None) -> MapOverview:
+    """What the API serves. The demo map is cheap and built per request; the live one comes
+    from memory, is rebuilt in the background when it's old, and a visitor who arrives before
+    the first build finishes gets the modelled map at once, marked "warming", instead of a
+    long wait (the page asks again shortly)."""
+    if data_mode != "live" or pipeline is None:
+        return await build_map_overview(data_mode, pipeline=pipeline)
+    hit = _cache.get(id(pipeline))
+    if hit:
+        built_at, overview = hit
+        fresh_for = OVERVIEW_FRESH if overview.grid_status.startswith("live") else FAILED_OVERVIEW_FRESH
+        if datetime.now(UTC) - built_at >= fresh_for:
+            warm_map_overview(pipeline)  # serve this one meanwhile
+        return overview
+    task = warm_map_overview(pipeline)
+    try:
+        return await asyncio.wait_for(asyncio.shield(task), COLD_WAIT_S)
+    except Exception:  # still building (timeout), or the build failed: don't make the visitor wait
+        warming = await build_map_overview("live", pipeline=None)
+        return warming.model_copy(update={"grid_status": "warming"})
+
+
+def reset_map_cache() -> None:
+    """For tests: forget built maps."""
+    _cache.clear()
+    _building.clear()

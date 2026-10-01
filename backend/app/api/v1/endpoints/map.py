@@ -6,7 +6,7 @@ from app.i18n.localize import localize_overview, localize_point
 from app.pipeline import get_pipeline
 from app.pipeline.service import PipelineService
 from app.schemas.map import MapOverview, PointRisk
-from app.services.map import build_map_overview
+from app.services.map import get_map_overview
 from app.services.point_risk import PointDataPendingError, PointRiskError, point_risk
 
 router = APIRouter(prefix="/map", tags=["map"])
@@ -18,7 +18,7 @@ async def overview(
     settings: Settings = Depends(get_settings),
     pipeline: PipelineService = Depends(get_pipeline),
 ) -> MapOverview:
-    return localize_overview(await build_map_overview(data_mode=settings.data_mode, pipeline=pipeline), lang)
+    return localize_overview(await get_map_overview(settings.data_mode, pipeline), lang)
 
 
 @router.get("/point", response_model=PointRisk)

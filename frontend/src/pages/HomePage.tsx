@@ -7,10 +7,9 @@ import { HowItWorks } from '@/features/home/HowItWorks'
 import { LiveFarms } from '@/features/home/LiveFarms'
 import { LivePulse } from '@/features/home/LivePulse'
 import { OrbitIllustration } from '@/features/home/OrbitIllustration'
-import { api } from '@/lib/api'
 import { useLang, useText } from '@/lib/i18n'
 import { fadeUp, stagger } from '@/lib/motion'
-import { useAsync } from '@/lib/useAsync'
+import { useMapOverview } from '@/features/map/useMapOverview'
 
 const text = {
   en: {
@@ -52,7 +51,7 @@ const text = {
 export function HomePage() {
   const lang = useLang()
   const t = useText(text)
-  const overview = useAsync(`map-overview|${lang}`, (signal) => api.mapOverview({ signal }, lang), { retries: 5 })
+  const overview = useMapOverview(lang)
   const data = overview.data
   const live = data?.data_mode === 'live' && data.layers.some((l) => l.live)
 

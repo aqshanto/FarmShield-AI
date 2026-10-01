@@ -6,11 +6,27 @@ import type { MapLayer } from '@/types/api'
 
 // Legend for the active layer: what it shows, where it comes from, and the four levels.
 const text = {
-  en: { levels: 'Risk levels', live: 'Live', liveTitle: 'Computed for every cell from today’s NASA data', demo: 'Demo data', demoTitle: 'Modelled demo surface' },
-  bn: { levels: 'ঝুঁকির মাত্রা', live: 'লাইভ', liveTitle: 'আজকের নাসা তথ্য থেকে প্রতিটি এলাকার হিসাব', demo: 'ডেমো তথ্য', demoTitle: 'ডেমো মডেল' },
+  en: {
+    levels: 'Risk levels',
+    live: 'Live',
+    liveTitle: 'Computed for every cell from today’s NASA data',
+    demo: 'Demo data',
+    demoTitle: 'Modelled demo surface',
+    warming: 'Getting live data…',
+    warmingTitle: 'The server just started. Showing the modelled map until today’s NASA map is ready (under a minute).',
+  },
+  bn: {
+    levels: 'ঝুঁকির মাত্রা',
+    live: 'লাইভ',
+    liveTitle: 'আজকের নাসা তথ্য থেকে প্রতিটি এলাকার হিসাব',
+    demo: 'ডেমো তথ্য',
+    demoTitle: 'ডেমো মডেল',
+    warming: 'লাইভ তথ্য আনা হচ্ছে…',
+    warmingTitle: 'সার্ভার এইমাত্র চালু হয়েছে। আজকের নাসা মানচিত্র তৈরি না হওয়া পর্যন্ত মডেল মানচিত্র দেখানো হচ্ছে (এক মিনিটের কম)।',
+  },
 }
 
-export function MapLegend({ layer }: { layer: MapLayer }) {
+export function MapLegend({ layer, warming = false }: { layer: MapLayer; warming?: boolean }) {
   const lang = useLang()
   const t = useText(text)
   return (
@@ -40,6 +56,11 @@ export function MapLegend({ layer }: { layer: MapLayer }) {
         {layer.live ? (
           <Badge tone="leaf" className="px-2 text-[10px]" title={t.liveTitle}>
             {t.live}
+          </Badge>
+        ) : warming ? (
+          <Badge tone="sky" className="px-2 text-[10px]" title={t.warmingTitle}>
+            <span className="mr-0.5 size-1.5 animate-ping-soft rounded-full bg-sky-300" aria-hidden="true" />
+            {t.warming}
           </Badge>
         ) : (
           <Badge tone="harvest" className="px-2 text-[10px]" title={t.demoTitle}>

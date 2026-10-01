@@ -15,12 +15,11 @@ import { MapLegend } from '@/features/map/MapLegend'
 import { NasaLayerPicker, NasaLegend } from '@/features/map/NasaLayerControls'
 import { isNasaLayerId, type NasaLayerId } from '@/features/map/nasaLayers'
 import { FarmPanel, LocationPanel } from '@/features/map/SpotPanels'
+import { useMapOverview } from '@/features/map/useMapOverview'
 import { type WorldCrop, WorldSpotPanel } from '@/features/map/WorldSpotPanel'
 import { useMyMapFarms } from '@/features/farms/useMyMapFarms'
-import { api } from '@/lib/api'
 import { useLang, useText } from '@/lib/i18n'
 import { useMyFarms } from '@/lib/myFarms'
-import { useAsync } from '@/lib/useAsync'
 import type { RiskModule } from '@/types/api'
 
 const LAYER_IDS: RiskModule[] = ['flood_risk', 'water_stress', 'crop_health']
@@ -81,7 +80,7 @@ export function MapPage() {
   const [params, setParams] = useSearchParams()
   const lang = useLang()
   const t = useText(text)
-  const overview = useAsync(`map|${lang}`, (signal) => api.mapOverview({ signal }, lang))
+  const overview = useMapOverview(lang)
   const reduceMotion = useReducedMotion()
 
   const layerParam = params.get('layer') as RiskModule | null
@@ -223,7 +222,7 @@ export function MapPage() {
 
           {activeLayer && data && (
             <div className="absolute top-3 left-3 z-10 hidden sm:block">
-              <MapLegend layer={activeLayer} />
+              <MapLegend layer={activeLayer} warming={overview.warming} />
             </div>
           )}
 
@@ -259,7 +258,7 @@ export function MapPage() {
         <Card className="p-5 lg:max-h-[calc(100vh-13rem)] lg:overflow-y-auto">
           {activeLayer && data && (
             <div className="mb-5 sm:hidden">
-              <MapLegend layer={activeLayer} />
+              <MapLegend layer={activeLayer} warming={overview.warming} />
             </div>
           )}
           <AnimatePresence mode="wait" initial={false}>

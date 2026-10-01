@@ -371,6 +371,14 @@ the surface is pulled to that farm's score, so **map and dashboard always agree*
 | World layers | `features/map/nasaLayers.ts`, `NasaLayerControls.tsx` | NASA GIBS global layers under the grid: SMAP L4 soil moisture, GPM IMERG rainfall, MODIS Terra 8-day greenness. Legend colors sampled from the official GIBS color maps; the picture date comes from GIBS DescribeDomains. Linkable as `?nasa=soil|rain|green` |
 | World spots | `features/map/WorldSpotPanel.tsx` | A tap outside Bangladesh calls `/map/point`: step-by-step scanning animation, place name, three risks, top actions, crop chips |
 
+**Serving the live map** (`services/map.py` `get_map_overview`): the live map is built in the
+background and kept in memory: fresh for 30 minutes, then served once more while a new one
+builds (5 minutes if the live grid failed). Only one build runs at a time. The server starts a
+build on startup (before the farms' slower full NASA refresh, and again after it). A visitor who
+arrives before the first build is done gets the modelled map within ~3 s, marked
+`grid_status: "warming"`; the map and home pages (`useMapOverview`) ask again every 8 s and the
+legend says "Getting live data…" until the live map arrives.
+
 **Global map (Stage A).** The map zooms out to the whole world ("Whole world" button). Bangladesh
 keeps its detailed 0.2° risk grid (dimmed while a NASA world layer is on); anywhere else a tap
 runs the same engines for that one point (`backend/app/services/point_risk.py`):

@@ -220,6 +220,28 @@ describe('MapPage', () => {
     expect(screen.getByRole('button', { name: /Barind Wheat Farm/ })).toBeInTheDocument()
   })
 
+  it('shows the modelled map while the server warms up, then swaps in the live one by itself', async () => {
+    let overviewCalls = 0
+    let releaseLive = () => {}
+    const liveReady = new Promise<void>((resolve) => (releaseLive = resolve))
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
+      overviewCalls += 1
+      const layers = (live: boolean) => mapOverviewFixture.layers.map((l) => ({ ...l, live }))
+      if (overviewCalls > 1) await liveReady
+      const body =
+        overviewCalls === 1
+          ? { ...mapOverviewFixture, grid_status: 'warming', layers: layers(false) }
+          : { ...mapOverviewFixture, grid_status: 'live', layers: layers(true) }
+      return new Response(JSON.stringify(body), { status: 200 })
+    })
+    renderAt('/map')
+    expect((await screen.findAllByText('Getting live data…')).length).toBeGreaterThan(0)
+    releaseLive()
+    expect((await screen.findAllByText('Live')).length).toBeGreaterThan(0)
+    expect(screen.queryByText('Getting live data…')).not.toBeInTheDocument()
+    expect(overviewCalls).toBe(2)
+  })
+
   it('offers retry when the map data fails to load', async () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('Failed to fetch'))
     renderAt('/map')

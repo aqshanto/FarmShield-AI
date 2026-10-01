@@ -23,3 +23,15 @@ def pytest_collection_modifyitems(config, items):
     for item in items:
         if "live" in item.keywords:
             item.add_marker(skip)
+
+
+import pytest  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def _fresh_map_cache():
+    from app.services.map import reset_map_cache
+
+    reset_map_cache()
+    yield
+    reset_map_cache()
