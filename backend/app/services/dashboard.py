@@ -37,7 +37,7 @@ def list_farms() -> list[FarmSummary]:
 def build_dashboard(
     farm_id: str, data_mode: str, now: datetime | None = None, pipeline: "PipelineService | None" = None
 ) -> Dashboard:
-    """In live mode, modules with a risk engine (flood so far) are computed from NASA data;
+    """In live mode, the flood, water and crop engines run on NASA data;
     the rest, and anything without enough data, fall back to the demo scenario."""
     sample = SAMPLE_FARMS.get(farm_id)
     if sample is None:
@@ -52,7 +52,18 @@ def build_dashboard(
 
     if data_mode == "live" and pipeline is not None:
         from app.pipeline.models import Location
-        from app.risk.live import flood_module, flood_recommendations, live_flood, live_forecast
+        from app.risk.live import (
+            flood_module,
+            flood_recommendations,
+            live_flood,
+            live_forecast,
+            crop_module,
+            crop_recommendations,
+            live_crop,
+            live_water,
+            water_module,
+            water_recommendations,
+        )
 
         farm = sample["farm"]
         location = Location(farm["id"], farm["lat"], farm["lon"])
@@ -61,6 +72,14 @@ def build_dashboard(
         if flood is not None:
             modules = [flood_module(flood) if m.id == "flood_risk" else m for m in modules]
             recommendations = [r for r in recommendations if r.module != "flood_risk"] + flood_recommendations(flood)
+        water = live_water(pipeline, location, today)
+        if water is not None:
+            modules = [water_module(water) if m.id == "water_stress" else m for m in modules]
+            recommendations = [r for r in recommendations if r.module != "water_stress"] + water_recommendations(water)
+        crop = live_crop(pipeline, location, today, farm["crop"], water=water, flood=flood)
+        if crop is not None:
+            modules = [crop_module(crop) if m.id == "crop_health" else m for m in modules]
+            recommendations = [r for r in recommendations if r.module != "crop_health"] + crop_recommendations(crop)
         forecast = live_forecast(pipeline, location, today) or forecast
 
     worst = max(modules, key=lambda m: m.score)

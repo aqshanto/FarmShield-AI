@@ -23,6 +23,8 @@ DAILY: dict[str, tuple[VariableId, str]] = {
     "temperature_2m_max": ("temperature_max_forecast", "°C"),
     "temperature_2m_min": ("temperature_min_forecast", "°C"),
     "weather_code": ("weather_code", "WMO"),
+    "temperature_2m_mean": ("temperature_mean_forecast", "°C"),
+    "relative_humidity_2m_mean": ("humidity_forecast", "%"),
 }
 
 

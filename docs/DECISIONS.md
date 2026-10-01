@@ -2,6 +2,67 @@
 
 Short records of choices that shape the project. Newest first.
 
+## 2026-10-01: Final experience polish (Prompt 10)
+
+| Topic | Decision | Why |
+|---|---|---|
+| Landing page | Replaced the Prompt 01 scaffold (system-status panel) with a story: hero, live pulse, scroll timeline, live farm cards | The first screen judges see should explain the idea in seconds, not show API health |
+| Overall score | Compounding capped at one level above the worst module; all-safe stays safe | Real data (Barind, 1 Oct): three "safe" risks produced "Watch: keep an eye on water stress" while water read Safe |
+| Startup race | Quiet retries for 5xx/network errors in `useAsync` | Seen in the demo stack: Vite answers before the API, the first request got a 502 and the farm cards never appeared |
+| Prefetching | Idle prefetch for light pages, intent (hover/focus) prefetch for the map | Instant clicks without making every visitor download the 300 kB WebGL map |
+| Demo mode | `npm run demo` = sample scenario, no NASA downloads | Stage Wi-Fi is unreliable, and live conditions are often calm; the bundled scenario shows every level |
+| Navigation | "Design" moved from the nav to the footer | The farmer-facing nav should only hold farmer pages |
+| Reduced motion | Global CSS rule in addition to `MotionConfig` | CSS animations (twinkle, ping, shimmer) ignored the OS setting |
+
+## 2026-10-01: AI Farmer Assistant (Prompt 09)
+
+| Topic | Decision | Why |
+|---|---|---|
+| Model | Claude Opus 5.5 at effort `low`, streamed | Latest model; chat answers are short and grounded in facts we supply, so low effort keeps them quick |
+| Grounding | Facts built from the same dashboard the farmer sees | One source of truth; the assistant can't contradict the risk cards |
+| No key, no problem | Built-in bilingual helper answers the common questions | The feature must work at a demo table with no key or no internet to Anthropic |
+| Failures | Refusal or API error → built-in answer (`replace` event) | A farmer should never see an error where an answer could be |
+| Refusals | `fallbacks: "default"` server-side fallback | Recommended default; the rare classifier decline is retried on another model in the same stream |
+| History | Plain-text turns, last 20, no thinking blocks | Stateless server, nothing to keep valid between turns; facts refresh freely |
+| Bengali offline | Hand-written templates keyed on levels/actions | Machine-translating engine text would read badly; templates stay natural |
+| Voice | Browser Web Speech API, feature-detected | No extra service; disabled with a reason where the device lacks a voice |
+| Transport | SSE over POST (fetch + reader), not EventSource | EventSource can't POST the conversation |
+
+Real-world check (1 Oct 2026, built-in helper, live data): Bogura "আমার আলু গাছ কেমন আছে?" →
+potato heat and clouds-since-June advice in Bengali; Sunamganj flood question → "watch", 12 mm
+in 3 days.
+
+## 2026-10-01: Crop health module (Prompt 08)
+
+| Topic | Decision | Why |
+|---|---|---|
+| Inputs | Greenness when seen, plus water, heat, waterlogging and disease weather | Monsoon clouds hide fields for months; crop health can't wait for a clear sky |
+| Crop profiles | Heat limit + main disease per crop (rice, wheat, potato) | 32°C is fine for rice but stresses potato; blast and late blight need different weather |
+| Disease weather | Humidity ≥ 90% within the disease's temperature band (NASA POWER RH2M, forecast) | Standard leaf-wetness proxy; wheat blast hit Bangladesh in 2016 |
+| Water on the field | NDVI < 0.1 is "no crop visible", not "sick crop" | Found in real data: the flooded haor read as −0.14 |
+| Stale views | > 45 days: no greenness number and no greenness factor | A June view says nothing about October |
+| Seeing is believing | Severe visible decline floors the score at warning | Test showed a 40%-below-normal field scoring only "watch" |
+| Farm stories | Describe the place, not today's conditions | Static "conditions are good" contradicted a live warning |
+
+Real-world check (1 Oct 2026): haor 15 safe (last view showed water), Barind 14 safe (clouds
+since June), Bogura 44 watch (10 of 10 days above potato's 29°C limit; water stress watch).
+
+## 2026-10-01: Water stress module (Prompt 07)
+
+| Topic | Decision | Why |
+|---|---|---|
+| Output | Score **and** a single irrigation decision | Farmers act on "what do I do today", not on a number |
+| "Hold off" advice | Wins whenever ≥ 20 mm of rain is forecast in 3 days | Saving water and diesel is as valuable as preventing stress |
+| Soil layers | SMAP topsoil + POWER root zone as separate factors | Topsoil dries first; roots decide crop stress |
+| Sensor mixing | Prefer a fresh SMAP reading over newer POWER ones | Alternating sensors day to day made the trend zig-zag (found in real data) |
+| Soaking cap | ≤ 24 after a week at ≥ 1.5× normal rain | Hot days after heavy rain are not a drought |
+| Vegetation | Optional factor (clear NDVI ≤ 32 days) | Monsoon clouds usually hide it; never guess |
+| Map | One shared weather download feeds both engines | One request (302 cells × 35 days) instead of one per layer |
+
+Real-world check (1 Oct 2026, monsoon ending): haor 40 watch ("check the soil"), Barind 24
+safe ("no irrigation needed"), Bogura 42 watch. The map shows drying in the north and centre,
+with warnings on the south-west coast.
+
 ## 2026-10-01: Flood risk module (Prompt 06)
 
 Verified live with the user's Earthdata token:

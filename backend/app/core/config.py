@@ -36,7 +36,12 @@ class Settings(BaseSettings):
     # Optional secrets.
     # Earthdata Login token: unlocks mission-native GPM IMERG and SMAP data.
     earthdata_token: str | None = None
+    # Anthropic API key: turns on the Claude-powered farmer assistant. Without it the
+    # assistant still answers from the risk engines with built-in bilingual replies.
     anthropic_api_key: str | None = None
+    assistant_model: str = "claude-opus-5-5"
+    # Chat replies are short and grounded in facts we supply, so low effort keeps them fast.
+    assistant_effort: Literal["low", "medium", "high"] = "low"
 
     @property
     def cors_origin_list(self) -> list[str]:

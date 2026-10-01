@@ -5,6 +5,8 @@ import { RiskBadge } from '@/components/ui/RiskBadge'
 import { TrendChart } from '@/components/ui/TrendChart'
 import { riskMeta } from '@/lib/risk'
 import type { RiskModuleSummary } from '@/types/api'
+import { ActionBanner } from './ActionBanner'
+import { CropIndicatorsPanel } from './CropIndicatorsPanel'
 import { FactorBreakdown } from './FactorBreakdown'
 import { sourceDescriptions } from './module-visuals'
 
@@ -26,6 +28,7 @@ export function RiskDetailPanel({ module, onClose }: RiskDetailPanelProps) {
             <RiskBadge level={module.level} />
           </div>
           <p className="max-w-2xl text-ink-muted">{module.explanation}</p>
+          {module.status && <p className="text-sm font-semibold text-ink">Status: {module.status}</p>}
         </div>
         <button
           type="button"
@@ -37,12 +40,19 @@ export function RiskDetailPanel({ module, onClose }: RiskDetailPanelProps) {
         </button>
       </div>
 
+      {module.action && (
+        <div className="mt-5">
+          <ActionBanner action={module.action} />
+        </div>
+      )}
+
       <div className="mt-6 grid gap-6 lg:grid-cols-[3fr_2fr]">
         <div className="space-y-6">
           <div>
             <h3 className="mb-2 text-sm font-semibold text-ink">Risk over the last 2 weeks</h3>
             <TrendChart values={module.trend} color={meta.color} label={`${module.title} risk, last 14 days`} />
           </div>
+          {module.indicators && <CropIndicatorsPanel indicators={module.indicators} />}
           <FactorBreakdown module={module} />
         </div>
 

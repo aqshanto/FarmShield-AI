@@ -19,9 +19,9 @@ import type { RiskModule } from '@/types/api'
 
 export function DashboardPage() {
   const [params, setParams] = useSearchParams()
-  const farms = useAsync('farms', (signal) => api.farms({ signal }))
+  const farms = useAsync('farms', (signal) => api.farms({ signal }), { retries: 3 })
   const farmId = params.get('farm') ?? farms.data?.[0]?.id ?? null
-  const dashboard = useAsync(farmId, (signal) => api.dashboard(farmId!, { signal }))
+  const dashboard = useAsync(farmId, (signal) => api.dashboard(farmId!, { signal }), { retries: 3 })
 
   // Selection belongs to a farm, so switching farms closes the detail panel.
   const [selection, setSelection] = useState<{ farmId: string | null; module: RiskModule } | null>(null)

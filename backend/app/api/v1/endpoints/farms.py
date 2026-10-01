@@ -6,9 +6,19 @@ from app.pipeline.service import PipelineService
 from datetime import UTC, datetime, timedelta
 
 from app.pipeline import farm_locations
-from app.risk.live import flood_recommendations, live_flood, SOURCE_NAMES
-from app.schemas.dashboard import Dashboard, FarmSummary, RiskFactor
-from app.schemas.flood import FloodInputsOut, FloodReport, RainDay
+from app.data.sample.farms import SAMPLE_FARMS
+from app.risk.live import (
+    SOURCE_NAMES,
+    crop_module,
+    crop_recommendations,
+    flood_recommendations,
+    live_crop,
+    live_flood,
+    live_water,
+    water_recommendations,
+)
+from app.schemas.dashboard import Dashboard, FarmSummary, RiskAction, RiskFactor
+from app.schemas.flood import CropReport, FloodInputsOut, FloodReport, RainDay, WaterReport
 from app.services.dashboard import FarmNotFoundError, build_dashboard, list_farms
 
 router = APIRouter(prefix="/farms", tags=["farms"])
@@ -62,4 +72,63 @@ def flood_report(farm_id: str, pipeline: PipelineService = Depends(get_pipeline)
             elevation_m=i.elevation_m,
         ),
         advice=flood_recommendations(live),
+    )
+
+
+@router.get("/{farm_id}/water", response_model=WaterReport)
+def water_report(farm_id: str, pipeline: PipelineService = Depends(get_pipeline)) -> WaterReport:
+    location = next((loc for loc in farm_locations() if loc.id == farm_id), None)
+    if location is None:
+        raise HTTPException(status_code=404, detail=f"Farm '{farm_id}' not found")
+    now = datetime.now(UTC)
+    today = (now + timedelta(hours=6)).date()  # Bangladesh calendar day
+    live = live_water(pipeline, location, today)
+    if live is None:
+        raise HTTPException(status_code=503, detail="Not enough soil or rainfall data yet. Try again after the next NASA refresh.")
+    a = live.assessment
+    return WaterReport(
+        farm_id=farm_id,
+        generated_at=now,
+        score=a.score,
+        level=a.level,
+        status=a.status,
+        headline=a.headline,
+        explanation=a.explanation,
+        confidence=a.confidence,
+        factors=[RiskFactor(id=f.id, label=f.label, score=f.score, weight=f.weight, detail=f.detail, source=f.source) for f in a.factors],
+        action=RiskAction(kind=a.action.kind, title=a.action.title, detail=a.action.detail),
+        days_since_good_rain=a.days_since_good_rain,
+        rain_next5_mm=a.rain_next5_mm,
+        trend=live.trend,
+        advice=water_recommendations(live),
+    )
+
+
+@router.get("/{farm_id}/crop", response_model=CropReport)
+def crop_report(farm_id: str, pipeline: PipelineService = Depends(get_pipeline)) -> CropReport:
+    location = next((loc for loc in farm_locations() if loc.id == farm_id), None)
+    if location is None:
+        raise HTTPException(status_code=404, detail=f"Farm '{farm_id}' not found")
+    now = datetime.now(UTC)
+    today = (now + timedelta(hours=6)).date()  # Bangladesh calendar day
+    water = live_water(pipeline, location, today)
+    flood = live_flood(pipeline, location, today)
+    live = live_crop(pipeline, location, today, SAMPLE_FARMS[farm_id]["farm"]["crop"], water=water, flood=flood)
+    if live is None:
+        raise HTTPException(status_code=503, detail="Not enough weather data yet. Try again after the next NASA refresh.")
+    module = crop_module(live)
+    a = live.assessment
+    return CropReport(
+        farm_id=farm_id,
+        generated_at=now,
+        score=a.score,
+        level=a.level,
+        status=a.status,
+        headline=a.headline,
+        explanation=a.explanation,
+        confidence=a.confidence,
+        factors=module.factors,
+        indicators=module.indicators,
+        trend=live.trend,
+        advice=crop_recommendations(live),
     )

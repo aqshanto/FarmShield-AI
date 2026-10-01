@@ -1,5 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { ApiError } from './api'
 import { useAsync } from './useAsync'
 
 describe('useAsync', () => {
@@ -58,5 +59,38 @@ describe('useAsync', () => {
     rerender({ k: 'b' })
     expect(signals[0].aborted).toBe(true)
     expect(signals[1].aborted).toBe(false)
+  })
+})
+
+describe('useAsync retries', () => {
+  it('quietly retries server errors (e.g. API still starting) and stays loading meanwhile', async () => {
+    let calls = 0
+    const load = vi.fn(async () => {
+      calls += 1
+      if (calls < 3) throw new ApiError(502, 'starting')
+      return 'up'
+    })
+    const { result } = renderHook(() => useAsync('k', load, { retries: 5, retryDelayMs: 5 }))
+    await waitFor(() => expect(result.current.status).toBe('success'))
+    expect(result.current.data).toBe('up')
+    expect(load).toHaveBeenCalledTimes(3)
+  })
+
+  it('does not retry a 4xx and reports the error', async () => {
+    const load = vi.fn(async () => {
+      throw new ApiError(404, 'missing')
+    })
+    const { result } = renderHook(() => useAsync('k', load, { retries: 5, retryDelayMs: 5 }))
+    await waitFor(() => expect(result.current.status).toBe('error'))
+    expect(load).toHaveBeenCalledTimes(1)
+  })
+
+  it('gives up after the allowed retries', async () => {
+    const load = vi.fn(async () => {
+      throw new TypeError('Failed to fetch')
+    })
+    const { result } = renderHook(() => useAsync('k', load, { retries: 2, retryDelayMs: 5 }))
+    await waitFor(() => expect(result.current.status).toBe('error'))
+    expect(load).toHaveBeenCalledTimes(3)
   })
 })

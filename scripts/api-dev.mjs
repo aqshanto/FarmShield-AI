@@ -18,6 +18,11 @@ if (!existsSync(python)) {
   process.exit(1)
 }
 
+// --demo: the bundled demo scenario, no NASA downloads. Reliable on stage and offline.
+const demo = process.argv.includes('--demo')
+const env = demo ? { ...process.env, DATA_MODE: 'sample', PIPELINE_AUTO_REFRESH: 'false' } : process.env
+if (demo) console.log('[api-dev] Demo mode: bundled scenario (DATA_MODE=sample), no NASA downloads.')
+
 let child = null
 let shuttingDown = false
 
@@ -25,6 +30,7 @@ function start() {
   child = spawn(python, ['-m', 'uvicorn', 'app.main:app', '--host', '127.0.0.1', '--port', '8000'], {
     cwd: backend,
     stdio: 'inherit',
+    env,
   })
   const current = child
   current.on('exit', (code) => {

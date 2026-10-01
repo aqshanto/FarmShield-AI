@@ -37,6 +37,8 @@ set `VITE_API_BASE_URL` to the deployed API.
 | GET | `/api/v1/farms` | Farm list (id, name, district, crop) |
 | GET | `/api/v1/farms/{id}/dashboard` | Everything the dashboard shows (404 for unknown farms) |
 | GET | `/api/v1/map/overview` | Risk grid (0.2° cells × 3 layers), layer metadata, farms with levels |
+| GET | `/api/v1/assistant/status` | Which assistant engine answers (`claude` or `offline`) |
+| POST | `/api/v1/assistant/chat` | Streams a farmer's answer as server-sent events |
 
 ### Dashboard data flow
 
@@ -46,23 +48,25 @@ Phase 4/5 replace only the sample lookup; the schema stays the same.
 
 `app/services/risk.py` holds the shared vocabulary:
 - `score_to_level`: 0–24 safe · 25–49 watch · 50–74 warning · 75–100 danger (same as `frontend/src/lib/risk.ts`).
-- `overall_score = worst + 0.25 × mean(others)`, capped at 100. The overall level is
+- `overall_score = worst + 0.25 × mean(others)`, capped at 100 and at one level above the
+  worst module (all-safe modules stay safe). The overall level is
   **never calmer than the worst module**, and several medium risks outrank a single one.
 
 ## Frontend (`frontend/src/`)
 
 | Path | Responsibility |
 |---|---|
-| `app/` | App shell: providers (`MotionConfig`), router |
+| `app/` | App shell: providers (`MotionConfig`), router (titles in `handle.title`), `routes.ts` lazy page loaders + prefetching |
 | `pages/` | Route-level screens that compose features |
 | `features/<name>/` | Self-contained feature modules: components, hooks, tests |
 | `components/ui/` | Design-system components (see below) |
 | `components/illustrations/` | Data-driven SVG illustrations (Sun, RainCloud, Sprout, WaterDrop) |
-| `components/layout/` | App shell: `AppLayout` (nav, page transitions, scroll restoration), `Starfield` |
+| `components/layout/` | App shell: `AppLayout` (nav, page transitions, scroll restoration, tab titles, loading bar, prefetch), `Starfield` |
 | `lib/api.ts` | Typed API client, the only place that calls `fetch` |
 | `lib/risk.ts` | 0–100 score → `safe / watch / warning / danger`, with EN + BN labels and advice |
 | `lib/motion.ts` | Shared springs and variants (`fadeUp`, `pop`, `stagger`) |
 | `lib/cn.ts` | `clsx` + `tailwind-merge`, aware of the custom tokens |
+| `lib/useAsync.ts` | Keyed async loading with abort, stale data kept while reloading, optional quiet retries of 5xx/network errors |
 | `types/api.ts` | TypeScript mirror of backend schemas |
 | `config/env.ts` | Runtime config from `VITE_*` env vars |
 | `styles/index.css` | Tailwind v4 + theme tokens |
@@ -153,9 +157,11 @@ An explainable scorecard. Each factor is scored 0–100 and weighted:
 | `flood.py` | Pure engine: `assess_flood`, `score_factors`, `flood_trend`, advice per level |
 | `inputs.py` | Pipeline observations → `FloodInputs` (source preference, SMAP freshness, porosity) |
 | `live.py` | Engine → dashboard module, recommendations, and the live 7-day forecast (WMO codes) |
-| `flood_grid.py` | Same engine per 0.2° land cell: SRTM (batched, cached for a year), forecast (multi-point, 3 h), SMAP bounding-box subsets (newest valid pass over 3 days, 6 h) |
+| `water.py` | Water-stress engine + irrigation decision (see below) |
+| `crop.py` | Crop-health engine with crop profiles (see below) |
+| `grid.py` | Flood, water **and** crop engines per 0.2° land cell from shared inputs: SRTM (batched, cached for a year), weather (30 days back + 5 ahead: rain, high/mean temperature, humidity; multi-point, 3 h), SMAP bounding-box subsets (newest valid pass over 3 days, 6 h) |
 
-`DATA_MODE=live` (default) puts the engine on the dashboard, the map's flood layer and
+`DATA_MODE=live` (default) puts the flood, water and crop engines on the dashboard, all three map layers and
 `GET /api/v1/farms/{id}/flood` (the full evidence). Modules without an engine yet stay on
 the demo scenario and are marked **Demo** in the UI. The grid is pre-computed after each
 background refresh, so the map loads instantly.
@@ -169,6 +175,107 @@ Earthdata errors are explained:
 - 401 → token missing or invalid.
 - 403 "EULA" → `needs_approval`, with the archive's approval link. GES DISC (GPM) needs this once per account.
 - OPeNDAP returns a blank for single-cell selections, so point subsets request two cells (`pair_slice`).
+
+## Water stress engine (`backend/app/risk/water.py`)
+
+| Factor | Weight | Inputs | Scale |
+|---|---|---|---|
+| Topsoil drying | 25% | SMAP ÷ porosity (a fresh SMAP reading is preferred over newer POWER ones), else POWER | 75% wet → 0, 25% → 100 |
+| Roots are thirsty | 20% | NASA POWER root-zone wetness | 80% → 0, 35% → 100 |
+| Rain shortfall | 20% | Last 30 days against the NASA POWER monthly normals | normal → 0, none → 100 |
+| Heat | 15% | Daily highs, 3 days back + 3 ahead (POWER + forecast) | 30°C → 0, 40°C → 100 |
+| No rain coming | 10% | Forecast rain, next 5 days | 30 mm → 0, dry → 100 |
+| Plants show stress | 10% | MODIS NDVI against the VIIRS normal (clear view within 32 days) | 0.25 below normal → 100 |
+
+- A week with ≥ 1.5× normal rain caps the score at 24 ("a soaking is not a drought").
+- **Irrigation decision** (`RiskAction` on the module):
+  - *Hold off, rain is coming* when ≥ 20 mm is forecast in 3 days. This saves water and pumping cost, and it wins over irrigating.
+  - Otherwise by level: danger → *irrigate today*, warning → *within 2 days*, watch → *check the soil in 2–3 days*, safe → *no irrigation needed*.
+- `GET /api/v1/farms/{id}/water` returns the full report. The dashboard shows the decision as a pill on the card and a "What to do now" banner in the detail panel.
+- On the map, root-zone and vegetation factors drop out (farm-only data) and the engine re-normalises.
+
+## Crop health engine (`backend/app/risk/crop.py`)
+
+| Factor | Weight | Inputs |
+|---|---|---|
+| Less green than normal | 30% | Latest clear MODIS NDVI (≤ 45 days old, NDVI ≥ 0.1) against the VIIRS seasonal normal |
+| Greenness falling | 15% | Change between the last two clear views, per 16 days |
+| Thirsty crop | 20% | The water engine's live score |
+| Heat stress | 15% | Days (last week + next 3) above the **crop's** heat limit |
+| Waterlogging | 10% | The flood engine's live score |
+| Disease weather | 10% | Days (last 5 + next 3) with humidity ≥ 90% in the crop disease's temperature band (rain stands in without humidity) |
+
+Crop profiles:
+
+| Crop | Heat limit | Disease | Band |
+|---|---|---|---|
+| Rice | 35°C | Blast | 24–30°C |
+| Wheat | 32°C | Wheat blast | 25–30°C |
+| Potato | 29°C | Late blight | 10–25°C |
+| Other | 35°C | Generic fungal disease | 20–30°C |
+
+Honesty rules:
+- NDVI < 0.1 means water or bare soil. It's excluded from greenness, and the text says the field showed water.
+- A view older than 45 days never becomes a greenness number.
+- Without a clear view, the explanation says clouds hid the field and speaks only about conditions.
+- A severe *visible* decline (greenness factor ≥ 80) keeps the score at "warning" or worse, so kind weather can't dilute it.
+
+Outputs:
+- `CropIndicators` (greenness vs normal, last clear view, heat days of 10, disease days of 8) drive the "Crop health at a glance" visuals.
+- Advice is ranked by factor and crop-specific (blast, late blight, evening watering, drainage).
+
+Humidity and mean temperature come from NASA POWER (`RH2M`, `T2M`, observed) and the forecast.
+The map's crop layer uses the rice profile per cell. Greenness is only checked at farms.
+
+## AI Farmer Assistant (`/assistant`, `backend/app/assistant/`)
+
+A chat helper that answers in English or Bengali, grounded in the farm's own risk results.
+
+```
+question ─► build_dashboard(farm)  (same live engines as /dashboard)
+               │
+               ├─ ANTHROPIC_API_KEY set ─► facts.fact_sheet() ─► Claude (streamed)
+               │                              │ refusal / API error
+               │                              ▼
+               └─ no key ───────────────► offline.reply()  (built-in bilingual helper)
+                                              │
+                               SSE: meta → delta… → (replace) → done
+```
+
+| Piece | Role |
+|---|---|
+| `facts.py` | Dashboard → plain-language fact sheet: levels in words, reasons, actions, 7-day forecast, advice. Greenness becomes "% of normal", never raw NDVI. Demo modules are labelled "demo scenario". |
+| `claude.py` | `claude-opus-5-5`, effort `low`, adaptive thinking (the model default), streaming, `fallbacks: "default"` (beta `server-side-fallback-2026-07-01`). System prompt = fixed rules + fact sheet. |
+| `offline.py` | Topic detection (English + Bengali keywords), answers from engine levels and actions. English reuses the engines' own text; Bengali uses hand-written templates, Bengali digits and possessives. |
+| `service.py` | Picks the engine, trims history (last 20 turns, 1 500 chars each, starting with the farmer), streams events; a Claude failure mid-reply sends `replace` with the built-in answer. |
+
+Rules the assistant follows:
+- **Language:** Bengali script in the question always gets a Bengali reply; otherwise the chosen language.
+- **Grounding:** only the fact sheet's conditions and forecast; says so when the facts don't cover a question.
+- **Safety:** doses, health and loans get general guidance plus the Upazila agriculture office or the Krishi Call Centre (16123).
+- **Voice-friendly:** plain text, no markdown or emoji.
+
+Frontend (`features/assistant/`):
+- `useChat` streams replies via `streamChat` (fetch + SSE parser). It keeps one conversation per farm; the greeting is rendered in the current language, not stored.
+- `speech.ts` wraps the Web Speech API: recognition (`bn-BD` / `en-US`) and synthesis. The "Listen" button is disabled with a reason when the device has no voice for that language (many Windows PCs have no Bengali voice). Spoken questions get spoken answers.
+- The animated `AssistantAvatar` orbits faster while thinking, breathes while speaking and glows while listening.
+
+## Home page (`/`) and app polish
+
+The landing page tells the story for first-time visitors and judges:
+- **Hero:** the orbit illustration, with calls to action for the dashboard, the Bengali assistant and the map.
+- **Live pulse:** counts from `/map/overview` (missions, land areas checked, farms watched).
+- **How it works:** a four-step scroll story; a line draws as you scroll (`useScroll`), and each step has a small animated visual.
+- **Farm cards:** live levels for each farm, with links into the dashboard and the assistant. They are hidden if the backend is unreachable, so the story still stands.
+
+App-wide polish:
+
+| Concern | How |
+|---|---|
+| Speed | Pages are code-split. Dashboard, Assistant and Data warm up when the browser is idle; the heavy map loads on hover/focus of its link. A glowing top bar shows while a page loads. |
+| Resilience | `useAsync` retries server and network errors a few times before showing an error, so a backend that starts late heals itself. Render errors show `RouteErrorPage` (reload / home) instead of a crash. |
+| Accessibility | Framer animations follow `MotionConfig reducedMotion="user"`; CSS animations stop under `prefers-reduced-motion`. Every page sets a descriptive tab title. |
+| Demo | `npm run demo` starts the API with `DATA_MODE=sample` and no NASA refresh (`scripts/api-dev.mjs --demo`). See `docs/DEMO.md`. |
 
 ## Dev server note (Windows)
 

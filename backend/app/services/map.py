@@ -1,7 +1,6 @@
 """Builds the map overview: risk grid layers plus the farms that sit on them.
 
-In live mode the flood layer is computed per cell by the flood engine (see
-app/risk/flood_grid.py); other layers stay demo surfaces until their engines land.
+In live mode all three layers are computed per cell by their engines (see app/risk/grid.py).
 """
 
 import asyncio
@@ -74,18 +73,26 @@ async def build_map_overview(data_mode: str, now: datetime | None = None, pipeli
     layers = [layer.model_copy() for layer in LAYERS]
     if data_mode == "live" and pipeline is not None:
         from app.pipeline import farm_locations
-        from app.risk.flood_grid import live_flood_grid
+        from app.risk.grid import live_grid
 
         try:
             today = (now.astimezone(UTC) + timedelta(hours=6)).date()
-            live = await asyncio.wait_for(live_flood_grid(pipeline, farm_locations(), today), LIVE_GRID_TIMEOUT_S)
+            live = await asyncio.wait_for(live_grid(pipeline, farm_locations(), today), LIVE_GRID_TIMEOUT_S)
         except Exception as error:  # keep the demo surface rather than failing the map
             log.warning("Live flood grid unavailable: %s", error)
         else:
-            cells = [c.model_copy(update={"flood_risk": live[(c.lat, c.lon)]}) if (c.lat, c.lon) in live else c for c in cells]
+            cells = [c.model_copy(update=live[(c.lat, c.lon)]) if (c.lat, c.lon) in live else c for c in cells]
             layers[0] = layers[0].model_copy(
                 update={"live": True, "sources": ["GPM · Forecast", "SMAP", "SRTM", "POWER"],
                         "description": "Live: rain around today, soil saturation, land height and how unusual the week is."}
+            )
+            layers[1] = layers[1].model_copy(
+                update={"live": True, "sources": ["SMAP", "POWER", "Forecast"],
+                        "description": "Live: how dry the topsoil is, the 30-day rain shortfall, heat and coming rain."}
+            )
+            layers[2] = layers[2].model_copy(
+                update={"live": True, "sources": ["SMAP", "POWER", "Forecast"],
+                        "description": "Live: crop stress from heat, disease weather, water and waterlogging (rice). Greenness is checked at farms."}
             )
 
     return MapOverview(

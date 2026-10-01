@@ -24,19 +24,26 @@ def score_to_level(score: float) -> RiskLevel:
     return "danger"
 
 
+# Highest overall score each worst-module level may reach: compounding lifts a real risk
+# by at most one level, and safe modules can't add up to a warning.
+OVERALL_CEILING: dict[RiskLevel, int] = {"safe": 24, "watch": 74, "warning": 100, "danger": 100}
+
+
 def overall_score(scores: list[int]) -> int:
     """Worst module score, nudged up by the others.
 
     Never lower than the worst risk, so the overall message can't be calmer than the most
     urgent module (a flooding field is a bad week no matter how green the crop is). Other
-    risks add a quarter of their average, so several medium risks outrank a single one.
+    risks add a quarter of their average, so several medium risks outrank a single one,
+    but three "safe" signals still make a safe farm.
     """
     if not scores:
         return 0
     ordered = sorted(scores, reverse=True)
     others = ordered[1:]
     bump = 0.25 * (sum(others) / len(others)) if others else 0.0
-    return clamp_score(ordered[0] + bump)
+    ceiling = OVERALL_CEILING[score_to_level(ordered[0])]
+    return clamp_score(min(ordered[0] + bump, max(ceiling, ordered[0])))
 
 
 def overall_summary(level: RiskLevel, worst_module: str) -> str:

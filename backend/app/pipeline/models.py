@@ -21,6 +21,10 @@ VariableId = Literal[
     "weather_code",
     "elevation",
     "precipitation_normal",
+    "temperature_mean",
+    "humidity",
+    "temperature_mean_forecast",
+    "humidity_forecast",
 ]
 
 
@@ -73,5 +77,9 @@ VARIABLES: dict[VariableId, Variable] = {
         Variable("weather_code", "Weather", "WMO", "Forecast weather type (WMO code)", ("open_meteo",), lookahead_days=7),
         Variable("elevation", "Elevation", "m", "Height above sea level (SRTM)", ("srtm",), static=True),
         Variable("precipitation_normal", "Normal rainfall", "mm/day", "Average daily rain for each month", ("power_climatology",), static=True),
+        Variable("temperature_mean", "Mean temperature", "°C", "Daily mean air temperature", ("nasa_power",)),
+        Variable("humidity", "Humidity", "%", "Daily mean relative humidity", ("nasa_power",)),
+        Variable("temperature_mean_forecast", "Mean temperature forecast", "°C", "Forecast daily mean temperature", ("open_meteo",), lookahead_days=7),
+        Variable("humidity_forecast", "Humidity forecast", "%", "Forecast daily mean relative humidity", ("open_meteo",), lookahead_days=7),
     ]
 }

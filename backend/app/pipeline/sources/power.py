@@ -21,6 +21,8 @@ PARAMETERS: dict[str, tuple[VariableId, str]] = {
     "GWETTOP": ("soil_wetness", "0–1"),
     "GWETROOT": ("root_zone_wetness", "0–1"),
     "T2M_MAX": ("temperature_max", "°C"),
+    "T2M": ("temperature_mean", "°C"),
+    "RH2M": ("humidity", "%"),
 }
 
 

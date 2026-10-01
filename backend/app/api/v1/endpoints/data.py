@@ -18,13 +18,13 @@ _background: set[asyncio.Task] = set()
 async def _refresh_and_warm(pipeline: PipelineService, days: int, force: bool) -> None:
     await pipeline.refresh(farm_locations(), days=days, force=force)
     if get_settings().data_mode == "live":
-        from app.risk.flood_grid import live_flood_grid
+        from app.risk.grid import live_grid
 
         try:
-            # Pre-compute the live flood map so the first map visit is instant.
-            await live_flood_grid(pipeline, farm_locations(), (datetime.now(UTC) + timedelta(hours=6)).date())
+            # Pre-compute the live risk map so the first map visit is instant.
+            await live_grid(pipeline, farm_locations(), (datetime.now(UTC) + timedelta(hours=6)).date())
         except Exception as error:
-            logging.getLogger("farmshield.pipeline").warning("Could not warm the flood grid: %s", error)
+            logging.getLogger("farmshield.pipeline").warning("Could not warm the risk grid: %s", error)
 
 
 def start_background_refresh(pipeline: PipelineService, days: int, force: bool = False) -> bool:

@@ -8,6 +8,7 @@ import { cn } from '@/lib/cn'
 import { spring } from '@/lib/motion'
 import { riskMeta } from '@/lib/risk'
 import type { RiskModuleSummary } from '@/types/api'
+import { ActionPill } from './ActionBanner'
 import { moduleVisuals } from './module-visuals'
 
 export const DETAIL_PANEL_ID = 'risk-detail'
@@ -88,6 +89,11 @@ export function RiskCard({ module, selected, onSelect }: RiskCardProps) {
       </div>
 
       <p className="text-lg leading-snug font-semibold text-ink">{module.headline}</p>
+      {module.action && (
+        <div>
+          <ActionPill action={module.action} />
+        </div>
+      )}
 
       <dl className="grid grid-cols-2 gap-3">
         {module.metrics.map((metric) => (

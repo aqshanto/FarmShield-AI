@@ -43,6 +43,28 @@ class RiskFactor(BaseModel):
     source: str
 
 
+class RiskAction(BaseModel):
+    """The one thing to do now, e.g. the irrigation decision."""
+
+    kind: Literal["irrigate", "hold", "check", "none"]
+    title: str
+    detail: str
+
+
+class CropIndicators(BaseModel):
+    """Numbers behind the crop-health visuals."""
+
+    crop: str
+    greenness: float | None  # latest clear-sky NDVI
+    greenness_normal: float | None  # VIIRS normal at that date
+    last_clear_view: date | None
+    cloud_gap_days: int | None
+    heat_days: int
+    heat_limit_c: float
+    disease: str
+    disease_days: int  # of 8 days around today
+
+
 class RiskModuleSummary(BaseModel):
     id: RiskModule
     title: str
@@ -61,6 +83,10 @@ class RiskModuleSummary(BaseModel):
     data_source: Literal["live", "sample"] = "sample"
     confidence: Literal["high", "medium", "low"] | None = None
     factors: list[RiskFactor] = []
+    # Plain-language state (e.g. "Getting dry") and the recommended action, when the engine has one.
+    status: str | None = None
+    action: RiskAction | None = None
+    indicators: CropIndicators | None = None
 
 
 class OverallCondition(BaseModel):

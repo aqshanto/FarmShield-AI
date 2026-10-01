@@ -6,6 +6,8 @@ os.environ.setdefault("PIPELINE_DB_PATH", ":memory:")
 os.environ.setdefault("PIPELINE_AUTO_REFRESH", "false")
 os.environ.setdefault("EARTHDATA_TOKEN", "")
 os.environ.setdefault("DATA_MODE", "sample")
+# The assistant never calls Claude from tests (a fake client is injected where needed).
+os.environ["ANTHROPIC_API_KEY"] = ""
 
 
 def pytest_configure(config):

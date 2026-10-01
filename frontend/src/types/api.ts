@@ -60,6 +60,24 @@ export interface RiskFactor {
   source: string
 }
 
+export interface RiskAction {
+  kind: 'irrigate' | 'hold' | 'check' | 'none'
+  title: string
+  detail: string
+}
+
+export interface CropIndicators {
+  crop: string
+  greenness: number | null // latest clear-sky NDVI
+  greenness_normal: number | null
+  last_clear_view: string | null // YYYY-MM-DD
+  cloud_gap_days: number | null
+  heat_days: number // of 10
+  heat_limit_c: number
+  disease: string
+  disease_days: number // of 8
+}
+
 export interface RiskModuleSummary {
   id: RiskModule
   title: string
@@ -76,6 +94,10 @@ export interface RiskModuleSummary {
   data_source: 'live' | 'sample'
   confidence: 'high' | 'medium' | 'low' | null
   factors: RiskFactor[]
+  // Plain-language state ("Getting dry") and the recommended action, from live engines.
+  status?: string | null
+  action?: RiskAction | null
+  indicators?: CropIndicators | null
 }
 
 export interface DayForecast {
@@ -213,3 +235,31 @@ export interface FarmObservations {
   days: number
   variables: VariableSeries[]
 }
+
+// --- AI farmer assistant -------------------------------------------------------------
+
+export type AssistantEngine = 'claude' | 'offline'
+
+export interface AssistantStatus {
+  engine: AssistantEngine
+  label: string
+  languages: ('en' | 'bn')[]
+}
+
+export interface ChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+export interface ChatRequest {
+  farm_id: string
+  lang: 'en' | 'bn'
+  messages: ChatMessage[]
+}
+
+/** Server-sent events from POST /assistant/chat, in order: meta, delta*, (replace), done. */
+export type ChatEvent =
+  | { event: 'meta'; data: { engine: AssistantEngine; lang: 'en' | 'bn' } }
+  | { event: 'delta'; data: { text: string } }
+  | { event: 'replace'; data: { text: string; engine: AssistantEngine } }
+  | { event: 'done'; data: { engine: AssistantEngine } }

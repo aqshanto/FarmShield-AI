@@ -129,7 +129,7 @@ SAMPLE_FARMS: dict[str, dict[str, Any]] = {
             "area_acres": 1.5,
             "lat": 24.9,
             "lon": 89.35,
-            "story": "Fertile river-plain field in the cool season. Conditions are good this week.",
+            "story": "Fertile river-plain field. Potatoes grow here in the cool, dry season.",
         },
         "hours_since_pass": 3,
         "modules": {

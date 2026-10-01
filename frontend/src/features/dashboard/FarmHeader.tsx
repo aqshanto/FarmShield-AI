@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { Map as MapIcon, MapPin, Ruler, Satellite, Sprout } from 'lucide-react'
+import { Map as MapIcon, MapPin, MessageCircle, Ruler, Satellite, Sprout } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Badge } from '@/components/ui/Badge'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
@@ -46,6 +46,12 @@ export function FarmHeader({ dashboard, farms, onFarmChange }: FarmHeaderProps) 
             className="focus-ring inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold text-leaf-300 ring-1 ring-leaf-400/30 transition hover:bg-leaf-500/10"
           >
             <MapIcon className="size-3.5" aria-hidden="true" /> See on map
+          </Link>
+          <Link
+            to={`/assistant?farm=${encodeURIComponent(farm.id)}`}
+            className="focus-ring inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold text-leaf-300 ring-1 ring-leaf-400/30 transition hover:bg-leaf-500/10"
+          >
+            <MessageCircle className="size-3.5" aria-hidden="true" /> Ask FarmShield
           </Link>
           {dashboard.data_mode === 'sample' ? (
             <Badge tone="harvest" title="Demo scenario. Set DATA_MODE=live for NASA data.">

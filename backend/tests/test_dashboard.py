@@ -32,6 +32,18 @@ def test_overall_score_is_dominated_by_worst_risk():
     assert overall_score([40, 40, 40]) > overall_score([40, 0, 0])
 
 
+def test_safe_modules_never_add_up_to_a_risk():
+    # Real case (Barind, 1 Oct 2026): flood 22, water 24, crop 14 used to read "watch".
+    assert score_to_level(overall_score([22, 24, 14])) == "safe"
+    assert overall_score([24, 24, 24]) == 24
+
+
+def test_compounding_lifts_a_real_risk_by_at_most_one_level():
+    assert score_to_level(overall_score([45, 49, 49])) == "warning"  # watch -> warning
+    assert overall_score([49, 49, 49]) == 61
+    assert score_to_level(overall_score([74, 74, 74])) == "danger"  # warning -> danger
+
+
 @pytest.mark.parametrize("scores", [[78, 12, 30], [6, 81, 55], [28, 18, 10], [74, 74, 0], [24, 24, 24]])
 def test_overall_level_is_never_calmer_than_worst_module(scores):
     levels = ["safe", "watch", "warning", "danger"]

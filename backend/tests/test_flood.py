@@ -10,7 +10,7 @@ from app.pipeline.models import Location, Observation
 from app.pipeline.service import PipelineService
 from app.pipeline.store import ObservationStore
 from app.risk.flood import DailyRain, FloodInputs, assess_flood, flood_trend, score_factors
-from app.risk.flood_grid import in_bangladesh, land_cells
+from app.risk.grid import in_bangladesh, land_cells
 from app.risk.inputs import flood_inputs
 from app.risk.live import live_flood, wmo_condition
 from app.services.dashboard import build_dashboard

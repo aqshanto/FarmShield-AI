@@ -2,31 +2,23 @@ import { createBrowserRouter } from 'react-router-dom'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { HomePage } from '@/pages/HomePage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
+import { RouteErrorPage } from '@/pages/RouteErrorPage'
+import { pageLoaders } from './routes'
 
-// Feature routes (dashboard, map, assistant, ...) are added here as each prompt lands.
+// Each route names its browser-tab title in `handle.title` (AppLayout applies it).
 export const router = createBrowserRouter([
   {
     element: <AppLayout />,
+    errorElement: <RouteErrorPage />,
     children: [
-      { index: true, element: <HomePage /> },
-      {
-        path: 'dashboard',
-        lazy: async () => ({ Component: (await import('@/pages/DashboardPage')).DashboardPage }),
-      },
-      {
-        path: 'map',
-        lazy: async () => ({ Component: (await import('@/pages/MapPage')).MapPage }),
-      },
-      {
-        path: 'data',
-        lazy: async () => ({ Component: (await import('@/pages/DataPage')).DataPage }),
-      },
-      {
-        path: 'design',
-        // Showcase is code-split so it never weighs down the farmer-facing bundle.
-        lazy: async () => ({ Component: (await import('@/pages/DesignSystemPage')).DesignSystemPage }),
-      },
-      { path: '*', element: <NotFoundPage /> },
+      { index: true, element: <HomePage />, handle: { title: 'Satellite eyes for every farm' } },
+      { path: 'dashboard', lazy: async () => ({ Component: await pageLoaders['/dashboard']() }), handle: { title: 'Farm dashboard' } },
+      { path: 'map', lazy: async () => ({ Component: await pageLoaders['/map']() }), handle: { title: 'Risk map' } },
+      { path: 'assistant', lazy: async () => ({ Component: await pageLoaders['/assistant']() }), handle: { title: 'Ask FarmShield' } },
+      { path: 'data', lazy: async () => ({ Component: await pageLoaders['/data']() }), handle: { title: 'NASA data' } },
+      // Showcase is code-split so it never weighs down the farmer-facing bundle.
+      { path: 'design', lazy: async () => ({ Component: await pageLoaders['/design']() }), handle: { title: 'Design system' } },
+      { path: '*', element: <NotFoundPage />, handle: { title: 'Page not found' } },
     ],
   },
 ])

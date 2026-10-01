@@ -1,6 +1,8 @@
-import { motion } from 'framer-motion'
-import { Home, LayoutDashboard, Map as MapIcon, Palette, Satellite, ShieldCheck } from 'lucide-react'
-import { Link, NavLink, Outlet, ScrollRestoration, useLocation } from 'react-router-dom'
+import { AnimatePresence, motion } from 'framer-motion'
+import { Home, LayoutDashboard, Map as MapIcon, MessageCircle, Satellite, ShieldCheck } from 'lucide-react'
+import { useEffect } from 'react'
+import { Link, NavLink, Outlet, ScrollRestoration, useLocation, useMatches, useNavigation } from 'react-router-dom'
+import { prefetchPage, prefetchWhenIdle } from '@/app/routes'
 import { cn } from '@/lib/cn'
 import { spring } from '@/lib/motion'
 import { Starfield } from './Starfield'
@@ -10,17 +12,49 @@ const navItems = [
   { to: '/', label: 'Home', icon: Home },
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/map', label: 'Map', icon: MapIcon },
+  { to: '/assistant', label: 'Assistant', icon: MessageCircle },
   { to: '/data', label: 'Data', icon: Satellite },
-  { to: '/design', label: 'Design', icon: Palette },
 ]
+
+/** The deepest route's `handle.title`, e.g. "Risk map · FarmShield AI". */
+function useDocumentTitle() {
+  const matches = useMatches()
+  const title = [...matches].reverse().map((m) => (m.handle as { title?: string } | undefined)?.title).find(Boolean)
+  useEffect(() => {
+    document.title = title ? `${title} · FarmShield AI` : 'FarmShield AI'
+  }, [title])
+}
+
+/** A slim glowing bar while the next page's code or data loads. */
+function NavigationProgress() {
+  const busy = useNavigation().state !== 'idle'
+  return (
+    <AnimatePresence>
+      {busy && (
+        <motion.div
+          role="progressbar"
+          aria-label="Loading page"
+          className="fixed inset-x-0 top-0 z-50 h-0.5 origin-left bg-gradient-to-r from-sky-300 via-leaf-300 to-leaf-500 shadow-glow-leaf"
+          initial={{ scaleX: 0, opacity: 1 }}
+          animate={{ scaleX: 0.85, transition: { duration: 2.5, ease: [0.1, 0.8, 0.2, 1] } }}
+          exit={{ scaleX: 1, opacity: 0, transition: { duration: 0.35 } }}
+        />
+      )}
+    </AnimatePresence>
+  )
+}
 
 export function AppLayout() {
   const location = useLocation()
+  useDocumentTitle()
+  // The map is heavy (WebGL engine), so it only loads on intent; the rest warms up when idle.
+  useEffect(() => prefetchWhenIdle(['/dashboard', '/assistant', '/data']), [])
 
   return (
     <div className="relative flex min-h-screen flex-col overflow-x-clip bg-[radial-gradient(ellipse_at_top,var(--color-night-800)_0%,var(--color-night-950)_60%)]">
       {/* New pages open at the top; back/forward restores the previous position. */}
       <ScrollRestoration />
+      <NavigationProgress />
       <Starfield />
 
       <header className="relative z-10 mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-5 sm:px-6">
@@ -41,6 +75,8 @@ export function AppLayout() {
               key={item.to}
               to={item.to}
               end
+              onPointerEnter={() => prefetchPage(item.to)}
+              onFocus={() => prefetchPage(item.to)}
               className={({ isActive }) =>
                 cn(
                   'focus-ring relative rounded-full px-3 py-2 text-sm font-semibold transition-colors sm:px-3.5 sm:py-1.5 lg:px-4',
@@ -81,7 +117,12 @@ export function AppLayout() {
       </main>
 
       <footer className="relative z-10 mx-auto w-full max-w-6xl px-4 py-6 text-xs text-ink-subtle sm:px-6">
-        Powered by NASA Earth observation data · SMAP · GPM · MODIS · VIIRS
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span>Powered by NASA Earth observation data · SMAP · GPM · MODIS · VIIRS</span>
+          <Link to="/design" className="focus-ring rounded hover:text-ink-muted">
+            Design system
+          </Link>
+        </div>
       </footer>
     </div>
   )

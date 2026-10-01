@@ -1,5 +1,8 @@
 import { env } from '@/config/env'
 import type {
+  AssistantStatus,
+  ChatEvent,
+  ChatRequest,
   Dashboard,
   DataSource,
   DataStatus,
@@ -44,4 +47,43 @@ export const api = {
     request<{ started: boolean; message: string }>(`/data/refresh${force ? '?force=true' : ''}`, { method: 'POST' }),
   farmObservations: (farmId: string, days = 60, init?: RequestInit) =>
     request<FarmObservations>(`/farms/${encodeURIComponent(farmId)}/observations?days=${days}`, init),
+  assistantStatus: (init?: RequestInit) => request<AssistantStatus>('/assistant/status', init),
+}
+
+function parseEvent(block: string): ChatEvent | null {
+  let event = ''
+  let data = ''
+  for (const line of block.split('\n')) {
+    if (line.startsWith('event:')) event = line.slice(6).trim()
+    else if (line.startsWith('data:')) data += line.slice(5).trim()
+  }
+  if (!event || !data) return null
+  return { event, data: JSON.parse(data) } as ChatEvent
+}
+
+/** Streams the assistant's reply as it is written (server-sent events over a POST). */
+export async function* streamChat(body: ChatRequest, signal?: AbortSignal): AsyncGenerator<ChatEvent> {
+  const response = await fetch(`${env.apiBaseUrl}/assistant/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+    body: JSON.stringify(body),
+    signal,
+  })
+  if (!response.ok || !response.body) {
+    throw new ApiError(response.status, `Assistant request failed with ${response.status}`)
+  }
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  for (;;) {
+    const { value, done } = await reader.read()
+    buffer += decoder.decode(value, { stream: !done })
+    let end: number
+    while ((end = buffer.indexOf('\n\n')) >= 0) {
+      const event = parseEvent(buffer.slice(0, end))
+      buffer = buffer.slice(end + 2)
+      if (event) yield event
+    }
+    if (done) return
+  }
 }
