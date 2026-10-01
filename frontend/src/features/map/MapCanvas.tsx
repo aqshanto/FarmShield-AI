@@ -1,15 +1,17 @@
 import { useReducedMotion } from 'framer-motion'
 import { AttributionControl, type GeoJSONSource, Map as MapLibreMap, Marker, NavigationControl } from 'maplibre-gl'
-import './maplibre-setup'
+import { localizeMap } from './maplibre-setup'
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { cn } from '@/lib/cn'
-import { riskMeta, scoreToLevel } from '@/lib/risk'
+import { digits, useLang } from '@/lib/i18n'
+import { levelLabel, riskMeta, scoreToLevel } from '@/lib/risk'
 import type { MapOverview, RiskModule } from '@/types/api'
 import { ATTRIBUTION, type BasemapId, basemaps } from './basemaps'
 import { BANGLADESH, type CellProperties, cellsToGeoJSON } from './geo'
 import { baseLayerId, buildStyle, riskFillColor } from './map-style'
-import { BANGLADESH_CENTER, DIVISIONS } from './places'
+import { NASA_LAYERS, type NasaLayerId, nasaLayer, nasaLayerId } from './nasaLayers'
+import { BANGLADESH_CENTER, DIVISIONS, placeName } from './places'
 
 export interface LngLat {
   lng: number
@@ -17,12 +19,14 @@ export interface LngLat {
 }
 
 // A fly-to request. `key` changes on every request, so flying to the same place twice works.
-export type MapFocus = { center: [number, number]; zoom: number; key: number } | { home: true; key: number }
+export type MapFocus = { center: [number, number]; zoom: number; key: number } | { home: true; key: number } | { world: true; key: number }
 
 interface MapCanvasProps {
   overview: MapOverview
   layer: RiskModule
   basemap: BasemapId
+  // One of NASA's global layers under the risk grid, or none.
+  overlay?: NasaLayerId | null
   selectedFarmId: string | null
   picked: LngLat | null
   focus: MapFocus | null
@@ -34,6 +38,15 @@ interface MapCanvasProps {
 }
 
 const HOME_ZOOM = 6.3
+// Farmland latitudes, edge to edge on any screen.
+const WORLD_BOUNDS: [[number, number], [number, number]] = [
+  [-170, -50],
+  [180, 70],
+]
+// Division names only make sense once Bangladesh fills the view.
+const LABEL_MIN_ZOOM = 4.5
+// With a NASA world layer on, the Bangladesh grid steps back so both stay readable.
+const gridOpacity = (overlay: NasaLayerId | null | undefined) => (overlay ? 0.45 : 1)
 const BANGLADESH_BOUNDS: [[number, number], [number, number]] = [
   [88.0, 20.7],
   [92.7, 26.65],
@@ -71,6 +84,7 @@ export function MapCanvas({
   overview,
   layer,
   basemap,
+  overlay = null,
   selectedFarmId,
   picked,
   focus,
@@ -84,16 +98,18 @@ export function MapCanvas({
   const mapRef = useRef<MapLibreMap | null>(null)
   const [ready, setReady] = useState(false)
   const [hover, setHover] = useState<{ x: number; y: number; cell: CellProperties } | null>(null)
+  const [showLabels, setShowLabels] = useState(true)
   const reduceMotion = useReducedMotion()
   const element = useElementPool()
+  const lang = useLang()
 
   const grid = useMemo(() => cellsToGeoJSON(overview.cells, overview.cell_size_deg), [overview])
   const baseList = useMemo(() => basemaps(), [])
 
   // Latest values for map event handlers registered once at init.
-  const live = useRef({ layer, onPickLocation, onPickFarm, onError, basemap })
+  const live = useRef({ layer, onPickLocation, onPickFarm, onError, basemap, overlay })
   useEffect(() => {
-    live.current = { layer, onPickLocation, onPickFarm, onError, basemap }
+    live.current = { layer, onPickLocation, onPickFarm, onError, basemap, overlay }
   })
 
   // --- init -------------------------------------------------------------------------
@@ -104,11 +120,12 @@ export function MapCanvas({
     try {
       map = new MapLibreMap({
         container,
-        style: buildStyle(baseList, live.current.basemap),
+        style: buildStyle(baseList, live.current.basemap, live.current.overlay),
         center: BANGLADESH_CENTER,
         // Start far out and fly in: the "satellite zooming down" moment.
         zoom: reduceMotion ? HOME_ZOOM : 3.2,
-        minZoom: 3,
+        // Zoom all the way out: any spot on Earth can be checked.
+        minZoom: 1,
         maxZoom: 10,
         dragRotate: false,
         pitchWithRotate: false,
@@ -122,7 +139,6 @@ export function MapCanvas({
     map.touchZoomRotate.disableRotation()
     map.addControl(new NavigationControl({ showCompass: false }), 'bottom-right')
     map.addControl(new AttributionControl({ compact: true, customAttribution: ATTRIBUTION }), 'bottom-right')
-    map.getCanvas().setAttribute('aria-label', 'Risk map of Bangladesh. Use arrow keys to pan and plus or minus to zoom.')
 
     const markers: Marker[] = []
 
@@ -175,7 +191,7 @@ export function MapCanvas({
         paint: { 'line-color': '#86efac', 'line-width': 1.5, 'line-opacity': 0.9 },
       })
 
-      map.setPaintProperty(FILL_A, 'fill-opacity', 1)
+      map.setPaintProperty(FILL_A, 'fill-opacity', gridOpacity(live.current.overlay))
       map.setPaintProperty(FILL_A, 'fill-opacity-transition', { duration: 1200, delay: reduceMotion ? 0 : 1800 })
 
       for (const place of DIVISIONS) {
@@ -226,6 +242,7 @@ export function MapCanvas({
       clearHover()
     })
     map.on('click', (event) => live.current.onPickLocation({ lng: event.lngLat.lng, lat: event.lngLat.lat }))
+    map.on('zoom', () => setShowLabels(map.getZoom() >= LABEL_MIN_ZOOM))
     // Missing tiles are not fatal: the outline and risk grid still work without imagery.
     map.on('error', (event) => console.warn('[map]', event.error?.message ?? event))
 
@@ -256,7 +273,7 @@ export function MapCanvas({
     map.setPaintProperty(back, 'fill-color', riskFillColor(layer))
     map.setPaintProperty(back, 'fill-opacity-transition', { duration: reduceMotion ? 0 : 700, delay: 0 })
     map.setPaintProperty(front.current, 'fill-opacity-transition', { duration: reduceMotion ? 0 : 700, delay: 0 })
-    map.setPaintProperty(back, 'fill-opacity', 1)
+    map.setPaintProperty(back, 'fill-opacity', gridOpacity(live.current.overlay))
     map.setPaintProperty(front.current, 'fill-opacity', 0)
     // Hover events follow whichever layer is in front.
     map.moveLayer(back, 'risk-outline')
@@ -284,6 +301,43 @@ export function MapCanvas({
     return () => clearTimeout(timer)
   }, [basemap, ready])
 
+  // --- NASA world layer fade, grid steps back while one is shown ----------------------------
+  const shownOverlay = useRef(overlay)
+  useEffect(() => {
+    const map = mapRef.current
+    if (!ready || !map || shownOverlay.current === overlay) return
+    const previous = shownOverlay.current
+    if (previous) map.setPaintProperty(nasaLayerId(previous), 'raster-opacity', 0)
+    if (overlay) {
+      map.setLayoutProperty(nasaLayerId(overlay), 'visibility', 'visible')
+      map.setPaintProperty(nasaLayerId(overlay), 'raster-opacity', nasaLayer(overlay).opacity)
+    }
+    map.setPaintProperty(front.current, 'fill-opacity-transition', { duration: reduceMotion ? 0 : 600, delay: 0 })
+    map.setPaintProperty(front.current, 'fill-opacity', gridOpacity(overlay))
+    shownOverlay.current = overlay
+    // Stop fetching tiles for layers that have faded out.
+    const timer = setTimeout(() => {
+      for (const n of NASA_LAYERS) {
+        if (n.id !== shownOverlay.current && mapRef.current) mapRef.current.setLayoutProperty(nasaLayerId(n.id), 'visibility', 'none')
+      }
+    }, 700)
+    return () => clearTimeout(timer)
+  }, [overlay, ready, reduceMotion])
+
+  // --- language: canvas name and the built-in control buttons --------------------------
+  useEffect(() => {
+    // Controls exist as soon as the map is created, so this doesn't wait for tiles.
+    const map = mapRef.current
+    if (!map) return
+    localizeMap(
+      map,
+      lang,
+      lang === 'bn'
+        ? 'বাংলাদেশের ঝুঁকির মানচিত্র ও নাসার বিশ্ব-মানচিত্র। সরাতে তীর-চাবি, কাছে বা দূরে নিতে প্লাস বা মাইনাস চাপুন।'
+        : 'Risk map of Bangladesh and NASA world map. Use arrow keys to pan and plus or minus to zoom.',
+    )
+  }, [lang])
+
   // --- fly-to requests ---------------------------------------------------------------
   useEffect(() => {
     const map = mapRef.current
@@ -292,6 +346,8 @@ export function MapCanvas({
     if ('home' in focus) {
       const container = map.getContainer()
       map.fitBounds(BANGLADESH_BOUNDS, { padding: homePadding(container), duration, linear: false, essential: true })
+    } else if ('world' in focus) {
+      map.fitBounds(WORLD_BOUNDS, { padding: 16, duration, linear: false, essential: true })
     } else {
       map.flyTo({ center: focus.center, zoom: focus.zoom, duration, essential: true })
     }
@@ -340,10 +396,10 @@ export function MapCanvas({
           className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-[calc(100%+12px)] rounded-lg bg-night-900/95 px-2.5 py-1.5 text-center shadow-lg ring-1 ring-line-strong"
           style={{ left: hover.x, top: hover.y }}
         >
-          <p className="text-sm font-bold text-ink">{hover.cell[layer]}</p>
+          <p className="text-sm font-bold text-ink">{digits(hover.cell[layer], lang)}</p>
           <p className="flex items-center gap-1.5 text-[11px] whitespace-nowrap text-ink-muted">
             <span className="size-2 rounded-full" style={{ backgroundColor: riskMeta[hoverLevel].color }} />
-            {riskMeta[hoverLevel].label}
+            {levelLabel(hoverLevel, lang)}
           </p>
         </div>
       )}
@@ -351,8 +407,13 @@ export function MapCanvas({
       {/* Marker contents are React, portalled into the elements MapLibre positions. */}
       {DIVISIONS.map((place) =>
         createPortal(
-          <span className="pointer-events-none rounded bg-night-950/60 px-1.5 py-0.5 text-[11px] font-semibold text-ink/90 backdrop-blur-sm">
-            {place.name}
+          <span
+            className={cn(
+              'pointer-events-none rounded bg-night-950/60 px-1.5 py-0.5 text-[11px] font-semibold text-ink/90 backdrop-blur-sm transition-opacity duration-300',
+              !showLabels && 'opacity-0',
+            )}
+          >
+            {placeName(place, lang)}
           </span>,
           element(`place-${place.name}`),
           `place-${place.name}`,

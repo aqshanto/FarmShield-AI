@@ -2,7 +2,8 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { mapOverviewFixture } from '@/test/fixtures'
+import { makeDashboard, mapOverviewFixture } from '@/test/fixtures'
+import type { PointRisk } from '@/types/api'
 import { MapPage } from './MapPage'
 
 // jsdom has no WebGL, so the MapLibre canvas is replaced by a stub that exposes the
@@ -11,17 +12,24 @@ vi.mock('@/features/map/MapCanvas', () => ({
   MapCanvas: (props: {
     layer: string
     basemap: string
+    overlay: string | null
     focus: unknown
     onPickLocation: (p: { lng: number; lat: number }) => void
     onPickFarm: (id: string) => void
     onError: (message: string) => void
   }) => (
-    <div data-testid="map" data-layer={props.layer} data-basemap={props.basemap} data-focus={JSON.stringify(props.focus)}>
+    <div data-testid="map" data-layer={props.layer} data-basemap={props.basemap} data-overlay={props.overlay ?? ''} data-focus={JSON.stringify(props.focus)}>
       <button type="button" onClick={() => props.onPickLocation({ lng: 88.56, lat: 24.62 })}>
         tap Rajshahi
       </button>
       <button type="button" onClick={() => props.onPickLocation({ lng: 90.5, lat: 20.9 })}>
         tap sea
+      </button>
+      <button type="button" onClick={() => props.onPickLocation({ lng: 36.82, lat: -1.29 })}>
+        tap Kenya
+      </button>
+      <button type="button" onClick={() => props.onPickLocation({ lng: 10, lat: 80 })}>
+        tap Arctic
       </button>
       <button type="button" onClick={() => props.onPickFarm('barind')}>
         tap farm
@@ -41,8 +49,37 @@ function renderAt(url: string) {
   return router
 }
 
+const kenya: PointRisk = {
+  lat: -1.3,
+  lon: 36.8,
+  place: 'Kiambu',
+  country: 'Kenya',
+  land: true,
+  in_bangladesh: false,
+  crop: 'Rice',
+  overall: { score: 30, level: 'watch', summary: 'Mostly fine. Keep an eye on water stress.' },
+  modules: makeDashboard().modules,
+  recommendations: [{ id: 'r1', module: 'water_stress', priority: 'high', title: 'Check the soil in 2–3 days', reason: 'Push a finger into the soil.', due: 'This week' }],
+  satellites_pending: true,
+}
+
+let pointReply: { status: number; body: unknown }
+let pointUrls: string[]
+
 beforeEach(() => {
-  vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify(mapOverviewFixture), { status: 200 }))
+  pointReply = { status: 200, body: kenya }
+  pointUrls = []
+  vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+    const url = String(input)
+    if (url.includes('/map/point')) {
+      pointUrls.push(url)
+      return new Response(JSON.stringify(pointReply.body), { status: pointReply.status })
+    }
+    if (url.includes('gibs.earthdata.nasa.gov')) {
+      return new Response('<Domains><Domain>2026-09-01/2026-09-28/P1D</Domain></Domains>', { status: 200 })
+    }
+    return new Response(JSON.stringify(mapOverviewFixture), { status: 200 })
+  })
 })
 
 describe('MapPage', () => {
@@ -79,11 +116,61 @@ describe('MapPage', () => {
     expect(within(panel).getByRole('link', { name: /Add a farm here/ })).toHaveAttribute('href', '/farms/new?lat=24.6200&lon=88.5600')
   })
 
-  it('tapping outside Bangladesh explains there is no data', async () => {
+  it('tapping anywhere else on Earth checks that spot live', async () => {
+    renderAt('/map')
+    await userEvent.click(await screen.findByRole('button', { name: 'tap Kenya' }))
+    const panel = await screen.findByRole('region', { name: 'Kiambu, Kenya' })
+    expect(await within(panel).findByText('Mostly fine. Keep an eye on water stress.')).toBeInTheDocument()
+    expect(within(panel).getByText('Danger · 78')).toBeInTheDocument()
+    expect(within(panel).getByText('Check the soil in 2–3 days')).toBeInTheDocument()
+    expect(within(panel).getByText(/downloading now/)).toBeInTheDocument()
+    expect(pointUrls[0]).toBe('/api/v1/map/point?lat=-1.2900&lon=36.8200&crop=rice')
+    expect(screen.queryByRole('link', { name: /Add a farm here/ })).not.toBeInTheDocument()
+
+    // Changing the crop asks again for that crop.
+    await userEvent.click(within(panel).getByRole('radio', { name: 'Wheat' }))
+    await within(panel).findByText('Mostly fine. Keep an eye on water stress.')
+    expect(pointUrls.at(-1)).toContain('crop=wheat')
+  })
+
+  it('open water and demo servers get a plain explanation', async () => {
+    pointReply = { status: 200, body: { ...kenya, place: null, country: null, land: false, overall: null, modules: [], recommendations: [] } }
     renderAt('/map')
     await userEvent.click(await screen.findByRole('button', { name: 'tap sea' }))
-    expect(await screen.findByText(/outside Bangladesh/)).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: /Add a farm here/ })).not.toBeInTheDocument()
+    expect((await screen.findAllByText('This spot is open water.')).length).toBeGreaterThan(0)
+
+    pointReply = { status: 409, body: { detail: 'demo' } }
+    await userEvent.click(screen.getByRole('button', { name: 'tap Kenya' }))
+    expect(await screen.findByText(/running the demo scenario/)).toBeInTheDocument()
+  })
+
+  it('does not ask about polar spots', async () => {
+    renderAt('/map')
+    await userEvent.click(await screen.findByRole('button', { name: 'tap Arctic' }))
+    expect(await screen.findByText(/no farmland this close to the poles/)).toBeInTheDocument()
+    expect(pointUrls).toEqual([])
+  })
+
+  it('NASA world layers switch on with a legend and the picture date, and are linkable', async () => {
+    const router = renderAt('/map')
+    await screen.findByTestId('map')
+    await userEvent.click(screen.getByRole('radio', { name: /Soil moisture/ }))
+    expect(screen.getByTestId('map')).toHaveAttribute('data-overlay', 'soil')
+    expect(router.state.location.search).toBe('?nasa=soil')
+    const legend = await screen.findByRole('group', { name: 'Soil moisture' })
+    expect(within(legend).getByText('Dry')).toBeInTheDocument()
+    expect(await within(legend).findByText('NASA picture of September 28')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('radio', { name: /Off/ }))
+    expect(screen.getByTestId('map')).toHaveAttribute('data-overlay', '')
+    expect(router.state.location.search).toBe('')
+  })
+
+  it('zooms out to the whole world', async () => {
+    renderAt('/map?nasa=rain')
+    expect(await screen.findByTestId('map')).toHaveAttribute('data-overlay', 'rain')
+    await userEvent.click(screen.getByRole('button', { name: /Whole world/ }))
+    expect(JSON.parse(screen.getByTestId('map').dataset.focus!)).toMatchObject({ world: true })
   })
 
   it('tapping a farm opens its panel, flies to it and links to its dashboard', async () => {

@@ -4,7 +4,8 @@ import { RiskBadge } from '@/components/ui/RiskBadge'
 import { ScoreRing } from '@/components/ui/ScoreRing'
 import { cn } from '@/lib/cn'
 import { fadeUp, stagger } from '@/lib/motion'
-import { riskMeta } from '@/lib/risk'
+import { numberLocale, useLang, useText } from '@/lib/i18n'
+import { levelLabel, riskMeta } from '@/lib/risk'
 import type { Dashboard, RiskModule } from '@/types/api'
 import { moduleVisuals } from './module-visuals'
 
@@ -14,17 +15,24 @@ interface OverallCardProps {
   onSelect: (module: RiskModule) => void
 }
 
+const text = {
+  en: { ring: 'Overall farm risk', caption: 'overall risk' },
+  bn: { ring: 'খামারের সার্বিক ঝুঁকি', caption: 'সার্বিক ঝুঁকি' },
+}
+
 // The single headline of the page: how is my farm, in one number and one sentence.
 export function OverallCard({ dashboard, selected, onSelect }: OverallCardProps) {
   const { overall, farm, modules } = dashboard
+  const lang = useLang()
+  const t = useText(text)
   const color = riskMeta[overall.level].color
 
   return (
     <Card interactive glow={color} className="flex h-full flex-col gap-6 p-6">
       <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-center">
-        <ScoreRing score={overall.score} label="Overall farm risk" caption="overall risk" size={168} className="shrink-0" />
+        <ScoreRing score={overall.score} label={t.ring} caption={t.caption} locale={numberLocale[lang]} size={168} className="shrink-0" />
         <div className="space-y-3 text-center sm:text-left">
-          <RiskBadge level={overall.level} />
+          <RiskBadge level={overall.level} lang={lang} />
           <h2 className="text-2xl font-bold tracking-tight text-ink">{overall.summary}</h2>
           <p className="text-sm text-ink-muted">{farm.story}</p>
         </div>
@@ -54,7 +62,7 @@ export function OverallCard({ dashboard, selected, onSelect }: OverallCardProps)
                   />
                 </span>
                 <span className="text-xs font-semibold text-ink">{module.title}</span>
-                <span className="text-[11px] text-ink-subtle">{riskMeta[module.level].label}</span>
+                <span className="text-[11px] text-ink-subtle">{levelLabel(module.level, lang)}</span>
               </button>
             </motion.li>
           )

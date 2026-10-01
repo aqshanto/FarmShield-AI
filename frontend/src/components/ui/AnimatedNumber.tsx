@@ -1,6 +1,7 @@
 import { useInView, useMotionValueEvent, useReducedMotion, useSpring } from 'framer-motion'
 import { useEffect, useMemo, useRef } from 'react'
 import { cn } from '@/lib/cn'
+import { numberLocale, useLang } from '@/lib/i18n'
 
 interface AnimatedNumberProps {
   value: number
@@ -15,7 +16,9 @@ interface AnimatedNumberProps {
 }
 
 // Counts up to `value` when scrolled into view, and springs smoothly to any new value.
-export function AnimatedNumber({ value, decimals = 0, prefix = '', suffix = '', locale = 'en', signed = false, className }: AnimatedNumberProps) {
+export function AnimatedNumber({ value, decimals = 0, prefix = '', suffix = '', locale: localeProp, signed = false, className }: AnimatedNumberProps) {
+  const lang = useLang()
+  const locale = localeProp ?? numberLocale[lang]
   const ref = useRef<HTMLSpanElement>(null)
   const inView = useInView(ref, { once: true })
   const reduceMotion = useReducedMotion()

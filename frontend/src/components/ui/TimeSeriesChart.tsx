@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { type KeyboardEvent, type PointerEvent, useEffect, useId, useRef, useState } from 'react'
 import { cn } from '@/lib/cn'
+import { formatDate, type Lang, useLang } from '@/lib/i18n'
 
 export interface ChartPoint {
   date: string // YYYY-MM-DD
@@ -40,7 +41,7 @@ const toTime = (iso: string) => {
   const [y, m, d] = iso.split('-').map(Number)
   return new Date(y, m - 1, d).getTime()
 }
-const shortDate = (iso: string) => new Date(toTime(iso)).toLocaleDateString('en', { month: 'short', day: 'numeric' })
+const shortDate = (iso: string, lang: Lang) => formatDate(new Date(toTime(iso)), lang, { month: 'short', day: 'numeric' })
 
 function barPath(cx: number, top: number, base: number, width: number) {
   const x0 = cx - width / 2
@@ -64,9 +65,11 @@ export function TimeSeriesChart({
   label,
   summary,
   height = 190,
-  emptyMessage = 'No readings yet',
+  emptyMessage,
   className,
 }: TimeSeriesChartProps) {
+  const lang = useLang()
+  const bn = lang === 'bn'
   const containerRef = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(520)
   const [active, setActive] = useState<number | null>(null)
@@ -139,7 +142,7 @@ export function TimeSeriesChart({
   return (
     <div className={cn('space-y-2', className)}>
       {series.length > 1 && (
-        <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-muted" aria-label="Legend">
+        <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-muted" aria-label={bn ? 'চিহ্নের ব্যাখ্যা' : 'Legend'}>
           {series.map((s) => (
             <li key={s.id} className="flex items-center gap-1.5">
               {s.kind === 'bar' && <span className="h-2.5 w-2 rounded-t-[2px]" style={{ backgroundColor: s.color }} />}
@@ -180,7 +183,7 @@ export function TimeSeriesChart({
               textAnchor={i === 0 ? 'start' : i === 2 ? 'end' : 'middle'}
               className="fill-ink-subtle text-[10px]"
             >
-              {shortDate(dateOf(day))}
+              {shortDate(dateOf(day), lang)}
             </text>
           ))}
 
@@ -267,7 +270,7 @@ export function TimeSeriesChart({
 
         {empty && (
           <p className="absolute inset-0 grid place-items-center text-sm text-ink-subtle" style={{ paddingBottom: PAD.bottom }}>
-            {emptyMessage}
+            {emptyMessage ?? (bn ? 'এখনও কোনো তথ্য নেই' : 'No readings yet')}
           </p>
         )}
 
@@ -279,7 +282,7 @@ export function TimeSeriesChart({
             )}
             style={{ left: tooltipLeft, top: PAD.top }}
           >
-            <p className="mb-0.5 text-[11px] whitespace-nowrap text-ink-muted">{shortDate(dateOf(active))}</p>
+            <p className="mb-0.5 text-[11px] whitespace-nowrap text-ink-muted">{shortDate(dateOf(active), lang)}</p>
             {readings.map(({ series: s, point }) => (
               <p key={s.id} className="flex items-center gap-1.5 text-xs whitespace-nowrap">
                 <span className="h-0.5 w-3 rounded-full" style={{ backgroundColor: s.color }} />
@@ -291,12 +294,12 @@ export function TimeSeriesChart({
         )}
 
         <p id={summaryId} className="sr-only">
-          {summary} Use left and right arrow keys to read each day.
+          {summary} {bn ? 'প্রতিদিনের মান শুনতে বাঁ ও ডান তীর-চাবি ব্যবহার করুন।' : 'Use left and right arrow keys to read each day.'}
         </p>
         <p className="sr-only" aria-live="polite">
           {active === null
             ? ''
-            : `${shortDate(dateOf(active))}: ${readings.map(({ series: s, point }) => `${s.label} ${point ? formatValue(point.value) : 'no reading'}`).join(', ')}`}
+            : `${shortDate(dateOf(active), lang)}: ${readings.map(({ series: s, point }) => `${s.label} ${point ? formatValue(point.value) : bn ? 'তথ্য নেই' : 'no reading'}`).join(', ')}`}
         </p>
       </div>
     </div>

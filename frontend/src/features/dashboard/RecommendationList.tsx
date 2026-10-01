@@ -5,18 +5,46 @@ import { SproutIllustration } from '@/components/illustrations/SproutIllustratio
 import { Card } from '@/components/ui/Card'
 import { useToast } from '@/components/ui/toast/useToast'
 import { cn } from '@/lib/cn'
+import { digits, useLang, useText } from '@/lib/i18n'
 import { spring } from '@/lib/motion'
 import type { Priority, Recommendation } from '@/types/api'
 import { moduleVisuals } from './module-visuals'
 import { useCompleted } from './useCompleted'
 
-const priorityStyles: Record<Priority, { label: string; className: string }> = {
-  high: { label: 'Do first', className: 'bg-alert-400/15 text-alert-300 ring-alert-400/30' },
-  medium: { label: 'Soon', className: 'bg-harvest-400/15 text-harvest-300 ring-harvest-300/30' },
-  low: { label: 'When you can', className: 'bg-sky-400/15 text-sky-300 ring-sky-300/30' },
+const priorityStyles: Record<Priority, { className: string }> = {
+  high: { className: 'bg-alert-400/15 text-alert-300 ring-alert-400/30' },
+  medium: { className: 'bg-harvest-400/15 text-harvest-300 ring-harvest-300/30' },
+  low: { className: 'bg-sky-400/15 text-sky-300 ring-sky-300/30' },
 }
 
-const cheers = ['Nice work!', 'Great job!', 'Well done!', 'Your field thanks you!']
+const text = {
+  en: {
+    priority: { high: 'Do first', medium: 'Soon', low: 'When you can' },
+    cheers: ['Nice work!', 'Great job!', 'Well done!', 'Your field thanks you!'],
+    isDone: (title: string) => `“${title}” is done.`,
+    title: 'What to do this week',
+    subtitle: 'Most important first. Tick them off as you go.',
+    progress: (done: string, total: string) => `${done} of ${total} done`,
+    progressLabel: 'Tasks done',
+    allDone: 'All done for this week!',
+    allDoneHint: 'Your farm is better prepared. We’ll let you know if anything changes.',
+    mark: (title: string, done: boolean) => `Mark “${title}” as ${done ? 'not done' : 'done'}`,
+    modules: { flood_risk: 'Flood', water_stress: 'Water', crop_health: 'Crop' },
+  },
+  bn: {
+    priority: { high: 'আগে করুন', medium: 'শিগগিরই', low: 'সময় পেলে' },
+    cheers: ['চমৎকার!', 'দারুণ কাজ!', 'খুব ভালো!', 'আপনার জমি আপনাকে ধন্যবাদ দিচ্ছে!'],
+    isDone: (title: string) => `“${title}” শেষ হয়েছে।`,
+    title: 'এই সপ্তাহে যা করবেন',
+    subtitle: 'সবচেয়ে জরুরি কাজ আগে। শেষ হলে টিক দিন।',
+    progress: (done: string, total: string) => `${total}টির মধ্যে ${done}টি শেষ`,
+    progressLabel: 'শেষ হওয়া কাজ',
+    allDone: 'এই সপ্তাহের সব কাজ শেষ!',
+    allDoneHint: 'আপনার খামার এখন আরও প্রস্তুত। কিছু বদলালে আমরা জানাব।',
+    mark: (title: string, done: boolean) => `“${title}” ${done ? 'শেষ হয়নি হিসেবে চিহ্নিত করুন' : 'শেষ হিসেবে চিহ্নিত করুন'}`,
+    modules: { flood_risk: 'বন্যা', water_stress: 'পানি', crop_health: 'ফসল' },
+  },
+}
 
 interface RecommendationListProps {
   farmId: string
@@ -27,6 +55,8 @@ interface RecommendationListProps {
 export function RecommendationList({ farmId, recommendations }: RecommendationListProps) {
   const { done, toggle } = useCompleted(farmId)
   const { toast } = useToast()
+  const lang = useLang()
+  const t = useText(text)
   // Only the task just ticked plays the burst (not ones restored as done on page load).
   const [justCompleted, setJustCompleted] = useState<string | null>(null)
 
@@ -41,7 +71,7 @@ export function RecommendationList({ farmId, recommendations }: RecommendationLi
     toggle(rec.id)
     setJustCompleted(completing ? rec.id : null)
     if (completing) {
-      toast({ tone: 'success', title: cheers[doneCount % cheers.length], description: `“${rec.title}” is done.` })
+      toast({ tone: 'success', title: t.cheers[doneCount % t.cheers.length], description: t.isDone(rec.title) })
     }
   }
 
@@ -49,18 +79,18 @@ export function RecommendationList({ farmId, recommendations }: RecommendationLi
     <Card className="flex h-full flex-col p-6">
       <div className="mb-4 flex items-end justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-ink">What to do this week</h2>
-          <p className="text-sm text-ink-muted">Most important first. Tick them off as you go.</p>
+          <h2 className="text-xl font-bold text-ink">{t.title}</h2>
+          <p className="text-sm text-ink-muted">{t.subtitle}</p>
         </div>
         <p className="shrink-0 text-sm font-semibold text-ink" aria-live="polite">
-          {doneCount} of {total} done
+          {t.progress(digits(doneCount, lang), digits(total, lang))}
         </p>
       </div>
 
       <div
         className="mb-5 h-2 overflow-hidden rounded-full bg-surface-3"
         role="progressbar"
-        aria-label="Tasks done"
+        aria-label={t.progressLabel}
         aria-valuemin={0}
         aria-valuemax={total}
         aria-valuenow={doneCount}
@@ -84,8 +114,8 @@ export function RecommendationList({ farmId, recommendations }: RecommendationLi
             <div className="mb-4 flex items-center gap-3 rounded-2xl bg-leaf-500/10 p-3 ring-1 ring-leaf-400/30">
               <SproutIllustration health={1} size={56} />
               <div>
-                <p className="font-bold text-leaf-200">All done for this week!</p>
-                <p className="text-sm text-ink-muted">Your farm is better prepared. We’ll let you know if anything changes.</p>
+                <p className="font-bold text-leaf-200">{t.allDone}</p>
+                <p className="text-sm text-ink-muted">{t.allDoneHint}</p>
               </div>
             </div>
           </motion.div>
@@ -108,7 +138,7 @@ export function RecommendationList({ farmId, recommendations }: RecommendationLi
                 type="button"
                 role="checkbox"
                 aria-checked={isDone}
-                aria-label={`Mark “${rec.title}” as ${isDone ? 'not done' : 'done'}`}
+                aria-label={t.mark(rec.title, isDone)}
                 onClick={() => handleToggle(rec)}
                 whileTap={{ scale: 0.85 }}
                 className={cn(
@@ -144,7 +174,7 @@ export function RecommendationList({ farmId, recommendations }: RecommendationLi
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className={cn('font-semibold text-ink', isDone && 'line-through decoration-2')}>{rec.title}</p>
-                  <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-bold ring-1', priority.className)}>{priority.label}</span>
+                  <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-bold ring-1', priority.className)}>{t.priority[rec.priority]}</span>
                 </div>
                 <p className="mt-0.5 text-sm text-ink-muted">{rec.reason}</p>
                 <div className="mt-2 flex items-center gap-3 text-xs text-ink-subtle">
@@ -154,7 +184,7 @@ export function RecommendationList({ farmId, recommendations }: RecommendationLi
                   </span>
                   <span className="inline-flex items-center gap-1">
                     <Icon className="size-3.5" aria-hidden="true" />
-                    {rec.module === 'flood_risk' ? 'Flood' : rec.module === 'water_stress' ? 'Water' : 'Crop'}
+                    {t.modules[rec.module]}
                   </span>
                 </div>
               </div>

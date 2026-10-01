@@ -2,6 +2,7 @@ import type { ExpressionSpecification, StyleSpecification } from 'maplibre-gl'
 import { RISK_HEX } from '@/lib/risk'
 import type { RiskModule } from '@/types/api'
 import type { Basemap, BasemapId } from './basemaps'
+import { NASA_LAYERS, type NasaLayerId, nasaLayerId, nasaTileUrl } from './nasaLayers'
 
 function withAlpha(hex: string, alpha: number) {
   const n = Number.parseInt(hex.slice(1), 16)
@@ -28,13 +29,18 @@ export function riskFillColor(layer: RiskModule): ExpressionSpecification {
 
 export const baseLayerId = (id: BasemapId) => `base-${id}`
 
-// Only raster basemaps live in the style; risk layers are added on load.
-export function buildStyle(list: Basemap[], active: BasemapId): StyleSpecification {
+// Raster basemaps and NASA's global layers live in the style; risk layers are added on load,
+// so they always draw on top.
+export function buildStyle(list: Basemap[], active: BasemapId, overlay: NasaLayerId | null = null): StyleSpecification {
   return {
     version: 8,
-    sources: Object.fromEntries(
-      list.map((b) => [baseLayerId(b.id), { type: 'raster' as const, tiles: [b.tiles], tileSize: 256, maxzoom: b.maxzoom }]),
-    ),
+    sources: Object.fromEntries([
+      ...list.map((b) => [baseLayerId(b.id), { type: 'raster' as const, tiles: [b.tiles], tileSize: 256, maxzoom: b.maxzoom }]),
+      ...NASA_LAYERS.map((n) => [
+        nasaLayerId(n.id),
+        { type: 'raster' as const, tiles: [nasaTileUrl(n)], tileSize: 256, maxzoom: n.maxzoom, attribution: `NASA ${n.mission} via GIBS` },
+      ]),
+    ]),
     layers: [
       { id: 'background', type: 'background', paint: { 'background-color': '#06120e' } },
       ...list.map((b) => ({
@@ -48,6 +54,16 @@ export function buildStyle(list: Basemap[], active: BasemapId): StyleSpecificati
           // Slightly muted so the risk overlay is the loudest thing on the map.
           'raster-saturation': b.id === 'night' ? 0 : -0.25,
           'raster-brightness-max': b.id === 'night' ? 1 : 0.8,
+        },
+      })),
+      ...NASA_LAYERS.map((n) => ({
+        id: nasaLayerId(n.id),
+        type: 'raster' as const,
+        source: nasaLayerId(n.id),
+        layout: { visibility: n.id === overlay ? ('visible' as const) : ('none' as const) },
+        paint: {
+          'raster-opacity': n.id === overlay ? n.opacity : 0,
+          'raster-opacity-transition': { duration: 600, delay: 0 },
         },
       })),
     ],

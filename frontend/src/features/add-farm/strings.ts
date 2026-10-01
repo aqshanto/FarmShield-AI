@@ -1,10 +1,7 @@
-import type { Lang } from '@/lib/i18n'
+import { bnOf, type Lang } from '@/lib/i18n'
 
 const bnDigits = (s: string | number) => String(s).replace(/\d/g, (d) => '০১২৩৪৫৬৭৮৯'[Number(d)])
 
-const BN_VOWEL_ENDINGS = new Set('ািীুূৃেৈোৌঅআইঈউঊঋএঐওঔ')
-/** Bengali possessive: বগুড়া → বগুড়ার, ধান → ধানের, আলু → আলুর. */
-export const bnOf = (word: string) => (BN_VOWEL_ENDINGS.has(word.at(-1) ?? '') ? `${word}র` : `${word}ের`)
 
 export const addFarmText = {
   en: {

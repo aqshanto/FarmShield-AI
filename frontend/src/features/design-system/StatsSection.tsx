@@ -17,25 +17,42 @@ interface Stat {
   source: string
 }
 
-function randomStats(): Stat[] {
+function randomStats(): Omit<Stat, 'label'>[] {
   const r = (min: number, max: number) => Math.round(min + Math.random() * (max - min))
   return [
-    { key: 'rain', label: 'Rain this week', value: r(20, 240), suffix: ' mm', icon: <CloudRain className="size-5" />, color: 'var(--color-sky-300)', source: 'GPM' },
-    { key: 'soil', label: 'Soil moisture', value: r(10, 90), suffix: '%', icon: <Droplets className="size-5" />, color: 'var(--color-sky-400)', source: 'SMAP' },
-    { key: 'crop', label: 'Crop health', value: r(30, 98), suffix: '%', icon: <Sprout className="size-5" />, color: 'var(--color-leaf-400)', source: 'MODIS' },
+    { key: 'rain', value: r(20, 240), suffix: 'mm', icon: <CloudRain className="size-5" />, color: 'var(--color-sky-300)', source: 'GPM' },
+    { key: 'soil', value: r(10, 90), suffix: '%', icon: <Droplets className="size-5" />, color: 'var(--color-sky-400)', source: 'SMAP' },
+    { key: 'crop', value: r(30, 98), suffix: '%', icon: <Sprout className="size-5" />, color: 'var(--color-leaf-400)', source: 'MODIS' },
   ]
+}
+
+const text = {
+  en: {
+    eyebrow: 'Components',
+    title: 'Living numbers',
+    description:
+      'Numbers count up when they scroll into view and spring to new values. In Bengali they switch to Bengali numerals. Hover a card to see the spotlight follow your cursor.',
+    labels: { rain: 'Rain this week', soil: 'Soil moisture', crop: 'Crop health' } as Record<string, string>,
+    mm: ' mm',
+    simulate: 'Simulate new satellite pass',
+  },
+  bn: {
+    eyebrow: 'উপাদান',
+    title: 'জীবন্ত সংখ্যা',
+    description:
+      'চোখের সামনে এলে সংখ্যাগুলো গুনে গুনে বাড়ে, নতুন মানে লাফিয়ে যায়। বাংলায় সংখ্যাগুলো বাংলা অঙ্কে দেখায়। কার্ডের ওপর মাউস রাখলে আলো আপনার কার্সর অনুসরণ করে।',
+    labels: { rain: 'এই সপ্তাহের বৃষ্টি', soil: 'মাটির আর্দ্রতা', crop: 'ফসলের স্বাস্থ্য' } as Record<string, string>,
+    mm: ' মিমি',
+    simulate: 'নতুন উপগ্রহ-পর্যবেক্ষণ দেখুন',
+  },
 }
 
 export function StatsSection({ lang }: { lang: Lang }) {
   const [stats, setStats] = useState(randomStats)
+  const t = text[lang]
 
   return (
-    <Section
-      id="stats"
-      eyebrow="Components"
-      title="Living numbers"
-      description="Numbers count up when they scroll into view and spring to new values. In Bengali they switch to Bengali numerals. Hover a card to see the spotlight follow your cursor."
-    >
+    <Section id="stats" eyebrow={t.eyebrow} title={t.title} description={t.description}>
       <div className="grid gap-4 sm:grid-cols-3">
         {stats.map((stat) => (
           <Card key={stat.key} interactive glow={stat.color}>
@@ -48,10 +65,10 @@ export function StatsSection({ lang }: { lang: Lang }) {
               </span>
               <Badge tone="neutral">{stat.source}</Badge>
             </div>
-            <p className="mt-4 text-sm font-medium text-ink-muted">{stat.label}</p>
+            <p className="mt-4 text-sm font-medium text-ink-muted">{t.labels[stat.key]}</p>
             <AnimatedNumber
               value={stat.value}
-              suffix={stat.suffix}
+              suffix={stat.suffix === 'mm' ? t.mm : stat.suffix}
               locale={numberLocale[lang]}
               className="text-4xl font-extrabold tracking-tight text-ink"
             />
@@ -59,7 +76,7 @@ export function StatsSection({ lang }: { lang: Lang }) {
         ))}
       </div>
       <Button variant="secondary" icon={<RefreshCw className="size-4" />} onClick={() => setStats(randomStats())}>
-        Simulate new satellite pass
+        {t.simulate}
       </Button>
     </Section>
   )

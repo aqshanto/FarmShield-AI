@@ -8,6 +8,8 @@ export interface MissionInfo {
   tagline: string
   // What it tells a farmer, in plain words.
   measures: string
+  taglineBn: string
+  measuresBn: string
   // The mission's own data source, and the no-login stand-in used without a token.
   source: string
   standIn?: string
@@ -19,6 +21,8 @@ export const MISSIONS: MissionInfo[] = [
     name: 'SMAP',
     tagline: 'Soil Moisture Active Passive',
     measures: 'How wet your soil is. Its radar sees through clouds.',
+    taglineBn: 'মাটির আর্দ্রতা মাপার উপগ্রহ',
+    measuresBn: 'আপনার মাটি কতটা ভেজা। এর রাডার মেঘ ভেদ করে দেখে।',
     source: 'smap',
     standIn: 'nasa_power',
   },
@@ -27,6 +31,8 @@ export const MISSIONS: MissionInfo[] = [
     name: 'GPM',
     tagline: 'Global Precipitation Measurement',
     measures: 'How much rain fell, every day, everywhere.',
+    taglineBn: 'বিশ্বজুড়ে বৃষ্টি মাপার মিশন',
+    measuresBn: 'কতটা বৃষ্টি হয়েছে, প্রতিদিন, সব জায়গায়।',
     source: 'gpm_imerg',
     standIn: 'nasa_power',
   },
@@ -35,6 +41,8 @@ export const MISSIONS: MissionInfo[] = [
     name: 'MODIS',
     tagline: 'Terra & Aqua satellites',
     measures: 'How green and healthy your plants look.',
+    taglineBn: 'টেরা ও অ্যাকোয়া উপগ্রহ',
+    measuresBn: 'আপনার গাছ কতটা সবুজ ও সুস্থ দেখাচ্ছে।',
     source: 'modis',
   },
   {
@@ -42,6 +50,8 @@ export const MISSIONS: MissionInfo[] = [
     name: 'VIIRS',
     tagline: 'Visible Infrared Imaging Radiometer Suite',
     measures: 'What “normal” greenness looks like for this time of year.',
+    taglineBn: 'দিন-রাতের ইনফ্রারেড ছবি তোলার যন্ত্র',
+    measuresBn: 'বছরের এই সময়ে “স্বাভাবিক” সবুজ ভাব কেমন।',
     source: 'viirs',
   },
 ]

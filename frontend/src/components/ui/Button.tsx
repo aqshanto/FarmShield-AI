@@ -38,7 +38,7 @@ export function Button({
       className={buttonStyles({ variant, size, className })}
       {...props}
     >
-      {loading ? <Spinner className="size-4" label="Loading" /> : icon}
+      {loading ? <Spinner className="size-4" /> : icon}
       {children}
       {!loading && iconRight}
     </motion.button>

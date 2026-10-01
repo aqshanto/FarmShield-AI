@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { type KeyboardEvent, type PointerEvent, useEffect, useId, useRef, useState } from 'react'
 import { cn } from '@/lib/cn'
+import { digits, type Lang, useLang } from '@/lib/i18n'
 
 interface TrendChartProps {
   // Daily values on a 0–100 scale, oldest first; the last value is today.
@@ -16,8 +17,9 @@ interface TrendChartProps {
 const PAD = { top: 14, right: 40, bottom: 22, left: 8 }
 const GUIDES = [25, 50, 75]
 
-function dayLabel(index: number, count: number) {
+function dayLabel(index: number, count: number, lang: Lang) {
   const ago = count - 1 - index
+  if (lang === 'bn') return ago === 0 ? 'আজ' : ago === 1 ? 'গতকাল' : `${digits(ago, lang)} দিন আগে`
   if (ago === 0) return 'Today'
   if (ago === 1) return 'Yesterday'
   return `${ago} days ago`
@@ -34,6 +36,8 @@ export function TrendChart({ values, color, label, height = 140, className }: Tr
   const [active, setActive] = useState<number | null>(null)
   const summaryId = useId()
   const n = values.length
+  const lang = useLang()
+  const d = (v: number) => digits(v, lang)
 
   useEffect(() => {
     const el = containerRef.current
@@ -121,7 +125,7 @@ export function TrendChart({ values, color, label, height = 140, className }: Tr
 
         {/* Direct end label in ink, never the series color. */}
         <text x={x(n - 1) + 10} y={y(last) + 4} className="fill-ink text-xs font-bold">
-          {last}
+          {d(last)}
         </text>
         <text x={PAD.left} y={height - 4} className="fill-ink-subtle text-[10px]">
           2 weeks ago
@@ -147,16 +151,18 @@ export function TrendChart({ values, color, label, height = 140, className }: Tr
           className="pointer-events-none absolute top-0 -translate-x-1/2 -translate-y-full rounded-lg bg-night-800 px-2.5 py-1.5 text-center shadow-lg ring-1 ring-line-strong"
           style={{ left: tooltipLeft }}
         >
-          <p className="text-sm font-bold text-ink">{values[active]}</p>
-          <p className="text-[11px] whitespace-nowrap text-ink-muted">{dayLabel(active, n)}</p>
+          <p className="text-sm font-bold text-ink">{d(values[active])}</p>
+          <p className="text-[11px] whitespace-nowrap text-ink-muted">{dayLabel(active, n, lang)}</p>
         </div>
       )}
 
       <p id={summaryId} className="sr-only">
-        {`${label}: ${values[0]} two weeks ago, ${values[Math.max(0, n - 8)]} a week ago, ${last} today. Use left and right arrow keys to read each day.`}
+        {lang === 'bn'
+          ? `${label}: দুই সপ্তাহ আগে ${d(values[0])}, এক সপ্তাহ আগে ${d(values[Math.max(0, n - 8)])}, আজ ${d(last)}। প্রতিদিনের মান শুনতে বাঁ ও ডান তীর-চাবি ব্যবহার করুন।`
+          : `${label}: ${values[0]} two weeks ago, ${values[Math.max(0, n - 8)]} a week ago, ${last} today. Use left and right arrow keys to read each day.`}
       </p>
       <p className="sr-only" aria-live="polite">
-        {active !== null ? `${dayLabel(active, n)}: ${values[active]}` : ''}
+        {active !== null ? `${dayLabel(active, n, lang)}: ${d(values[active])}` : ''}
       </p>
     </div>
   )

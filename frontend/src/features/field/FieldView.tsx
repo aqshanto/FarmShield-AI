@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/Card'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Slider } from '@/components/ui/Slider'
 import { cn } from '@/lib/cn'
-import { type Lang, saveLang, savedLang } from '@/lib/i18n'
+import { type Lang, setLang, useLang } from '@/lib/i18n'
 import { spring } from '@/lib/motion'
 import { type RiskLevel, riskMeta, RISK_LEVELS, scoreToLevel } from '@/lib/risk'
 import type { Dashboard, RiskModule } from '@/types/api'
@@ -67,7 +67,7 @@ function Chip({ icon, children }: { icon: ReactNode; children: ReactNode }) {
 // "My field today": a living picture of the farmer's field, its stage for each risk,
 // and a replay of the last two weeks.
 export function FieldView({ dashboard }: { dashboard: Dashboard }) {
-  const [lang, setLang] = useState<Lang>(savedLang)
+  const lang = useLang()
   const [focus, setFocus] = useState<FieldFocus>('all')
   const days = trendScores(dashboard)
   const last = Math.max(0, days.length - 1)
@@ -93,10 +93,7 @@ export function FieldView({ dashboard }: { dashboard: Dashboard }) {
   const daysAgo = last - (replay?.day ?? last)
   const sceneLabel = shown.map((m) => `${t[m]}: ${stageLabel(m, crop, levels[m], lang)}`).join('. ')
 
-  const changeLang = (next: Lang) => {
-    setLang(next)
-    saveLang(next)
-  }
+  const changeLang = (next: Lang) => setLang(next)
   const togglePlay = () =>
     setReplay((r) => (r?.playing ? { ...r, playing: false } : { day: !r || r.day >= last ? 0 : r.day, playing: true }))
 

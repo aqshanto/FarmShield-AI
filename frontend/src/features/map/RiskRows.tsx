@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/cn'
-import { riskMeta, scoreToLevel } from '@/lib/risk'
+import { digits, useLang } from '@/lib/i18n'
+import { levelLabel, riskMeta, scoreToLevel } from '@/lib/risk'
 import type { MapLayer, RiskModule } from '@/types/api'
 import { moduleVisuals } from '@/features/dashboard/module-visuals'
 
@@ -13,6 +14,7 @@ interface RiskRowsProps {
 
 // All three risks for one place as compact meters; tapping one switches the map layer.
 export function RiskRows({ layers, scores, active, onSelectLayer }: RiskRowsProps) {
+  const lang = useLang()
   return (
     <ul className="space-y-2">
       {layers.map((layer) => {
@@ -38,7 +40,7 @@ export function RiskRows({ layers, scores, active, onSelectLayer }: RiskRowsProp
                 </span>
                 <span className="flex items-center gap-1.5 text-xs font-semibold text-ink-muted">
                   <span className="size-2 rounded-full" style={{ backgroundColor: riskMeta[level].color }} aria-hidden="true" />
-                  {riskMeta[level].label} · {score}
+                  {levelLabel(level, lang)} · {digits(score, lang)}
                 </span>
               </div>
               {/* Meter: fill carries severity, track is a lighter step. */}

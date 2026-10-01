@@ -14,7 +14,7 @@ import { previewState } from '@/features/field/fieldState'
 import { isInBangladesh } from '@/features/map/geo'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/cn'
-import { type Lang, saveLang, savedLang } from '@/lib/i18n'
+import { type Lang, setLang, useLang } from '@/lib/i18n'
 import { fadeUp, spring, stagger } from '@/lib/motion'
 import { myFarmId, myFarms } from '@/lib/myFarms'
 import { useAsync } from '@/lib/useAsync'
@@ -45,8 +45,9 @@ function pointFromParams(params: URLSearchParams): PickedPoint | null {
 }
 
 function Stepper({ step, labels }: { step: number; labels: string[] }) {
+  const bn = useLang() === 'bn'
   return (
-    <ol className="flex items-center gap-2" aria-label="Steps">
+    <ol className="flex items-center gap-2" aria-label={bn ? 'ধাপগুলো' : 'Steps'}>
       {labels.map((label, i) => (
         <li key={label} className="flex items-center gap-2" aria-current={i === step ? 'step' : undefined}>
           <motion.span
@@ -72,7 +73,7 @@ export function AddFarmPage() {
   const [params] = useSearchParams()
   const navigate = useNavigate()
   const { toast } = useToast()
-  const [lang, setLang] = useState<Lang>(savedLang)
+  const lang = useLang()
   const t = addFarmText[lang]
 
   const places = useAsync('places', (signal) => api.places({ signal }), { retries: 3 })
@@ -102,10 +103,7 @@ export function AddFarmPage() {
   const outside = point !== null && !isInBangladesh(point.lon, point.lat)
   const locationReady = Boolean(locatedHere?.inside)
 
-  const changeLang = (next: Lang) => {
-    setLang(next)
-    saveLang(next)
-  }
+  const changeLang = (next: Lang) => setLang(next)
   const go = (next: number) => {
     setDirection(next > step ? 1 : -1)
     setStep(next)

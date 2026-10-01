@@ -22,9 +22,13 @@ function sse(r: Reply) {
 
 function mockApi() {
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
-    const url = String(input)
+    const [url, query = ''] = String(input).split('?')
     const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status })
-    if (url === '/api/v1/farms') return json(farmsFixture)
+    // The real API sends place names in Bengali when asked (?lang=bn).
+    const districtBn: Record<string, string> = { Sunamganj: 'সুনামগঞ্জ', Rajshahi: 'রাজশাহী' }
+    if (url === '/api/v1/farms') {
+      return json(query.includes('lang=bn') ? farmsFixture.map((f) => ({ ...f, district: districtBn[f.district] })) : farmsFixture)
+    }
     if (url === '/api/v1/assistant/status') return json({ engine: reply.engine ?? 'offline', label: 'x', languages: ['en', 'bn'] })
     if (url === '/api/v1/assistant/chat') {
       chatBodies.push(JSON.parse(String(init?.body)))

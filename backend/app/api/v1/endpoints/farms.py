@@ -7,6 +7,8 @@ from datetime import UTC, datetime, timedelta
 
 from app.pipeline import farm_locations
 from app.data.sample.farms import SAMPLE_FARMS
+from app.i18n import Lang
+from app.i18n.localize import localize_dashboard, localize_farms
 from app.risk.live import (
     SOURCE_NAMES,
     crop_module,
@@ -26,19 +28,20 @@ router = APIRouter(prefix="/farms", tags=["farms"])
 
 
 @router.get("", response_model=list[FarmSummary])
-def farms() -> list[FarmSummary]:
-    return list_farms()
+def farms(lang: Lang = Query(default="en", description="en or bn (Bengali)")) -> list[FarmSummary]:
+    return localize_farms(list_farms(), lang)
 
 
 @router.get("/{farm_id}/dashboard", response_model=Dashboard)
 async def dashboard(
     farm_id: str,
     name: str | None = Query(default=None, max_length=60, description="Display name for a farmer's own farm"),
+    lang: Lang = Query(default="en", description="en or bn (Bengali)"),
     settings: Settings = Depends(get_settings),
     pipeline: PipelineService = Depends(get_pipeline),
 ) -> Dashboard:
     """A demo farm, or a farmer's own field (`my_<lat>_<lon>_<crop>`, see /locate and /crops)."""
-    return await load_dashboard(farm_id, settings.data_mode, pipeline, name)
+    return localize_dashboard(await load_dashboard(farm_id, settings.data_mode, pipeline, name), lang, custom_name_given=bool(name))
 
 
 @router.get("/{farm_id}/flood", response_model=FloodReport)

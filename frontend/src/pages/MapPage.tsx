@@ -1,5 +1,5 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { CloudRain, Droplets, Layers, MapPinOff, Maximize, Moon, Mountain, RotateCw, Satellite, Sprout } from 'lucide-react'
+import { CloudRain, Droplets, Globe2, Layers, MapPinOff, Maximize, Moon, Mountain, RotateCw, Satellite, Sprout } from 'lucide-react'
 import { type ReactNode, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
@@ -12,20 +12,64 @@ import { FarmMarker } from '@/features/map/FarmMarker'
 import { findCell, isInBangladesh } from '@/features/map/geo'
 import { type LngLat, MapCanvas, type MapFocus } from '@/features/map/MapCanvas'
 import { MapLegend } from '@/features/map/MapLegend'
+import { NasaLayerPicker, NasaLegend } from '@/features/map/NasaLayerControls'
+import { isNasaLayerId, type NasaLayerId } from '@/features/map/nasaLayers'
 import { FarmPanel, LocationPanel } from '@/features/map/SpotPanels'
+import { type WorldCrop, WorldSpotPanel } from '@/features/map/WorldSpotPanel'
 import { useMyMapFarms } from '@/features/farms/useMyMapFarms'
 import { api } from '@/lib/api'
+import { useLang, useText } from '@/lib/i18n'
 import { useMyFarms } from '@/lib/myFarms'
 import { useAsync } from '@/lib/useAsync'
 import type { RiskModule } from '@/types/api'
 
 const LAYER_IDS: RiskModule[] = ['flood_risk', 'water_stress', 'crop_health']
 
-const layerOptions = [
-  { value: 'flood_risk', label: 'Flood', icon: <CloudRain className="size-4" aria-hidden="true" /> },
-  { value: 'water_stress', label: 'Water', icon: <Droplets className="size-4" aria-hidden="true" /> },
-  { value: 'crop_health', label: 'Crop', icon: <Sprout className="size-4" aria-hidden="true" /> },
-] as const
+const LAYER_ICONS = {
+  flood_risk: <CloudRain className="size-4" aria-hidden="true" />,
+  water_stress: <Droplets className="size-4" aria-hidden="true" />,
+  crop_health: <Sprout className="size-4" aria-hidden="true" />,
+}
+
+const text = {
+  en: {
+    layers: { flood_risk: 'Flood', water_stress: 'Water', crop_health: 'Crop' },
+    loadFailed: 'We couldn’t load the map data',
+    downHint: 'The farm brain isn’t answering right now. Check that the backend is running, then try again.',
+    retry: 'Try again',
+    eyebrow: 'Risk map',
+    title: 'Bangladesh and the world, from space',
+    layerLabel: 'Map layer',
+    downloading: 'Downloading the latest satellite picture…',
+    loading: 'Loading…',
+    footer: (bg: string) => `Background: ${bg}. Risk layer: 0.2° grid (~20 km).`,
+    noMap: 'This device can’t show the interactive map',
+    noMapHint: 'You can still explore your farms and their risks in the panel.',
+    wholeCountry: 'Whole country',
+    wholeWorld: 'Whole world',
+    imagery: 'Background imagery',
+  },
+  bn: {
+    layers: { flood_risk: 'বন্যা', water_stress: 'পানি', crop_health: 'ফসল' },
+    loadFailed: 'মানচিত্রের তথ্য লোড করা যায়নি',
+    downHint: 'এখন সার্ভার উত্তর দিচ্ছে না। ব্যাকএন্ড চালু আছে কি না দেখে আবার চেষ্টা করুন।',
+    retry: 'আবার চেষ্টা করুন',
+    eyebrow: 'ঝুঁকির মানচিত্র',
+    title: 'মহাকাশ থেকে বাংলাদেশ ও বিশ্ব',
+    layerLabel: 'মানচিত্রের স্তর',
+    downloading: 'সর্বশেষ উপগ্রহ ছবি নামানো হচ্ছে…',
+    loading: 'লোড হচ্ছে…',
+    footer: (bg: string) => `পটভূমি: ${bg}। ঝুঁকির স্তর: ০.২° ঘর (প্রায় ২০ কিমি)।`,
+    noMap: 'এই ডিভাইসে মানচিত্র দেখানো যাচ্ছে না',
+    noMapHint: 'তবুও পাশের অংশে আপনার খামার আর ঝুঁকি দেখতে পারবেন।',
+    wholeCountry: 'পুরো দেশ',
+    wholeWorld: 'পুরো পৃথিবী',
+    imagery: 'পটভূমির ছবি',
+  },
+}
+
+const mapButton =
+  'focus-ring glass inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-night-900/85 px-3 py-1.5 text-xs font-semibold text-ink transition hover:bg-surface-3 active:scale-95'
 
 const basemapIcons: Record<BasemapId, ReactNode> = {
   relief: <Mountain className="size-3.5" aria-hidden="true" />,
@@ -35,12 +79,17 @@ const basemapIcons: Record<BasemapId, ReactNode> = {
 
 export function MapPage() {
   const [params, setParams] = useSearchParams()
-  const overview = useAsync('map', (signal) => api.mapOverview({ signal }))
+  const lang = useLang()
+  const t = useText(text)
+  const overview = useAsync(`map|${lang}`, (signal) => api.mapOverview({ signal }, lang))
   const reduceMotion = useReducedMotion()
 
   const layerParam = params.get('layer') as RiskModule | null
   const layer: RiskModule = layerParam && LAYER_IDS.includes(layerParam) ? layerParam : 'flood_risk'
   const farmId = params.get('farm')
+  const nasaParam = params.get('nasa')
+  const overlay: NasaLayerId | null = isNasaLayerId(nasaParam) ? nasaParam : null
+  const [worldCrop, setWorldCrop] = useState<WorldCrop>('rice')
 
   const [basemap, setBasemap] = useState<BasemapId>('relief')
   const [picked, setPicked] = useState<LngLat | null>(null)
@@ -93,10 +142,10 @@ export function MapPage() {
       <div className="grid place-items-center py-20">
         <Card className="max-w-md space-y-4 p-8 text-center">
           <MapPinOff className="mx-auto size-10 text-ink-subtle" aria-hidden="true" />
-          <h1 className="text-xl font-bold text-ink">We couldn’t load the map data</h1>
-          <p className="text-ink-muted">The farm brain isn’t answering right now. Check that the backend is running, then try again.</p>
+          <h1 className="text-xl font-bold text-ink">{t.loadFailed}</h1>
+          <p className="text-ink-muted">{t.downHint}</p>
           <Button icon={<RotateCw className="size-4" />} onClick={overview.retry}>
-            Try again
+            {t.retry}
           </Button>
         </Card>
       </div>
@@ -110,13 +159,13 @@ export function MapPage() {
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="flex items-center gap-1.5 text-xs font-bold tracking-[0.2em] text-leaf-300 uppercase">
-            <Layers className="size-3.5" aria-hidden="true" /> Risk map
+            <Layers className="size-3.5" aria-hidden="true" /> {t.eyebrow}
           </p>
-          <h1 className="text-3xl font-extrabold tracking-tight text-ink sm:text-4xl">Bangladesh from space</h1>
+          <h1 className="text-3xl font-extrabold tracking-tight text-ink sm:text-4xl">{t.title}</h1>
         </div>
-        <SegmentedControl
-          ariaLabel="Map layer"
-          options={layerOptions}
+        <SegmentedControl<RiskModule>
+          ariaLabel={t.layerLabel}
+          options={LAYER_IDS.map((id) => ({ value: id, label: t.layers[id], icon: LAYER_ICONS[id] }))}
           value={layer}
           onChange={(value) => updateParams({ layer: value === 'flood_risk' ? null : value })}
         />
@@ -130,6 +179,7 @@ export function MapPage() {
               overview={data}
               layer={layer}
               basemap={basemap}
+              overlay={overlay}
               selectedFarmId={farm?.id ?? null}
               picked={picked}
               focus={effectiveFocus}
@@ -145,7 +195,7 @@ export function MapPage() {
 
           {!data && (
             <div className="grid h-full place-items-center">
-              <OrbitLoader label="Downloading the latest satellite picture…" />
+              <OrbitLoader label={t.downloading} />
             </div>
           )}
 
@@ -153,8 +203,8 @@ export function MapPage() {
             <div className="grid h-full place-items-center p-6 text-center">
               <div className="max-w-sm space-y-2">
                 <MapPinOff className="mx-auto size-8 text-ink-subtle" aria-hidden="true" />
-                <p className="font-semibold text-ink">This device can’t show the interactive map</p>
-                <p className="text-sm text-ink-muted">You can still explore your farms and their risks in the panel.</p>
+                <p className="font-semibold text-ink">{t.noMap}</p>
+                <p className="text-sm text-ink-muted">{t.noMapHint}</p>
               </div>
             </div>
           )}
@@ -178,25 +228,30 @@ export function MapPage() {
           )}
 
           {data && !mapError && (
-            <button
-              type="button"
-              onClick={() => setFocus({ home: true, key: Date.now() })}
-              className="focus-ring glass absolute bottom-3 left-3 z-10 inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-night-900/85 px-3 py-1.5 text-xs font-semibold text-ink transition hover:bg-surface-3 active:scale-95"
-            >
-              <Maximize className="size-3.5" aria-hidden="true" /> Whole country
-            </button>
+            <div className="absolute bottom-3 left-3 z-10 flex flex-col items-start gap-2">
+              <AnimatePresence>{overlay && <NasaLegend key="nasa-legend" id={overlay} />}</AnimatePresence>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setFocus({ home: true, key: Date.now() })} className={mapButton}>
+                  <Maximize className="size-3.5" aria-hidden="true" /> {t.wholeCountry}
+                </button>
+                <button type="button" onClick={() => setFocus({ world: true, key: Date.now() })} className={mapButton}>
+                  <Globe2 className="size-3.5" aria-hidden="true" /> {t.wholeWorld}
+                </button>
+              </div>
+            </div>
           )}
 
           {data && !mapError && (
-            <div className="absolute top-3 right-3 z-10">
+            <div className="absolute top-3 right-3 z-10 flex flex-col items-end gap-2">
               <SegmentedControl
-                ariaLabel="Background imagery"
+                ariaLabel={t.imagery}
                 size="sm"
                 value={basemap}
                 onChange={setBasemap}
                 className="bg-night-900/85"
-                options={baseList.map((b) => ({ value: b.id, label: b.label, icon: basemapIcons[b.id] }))}
+                options={baseList.map((b) => ({ value: b.id, label: lang === 'bn' ? b.labelBn : b.label, icon: basemapIcons[b.id] }))}
               />
+              <NasaLayerPicker value={overlay} onChange={(next) => updateParams({ nasa: next })} />
             </div>
           )}
         </div>
@@ -223,11 +278,13 @@ export function MapPage() {
                   onSelectLayer={(l) => updateParams({ layer: l === 'flood_risk' ? null : l })}
                   onClose={() => updateParams({ farm: null })}
                 />
+              ) : data && picked && !isInBangladesh(picked.lng, picked.lat) ? (
+                <WorldSpotPanel point={picked} crop={worldCrop} onCropChange={setWorldCrop} onClose={() => setPicked(null)} />
               ) : data && picked ? (
                 <LocationPanel
                   point={picked}
                   cell={cell}
-                  inCountry={isInBangladesh(picked.lng, picked.lat)}
+                  inCountry
                   layers={data.layers}
                   layer={layer}
                   onSelectLayer={(l) => updateParams({ layer: l === 'flood_risk' ? null : l })}
@@ -244,7 +301,7 @@ export function MapPage() {
                   }}
                 />
               ) : (
-                <p className="text-sm text-ink-muted">Loading…</p>
+                <p className="text-sm text-ink-muted">{t.loading}</p>
               )}
             </motion.div>
           </AnimatePresence>
@@ -252,7 +309,7 @@ export function MapPage() {
       </div>
 
       <p className="text-xs text-ink-subtle">
-        Background: {baseList.find((b) => b.id === basemap)?.description}. Risk layer: 0.2° grid (~20 km).
+        {t.footer((lang === 'bn' ? baseList.find((b) => b.id === basemap)?.descriptionBn : baseList.find((b) => b.id === basemap)?.description) ?? '')}
       </p>
     </div>
   )

@@ -16,18 +16,46 @@ import { RiskDetailPanel } from '@/features/dashboard/RiskDetailPanel'
 import { FieldView } from '@/features/field/FieldView'
 import { ApiError, api } from '@/lib/api'
 import { fadeUp, spring, stagger } from '@/lib/motion'
+import { useLang, useText } from '@/lib/i18n'
 import { isMyFarmId, myFarms, useMyFarms } from '@/lib/myFarms'
 import { useAsync } from '@/lib/useAsync'
 import type { RiskModule } from '@/types/api'
 
+const text = {
+  en: {
+    notFound: 'We couldn’t find that farm',
+    loadFailed: 'We couldn’t load your farm',
+    notFoundHint: 'The link may be old or mistyped. Pick one of your farms instead.',
+    downHint: 'The farm brain isn’t answering right now. Check that the backend is running, then try again.',
+    retry: 'Try again',
+    firstFarm: 'Show my first farm',
+    reading: 'Reading satellite data…',
+    fallback: (name: string) => `Couldn’t load that farm. Showing ${name} instead.`,
+    risks: 'Your three risks',
+  },
+  bn: {
+    notFound: 'খামারটি খুঁজে পাওয়া যায়নি',
+    loadFailed: 'আপনার খামার লোড করা যায়নি',
+    notFoundHint: 'লিংকটি পুরোনো বা ভুল হতে পারে। আপনার একটি খামার বেছে নিন।',
+    downHint: 'এখন সার্ভার উত্তর দিচ্ছে না। ব্যাকএন্ড চালু আছে কি না দেখে আবার চেষ্টা করুন।',
+    retry: 'আবার চেষ্টা করুন',
+    firstFarm: 'আমার প্রথম খামার দেখান',
+    reading: 'উপগ্রহের তথ্য পড়ছি…',
+    fallback: (name: string) => `ওই খামারটি লোড হয়নি। এর বদলে ${name} দেখানো হচ্ছে।`,
+    risks: 'আপনার তিনটি ঝুঁকি',
+  },
+}
+
 export function DashboardPage() {
   const [params, setParams] = useSearchParams()
-  const farms = useAsync('farms', (signal) => api.farms({ signal }), { retries: 3 })
+  const lang = useLang()
+  const t = useText(text)
+  const farms = useAsync(`farms|${lang}`, (signal) => api.farms({ signal }, lang), { retries: 3 })
   const mine = useMyFarms()
   // The farmer's own fields come first.
   const farmId = params.get('farm') ?? mine[0]?.id ?? farms.data?.[0]?.id ?? null
   const myFarm = mine.find((f) => f.id === farmId) ?? null
-  const dashboard = useAsync(farmId ? `${farmId}|${myFarm?.name ?? ''}` : null, (signal) => api.dashboard(farmId!, { signal }, myFarm?.name), {
+  const dashboard = useAsync(farmId ? `${farmId}|${myFarm?.name ?? ''}|${lang}` : null, (signal) => api.dashboard(farmId!, { signal }, myFarm?.name, lang), {
     retries: 3,
   })
   const options: FarmOption[] = [
@@ -67,12 +95,12 @@ export function DashboardPage() {
           ) : (
             <CloudOff className="mx-auto size-10 text-ink-subtle" aria-hidden="true" />
           )}
-          <h1 className="text-xl font-bold text-ink">{notFound ? 'We couldn’t find that farm' : 'We couldn’t load your farm'}</h1>
+          <h1 className="text-xl font-bold text-ink">{notFound ? t.notFound : t.loadFailed}</h1>
           <p className="text-ink-muted">
             {serverReason ??
               (notFound
-                ? 'The link may be old or mistyped. Pick one of your farms instead.'
-                : 'The farm brain isn’t answering right now. Check that the backend is running, then try again.')}
+                ? t.notFoundHint
+                : t.downHint)}
           </p>
           <div className="flex justify-center gap-2">
             {!notFound && (
@@ -83,12 +111,12 @@ export function DashboardPage() {
                   dashboard.retry()
                 }}
               >
-                Try again
+                {t.retry}
               </Button>
             )}
             {params.get('farm') && (
               <Button variant={notFound ? 'primary' : 'secondary'} onClick={() => setParams({})}>
-                Show my first farm
+                {t.firstFarm}
               </Button>
             )}
           </div>
@@ -119,16 +147,16 @@ export function DashboardPage() {
             exit={{ opacity: 0, y: -10 }}
             className="glass fixed top-20 left-1/2 z-40 -translate-x-1/2 rounded-full bg-night-900/90 px-5 py-2"
           >
-            <OrbitLoader label="Reading satellite data…" className="flex-row gap-2 [&>div]:size-6" />
+            <OrbitLoader label={t.reading} className="flex-row gap-2 [&>div]:size-6" />
           </motion.div>
         )}
       </AnimatePresence>
 
       {error && (
         <div role="alert" className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-alert-400/10 p-4 text-sm text-alert-300 ring-1 ring-alert-400/30">
-          <span>Couldn’t load that farm. Showing {data.farm.name} instead.</span>
+          <span>{t.fallback(data.farm.name)}</span>
           <Button size="sm" variant="danger" icon={<RotateCw className="size-4" />} onClick={dashboard.retry}>
-            Try again
+            {t.retry}
           </Button>
         </div>
       )}
@@ -158,7 +186,7 @@ export function DashboardPage() {
 
         <motion.section variants={fadeUp} aria-labelledby="risks-title" className="space-y-4">
           <h2 id="risks-title" className="text-xs font-bold tracking-[0.2em] text-leaf-300 uppercase">
-            Your three risks
+            {t.risks}
           </h2>
           <div className="grid gap-6 md:grid-cols-3">
             {data.modules.map((module) => (

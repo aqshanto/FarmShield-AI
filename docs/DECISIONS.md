@@ -2,6 +2,30 @@
 
 Short records of choices that shape the project. Newest first.
 
+## 2026-10-01: Global map, Stage A
+
+| Topic | Decision | Why |
+|---|---|---|
+| World layers | NASA GIBS `SMAP_L4_Analyzed_Surface_Soil_Moisture`, `IMERG_Precipitation_Rate`, `MODIS_Terra_NDVI_8Day` | Gap-free (L4), daily and cloud-filtered versions read best on a world map; all public, no key |
+| Layer date | Tiles use GIBS's `default` time; the legend shows the real date from DescribeDomains | Never a blank map from guessing a date, and still honest about the picture's age |
+| Point risk | Same flood, water and crop engines for one tapped spot, quick sources first | One tap answers in seconds; satellites fill in for the next look |
+| Bangladesh | Keeps its 0.2° grid and "Add my farm" | The grid and the district/division knowledge are Bangladesh-specific |
+| Place names | OpenStreetMap Nominatim reverse geocoding, cached, ≤1 req/s, app-identifying User-Agent | Free and global, with Bengali names; its usage policy requires exactly this |
+| Open water | No address from Nominatim → "open water", nothing downloaded | Avoids calling flood risk on the sea |
+| Known limits | Soil porosity and flood thresholds are tuned for Bangladesh's alluvial plains | Good enough for a first look elsewhere; Stage B would tune per region |
+
+## 2026-10-01: English and Bengali everywhere (Feature 7)
+
+| Topic | Decision | Why |
+|---|---|---|
+| One switch | A tiny store in `lib/i18n.ts` (`useSyncExternalStore`), saved in localStorage; the header button flips the whole app | Every page and component reads the same language with no provider; tests reset it in `test/setup.ts` |
+| Words live with features | Each component keeps `const text = { en, bn }` and calls `useText(text)` | Easy to review a screen's two languages side by side; TypeScript catches a missing key |
+| Backend text | Engines stay English; `app/i18n` translates finished sentences with a catalog of templates (`{n}`, `{crop}`, `{weekday}`…), Bengali digits and possessives | Engines and tests keep one language; the catalog is checked by a test that every engine and demo sentence has Bengali |
+| API | `?lang=bn` on `/farms`, `/farms/{id}/dashboard`, `/map/overview`; English URLs unchanged | Old clients and caches keep working; the frontend adds `lang` to its cache keys |
+| Numbers and dates | Bengali digits (১২৩), `Intl` dates in `bn-BD`, units in Bengali (মিমি, মিটার) | A farmer should never meet Latin digits in Bengali mode |
+| What stays Latin | Mission and product codes (NASA, GPM, SMAP, MODIS, VIIRS, SPL3SMP_E…), the brand name in the tab title | These are names, used the same way in Bengali news and NASA material |
+| Map controls | MapLibre's zoom and attribution buttons are relabelled on language change | They ship with English titles |
+
 ## 2026-10-01: Add my farm
 
 | Topic | Decision | Why |

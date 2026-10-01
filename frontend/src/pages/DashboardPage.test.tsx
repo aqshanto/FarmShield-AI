@@ -147,7 +147,7 @@ describe('DashboardPage with my own farm', () => {
     expect(within(picker).getAllByRole('button').map((b) => b.textContent)).toEqual(['North field', 'Sunamganj', 'Rajshahi'])
     expect(within(picker).getByRole('link', { name: /Add my farm/ })).toHaveAttribute('href', '/farms/new')
     // The saved name is sent so the server labels the farm the same way.
-    expect(vi.mocked(fetch).mock.calls.some(([u]) => String(u) === `/api/v1/farms/${MY_ID}/dashboard?name=North%20field`)).toBe(true)
+    expect(vi.mocked(fetch).mock.calls.some(([u]) => String(u) === `/api/v1/farms/${MY_ID}/dashboard?name=North+field`)).toBe(true)
   })
 
   it('renames and removes a field', async () => {

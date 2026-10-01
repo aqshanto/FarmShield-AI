@@ -34,12 +34,26 @@ export const moduleVisuals: Record<RiskModule, ModuleVisual> = {
 }
 
 // Plain-language description of each NASA source, shown under "What the satellites looked at".
-export const sourceDescriptions: Record<string, string> = {
-  GPM: 'Rainfall measured from space, every 30 minutes',
-  SMAP: 'How wet the top layer of soil is',
-  MODIS: 'Plant greenness and land temperature',
-  VIIRS: 'A second view of plants and land, day and night',
-  SRTM: 'Land height, mapped by radar from the Space Shuttle',
-  'NASA POWER': 'Satellite-based weather records and monthly normals',
-  Forecast: 'Weather forecast (Open-Meteo: NOAA, DWD and ECMWF models)',
+export const sourceDescriptions: Record<'en' | 'bn', Record<string, string>> = {
+  en: {
+    GPM: 'Rainfall measured from space, every 30 minutes',
+    SMAP: 'How wet the top layer of soil is',
+    MODIS: 'Plant greenness and land temperature',
+    VIIRS: 'A second view of plants and land, day and night',
+    SRTM: 'Land height, mapped by radar from the Space Shuttle',
+    'NASA POWER': 'Satellite-based weather records and monthly normals',
+    Forecast: 'Weather forecast (Open-Meteo: NOAA, DWD and ECMWF models)',
+    fallback: 'NASA Earth observation',
+  },
+  bn: {
+    GPM: 'মহাকাশ থেকে মাপা বৃষ্টি, প্রতি ৩০ মিনিটে',
+    SMAP: 'মাটির উপরের স্তর কতটা ভেজা',
+    MODIS: 'গাছের সবুজ ভাব আর মাটির তাপমাত্রা',
+    VIIRS: 'গাছ ও মাটির আরেকটি দৃশ্য, দিনে ও রাতে',
+    SRTM: 'স্পেস শাটলের রাডারে মাপা জমির উচ্চতা',
+    'NASA POWER': 'উপগ্রহভিত্তিক আবহাওয়ার রেকর্ড আর মাসিক স্বাভাবিক মান',
+    পূর্বাভাস: 'আবহাওয়ার পূর্বাভাস (Open-Meteo: NOAA, DWD ও ECMWF মডেল)',
+    Forecast: 'আবহাওয়ার পূর্বাভাস (Open-Meteo: NOAA, DWD ও ECMWF মডেল)',
+    fallback: 'নাসার পৃথিবী পর্যবেক্ষণ',
+  },
 }

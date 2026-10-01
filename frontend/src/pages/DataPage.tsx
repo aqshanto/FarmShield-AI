@@ -9,6 +9,7 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { SkeletonCard } from '@/components/ui/Skeleton'
 import { useToast } from '@/components/ui/toast/useToast'
 import { timeAgo } from '@/features/dashboard/format'
+import { useLang, useText } from '@/lib/i18n'
 import { FarmDataCharts } from '@/features/data/FarmDataCharts'
 import { MissionCard } from '@/features/data/MissionCard'
 import { ApprovalCallout } from '@/features/data/ApprovalCallout'
@@ -20,13 +21,70 @@ import { api } from '@/lib/api'
 import { fadeUp, stagger } from '@/lib/motion'
 import { useAsync } from '@/lib/useAsync'
 
+const text = {
+  en: {
+    partial: 'Some NASA sources did not answer',
+    partialHint: 'We kept the last good readings. Try again in a few minutes.',
+    fresh: 'Fresh NASA data downloaded',
+    freshHint: (n: number) => `New readings from ${n} source checks are now on your farms.`,
+    upToDate: 'Already up to date',
+    upToDateHint: 'Your farms already have the newest NASA readings.',
+    already: 'Already refreshing',
+    unreachable: 'Could not reach the farm brain',
+    unreachableHint: 'Check that the backend is running.',
+    pipelineDown: 'We couldn’t reach the data pipeline',
+    downHint: 'The farm brain isn’t answering right now. Check that the backend is running, then try again.',
+    retry: 'Try again',
+    eyebrow: 'NASA data pipeline',
+    title: 'From orbit to your field',
+    intro: 'Real measurements from four NASA missions, checked for clouds and errors, stored, and ready for your farm’s risk alerts.',
+    checking: 'Checking NASA…',
+    refresh: 'Refresh from NASA',
+    lastChecked: (ago: string) => `Last checked ${ago}`,
+    missions: 'The missions',
+    farmData: 'What NASA saw at your farm',
+    farmDataHint: 'Measured at the farm’s exact location. Hover or use arrow keys on a chart to read each day.',
+    chooseFarm: 'Choose a farm',
+    loadFailed: 'Couldn’t load this farm’s observations.',
+    reading: 'Reading satellite data…',
+  },
+  bn: {
+    partial: 'নাসার কিছু উৎস উত্তর দেয়নি',
+    partialHint: 'আগের ভালো তথ্য রাখা হয়েছে। কয়েক মিনিট পর আবার চেষ্টা করুন।',
+    fresh: 'নাসার নতুন তথ্য নামানো হয়েছে',
+    freshHint: (n: number) => `${String(n).replace(/\d/g, (d) => '০১২৩৪৫৬৭৮৯'[Number(d)])}টি উৎস থেকে নতুন তথ্য এখন আপনার খামারে।`,
+    upToDate: 'আগে থেকেই হালনাগাদ',
+    upToDateHint: 'আপনার খামারে নাসার সর্বশেষ তথ্য আগে থেকেই আছে।',
+    already: 'হালনাগাদ চলছে',
+    unreachable: 'সার্ভারে পৌঁছানো যায়নি',
+    unreachableHint: 'ব্যাকএন্ড চালু আছে কি না দেখুন।',
+    pipelineDown: 'তথ্য সংগ্রহের ব্যবস্থায় পৌঁছানো যায়নি',
+    downHint: 'এখন সার্ভার উত্তর দিচ্ছে না। ব্যাকএন্ড চালু আছে কি না দেখে আবার চেষ্টা করুন।',
+    retry: 'আবার চেষ্টা করুন',
+    eyebrow: 'নাসার তথ্যপ্রবাহ',
+    title: 'কক্ষপথ থেকে আপনার জমিতে',
+    intro: 'নাসার চারটি মিশনের আসল মাপ, মেঘ আর ভুল বাদ দিয়ে যাচাই করা, সংরক্ষিত, আর আপনার খামারের ঝুঁকি-সতর্কতার জন্য তৈরি।',
+    checking: 'নাসা দেখছি…',
+    refresh: 'নাসা থেকে হালনাগাদ',
+    lastChecked: (ago: string) => `শেষ দেখা হয়েছে ${ago}`,
+    missions: 'মিশনগুলো',
+    farmData: 'আপনার খামারে নাসা যা দেখেছে',
+    farmDataHint: 'খামারের সঠিক জায়গায় মাপা। প্রতিদিনের তথ্য দেখতে চার্টে মাউস রাখুন বা তীর-চাবি ব্যবহার করুন।',
+    chooseFarm: 'খামার বেছে নিন',
+    loadFailed: 'এই খামারের তথ্য লোড করা যায়নি।',
+    reading: 'উপগ্রহের তথ্য পড়ছি…',
+  },
+}
+
 export function DataPage() {
+  const lang = useLang()
+  const t = useText(text)
   const { toast } = useToast()
   const [params, setParams] = useSearchParams()
   const [dataVersion, setDataVersion] = useState(0)
   const [starting, setStarting] = useState(false)
 
-  const farms = useAsync('farms', (signal) => api.farms({ signal }))
+  const farms = useAsync(`farms|${lang}`, (signal) => api.farms({ signal }, lang))
   const farmId = params.get('farm') ?? farms.data?.[0]?.id ?? null
   const observations = useAsync(farmId ? `${farmId}#${dataVersion}` : null, (signal) => api.farmObservations(farmId!, 60, { signal }))
 
@@ -34,11 +92,11 @@ export function DataPage() {
     setDataVersion((v) => v + 1)
     const run = finished.last_run
     if (run && run.error > 0) {
-      toast({ tone: 'warning', title: 'Some NASA sources did not answer', description: 'We kept the last good readings. Try again in a few minutes.' })
+      toast({ tone: 'warning', title: t.partial, description: t.partialHint })
     } else if (run && run.ok > 0) {
-      toast({ tone: 'success', title: 'Fresh NASA data downloaded', description: `New readings from ${run.ok} source checks are now on your farms.` })
+      toast({ tone: 'success', title: t.fresh, description: t.freshHint(run.ok) })
     } else {
-      toast({ tone: 'info', title: 'Already up to date', description: 'Your farms already have the newest NASA readings.' })
+      toast({ tone: 'info', title: t.upToDate, description: t.upToDateHint })
     }
   })
 
@@ -50,10 +108,10 @@ export function DataPage() {
     const startedAt = Date.now() - 5000
     try {
       const result = await api.refreshData()
-      if (!result.started) toast({ tone: 'info', title: 'Already refreshing', description: result.message })
+      if (!result.started) toast({ tone: 'info', title: t.already, description: result.message })
       trackRefresh(startedAt)
     } catch {
-      toast({ tone: 'danger', title: 'Could not reach the farm brain', description: 'Check that the backend is running.' })
+      toast({ tone: 'danger', title: t.unreachable, description: t.unreachableHint })
     } finally {
       setStarting(false)
     }
@@ -64,10 +122,10 @@ export function DataPage() {
       <div className="grid place-items-center py-20">
         <Card className="max-w-md space-y-4 p-8 text-center">
           <CloudOff className="mx-auto size-10 text-ink-subtle" aria-hidden="true" />
-          <h1 className="text-xl font-bold text-ink">We couldn’t reach the data pipeline</h1>
-          <p className="text-ink-muted">The farm brain isn’t answering right now. Check that the backend is running, then try again.</p>
+          <h1 className="text-xl font-bold text-ink">{t.pipelineDown}</h1>
+          <p className="text-ink-muted">{t.downHint}</p>
           <Button icon={<RotateCw className="size-4" />} onClick={reload}>
-            Try again
+            {t.retry}
           </Button>
         </Card>
       </div>
@@ -79,21 +137,21 @@ export function DataPage() {
       <motion.header variants={stagger(0.08)} initial="hidden" animate="show" className="flex flex-wrap items-end justify-between gap-4">
         <div className="space-y-2">
           <motion.p variants={fadeUp} className="text-xs font-bold tracking-[0.2em] text-leaf-300 uppercase">
-            NASA data pipeline
+            {t.eyebrow}
           </motion.p>
           <motion.h1 variants={fadeUp} className="text-3xl font-extrabold tracking-tight text-ink sm:text-5xl">
-            From orbit to your field
+            {t.title}
           </motion.h1>
           <motion.p variants={fadeUp} className="max-w-2xl text-ink-muted">
-            Real measurements from four NASA missions, checked for clouds and errors, stored, and ready for your farm’s risk alerts.
+            {t.intro}
           </motion.p>
         </div>
         <motion.div variants={fadeUp} className="flex flex-col items-start gap-1.5 sm:items-end">
           <Button icon={<RefreshCw className={refreshing ? 'size-4 animate-spin' : 'size-4'} />} disabled={refreshing} onClick={startRefresh}>
-            {refreshing ? 'Checking NASA…' : 'Refresh from NASA'}
+            {refreshing ? t.checking : t.refresh}
           </Button>
           {status.data?.last_run && (
-            <p className="text-xs text-ink-subtle">Last checked {timeAgo(status.data.last_run.finished_at)}</p>
+            <p className="text-xs text-ink-subtle">{t.lastChecked(timeAgo(status.data.last_run.finished_at, lang))}</p>
           )}
         </motion.div>
       </motion.header>
@@ -104,7 +162,7 @@ export function DataPage() {
 
           <section aria-labelledby="missions-title" className="space-y-4">
             <h2 id="missions-title" className="text-xs font-bold tracking-[0.2em] text-leaf-300 uppercase">
-              The missions
+              {t.missions}
             </h2>
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               {MISSIONS.map((mission, i) => (
@@ -134,13 +192,13 @@ export function DataPage() {
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 id="farm-data-title" className="text-xs font-bold tracking-[0.2em] text-leaf-300 uppercase">
-              What NASA saw at your farm
+              {t.farmData}
             </h2>
-            <p className="text-sm text-ink-muted">Measured at the farm’s exact location. Hover or use arrow keys on a chart to read each day.</p>
+            <p className="text-sm text-ink-muted">{t.farmDataHint}</p>
           </div>
           {farms.data && farms.data.length > 1 && farmId && (
             <SegmentedControl
-              ariaLabel="Choose a farm"
+              ariaLabel={t.chooseFarm}
               size="sm"
               value={farmId}
               onChange={(id) => setParams({ farm: id }, { replace: true, preventScrollReset: true })}
@@ -154,10 +212,10 @@ export function DataPage() {
             <FarmDataCharts data={observations.data} />
           </div>
         ) : observations.status === 'error' ? (
-          <Card className="text-center text-ink-muted">Couldn’t load this farm’s observations.</Card>
+          <Card className="text-center text-ink-muted">{t.loadFailed}</Card>
         ) : (
           <div className="grid place-items-center py-12">
-            <OrbitLoader label="Reading satellite data…" />
+            <OrbitLoader label={t.reading} />
           </div>
         )}
       </section>

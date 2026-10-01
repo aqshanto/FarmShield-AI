@@ -57,6 +57,6 @@ describe('basemaps', () => {
     const style = buildStyle(basemaps(), 'night')
     const visible = style.layers.filter((l) => l.type === 'raster' && l.layout?.visibility === 'visible').map((l) => l.id)
     expect(visible).toEqual(['base-night'])
-    expect(Object.keys(style.sources)).toEqual(['base-relief', 'base-today', 'base-night'])
+    expect(Object.keys(style.sources)).toEqual(['base-relief', 'base-today', 'base-night', 'nasa-soil', 'nasa-rain', 'nasa-green'])
   })
 })

@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { ArrowUpRight, Languages, MessageCircleQuestion, RotateCcw, Sparkles, Zap } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Badge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Card'
@@ -15,25 +15,23 @@ import { useSpeaker } from '@/features/assistant/speech'
 import { strings, suggestionsFor } from '@/features/assistant/strings'
 import { useChat } from '@/features/assistant/useChat'
 import { api } from '@/lib/api'
-import { type Lang, saveLang, savedLang } from '@/lib/i18n'
+import { type Lang, setLang, useLang } from '@/lib/i18n'
 import { fadeUp, spring, stagger } from '@/lib/motion'
 import { useMyFarms } from '@/lib/myFarms'
 import { useAsync } from '@/lib/useAsync'
 
-const DISTRICT_BN: Record<string, string> = { Sunamganj: 'সুনামগঞ্জ', Rajshahi: 'রাজশাহী', Bogura: 'বগুড়া' }
-
 export function AssistantPage() {
   const [params, setParams] = useSearchParams()
-  const [lang, setLang] = useState<Lang>(savedLang)
+  const lang = useLang()
   const t = strings[lang]
 
-  const farms = useAsync('farms', (signal) => api.farms({ signal }), { retries: 3 })
+  const farms = useAsync(`farms|${lang}`, (signal) => api.farms({ signal }, lang), { retries: 3 })
   const mine = useMyFarms()
   // The farmer's own fields come first.
   const farmId = params.get('farm') ?? mine[0]?.id ?? farms.data?.[0]?.id ?? null
   const farm = farms.data?.find((f) => f.id === farmId) ?? null
   const myFarm = mine.find((f) => f.id === farmId) ?? null
-  const dashboard = useAsync(farmId ? `${farmId}|${myFarm?.name ?? ''}` : null, (signal) => api.dashboard(farmId!, { signal }, myFarm?.name), {
+  const dashboard = useAsync(farmId ? `${farmId}|${myFarm?.name ?? ''}|${lang}` : null, (signal) => api.dashboard(farmId!, { signal }, myFarm?.name, lang), {
     retries: 3,
   })
   const status = useAsync('assistant-status', (signal) => api.assistantStatus({ signal }), { retries: 3 })
@@ -44,10 +42,7 @@ export function AssistantPage() {
   const speakAfter = useRef<string | null>(null)
   const list = useRef<HTMLUListElement>(null)
 
-  const changeLang = (next: Lang) => {
-    setLang(next)
-    saveLang(next)
-  }
+  const changeLang = (next: Lang) => setLang(next)
   const changeFarm = (id: string) => {
     speaker.cancel()
     setParams({ farm: id }, { preventScrollReset: true })
@@ -81,10 +76,10 @@ export function AssistantPage() {
 
   const worst = dash?.modules.reduce((a, b) => (b.score > a.score ? b : a))
   const suggestions = suggestionsFor(lang, worst?.id).slice(0, turns.length ? 3 : 5)
-  const farmLabel = myFarm ? myFarm.name : farm ? (lang === 'bn' ? DISTRICT_BN[farm.district] ?? farm.district : farm.name) : '…'
+  const farmLabel = myFarm ? myFarm.name : farm ? (lang === 'bn' ? farm.district : farm.name) : '…'
   const farmOptions: FarmOption[] = [
     ...mine.map((f) => ({ id: f.id, label: f.name, mine: true })),
-    ...(farms.data ?? []).map((f) => ({ id: f.id, label: lang === 'bn' ? DISTRICT_BN[f.district] ?? f.district : f.district, mine: false })),
+    ...(farms.data ?? []).map((f) => ({ id: f.id, label: f.district, mine: false })),
   ]
   const engine = status.data?.engine
   const waiting = turns.some((x) => x.status === 'waiting')

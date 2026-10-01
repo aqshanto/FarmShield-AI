@@ -174,6 +174,23 @@ export interface MapFarm extends FarmSummary {
   modules: Record<RiskModule, { score: number; level: RiskLevel }>
 }
 
+/** Risk for one tapped spot anywhere on Earth (GET /map/point). */
+export interface PointRisk {
+  lat: number
+  lon: number
+  place: string | null
+  country: string | null
+  // false for open water: nothing to farm, so no risks.
+  land: boolean
+  in_bangladesh: boolean
+  crop: string
+  overall: { score: number; level: RiskLevel; summary: string } | null
+  modules: RiskModuleSummary[]
+  recommendations: Recommendation[]
+  // SMAP, GPM, MODIS and VIIRS are still downloading for this spot.
+  satellites_pending: boolean
+}
+
 export interface MapOverview {
   generated_at: string
   data_mode: 'sample' | 'live'

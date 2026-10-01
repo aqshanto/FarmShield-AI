@@ -65,7 +65,7 @@ class ForecastSource:
                 "daily": ",".join(DAILY),
                 "past_days": PAST_DAYS,
                 "forecast_days": FORECAST_DAYS,
-                "timezone": "Asia/Dhaka",
+                "timezone": "auto",  # the place's own calendar day (Asia/Dhaka in Bangladesh)
             },
         )
         return parse_forecast(response.json(), self.info.id)

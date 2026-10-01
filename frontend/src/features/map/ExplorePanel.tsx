@@ -1,7 +1,8 @@
 import { Hand, Home, Navigation } from 'lucide-react'
-import { riskMeta } from '@/lib/risk'
+import { useLang, useText } from '@/lib/i18n'
+import { levelLabel, riskMeta } from '@/lib/risk'
 import type { MapFarm, RiskModule } from '@/types/api'
-import { DIVISIONS, type Place } from './places'
+import { DIVISIONS, type Place, placeName } from './places'
 
 interface ExplorePanelProps {
   farms: MapFarm[]
@@ -11,20 +12,27 @@ interface ExplorePanelProps {
 }
 
 // Starting point, and the keyboard/screen-reader friendly way to explore the map.
+const text = {
+  en: { tapStrong: 'Tap anywhere on the map', tapRest: ', in Bangladesh or anywhere in the world, to see flood, water and crop risk for that spot.', farms: 'Your farms', jump: 'Jump to a division' },
+  bn: { tapStrong: 'মানচিত্রের যেকোনো জায়গায় চাপ দিন,', tapRest: ' বাংলাদেশে বা পৃথিবীর যেকোনো স্থানে, সেখানকার বন্যা, পানি আর ফসলের ঝুঁকি দেখতে।', farms: 'আপনার খামার', jump: 'বিভাগে যান' },
+}
+
 export function ExplorePanel({ farms, layer, onPickFarm, onJump }: ExplorePanelProps) {
+  const lang = useLang()
+  const t = useText(text)
   return (
     <div className="space-y-6">
       <div className="flex items-start gap-3 rounded-xl bg-leaf-500/10 p-3 ring-1 ring-leaf-400/25">
         <Hand className="mt-0.5 size-5 shrink-0 text-leaf-300" aria-hidden="true" />
         <p className="text-sm text-ink-muted">
-          <span className="font-semibold text-ink">Tap anywhere on the map</span> to see flood, water and crop risk for that
-          spot.
+          <span className="font-semibold text-ink">{t.tapStrong}</span>
+          {t.tapRest}
         </p>
       </div>
 
       <section aria-labelledby="farms-title">
         <h2 id="farms-title" className="mb-2 text-sm font-bold text-ink">
-          Your farms
+          {t.farms}
         </h2>
         <ul className="space-y-2">
           {farms.map((farm) => {
@@ -42,7 +50,7 @@ export function ExplorePanel({ farms, layer, onPickFarm, onJump }: ExplorePanelP
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-semibold text-ink">{farm.name}</span>
                     <span className="block text-xs text-ink-subtle">
-                      {farm.district} · {riskMeta[level].label}
+                      {farm.district} · {levelLabel(level, lang)}
                     </span>
                   </span>
                 </button>
@@ -54,7 +62,7 @@ export function ExplorePanel({ farms, layer, onPickFarm, onJump }: ExplorePanelP
 
       <section aria-labelledby="jump-title">
         <h2 id="jump-title" className="mb-2 flex items-center gap-1.5 text-sm font-bold text-ink">
-          <Navigation className="size-4 text-ink-subtle" aria-hidden="true" /> Jump to a division
+          <Navigation className="size-4 text-ink-subtle" aria-hidden="true" /> {t.jump}
         </h2>
         <div className="flex flex-wrap gap-1.5">
           {DIVISIONS.map((place) => (
@@ -64,7 +72,7 @@ export function ExplorePanel({ farms, layer, onPickFarm, onJump }: ExplorePanelP
               onClick={() => onJump(place)}
               className="focus-ring cursor-pointer rounded-full bg-surface-1 px-3 py-1.5 text-xs font-semibold text-ink-muted ring-1 ring-line transition hover:bg-surface-2 hover:text-ink active:scale-95"
             >
-              {place.name}
+              {placeName(place, lang)}
             </button>
           ))}
         </div>

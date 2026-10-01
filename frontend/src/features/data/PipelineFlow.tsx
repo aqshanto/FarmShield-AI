@@ -2,6 +2,7 @@ import { motion, useReducedMotion } from 'framer-motion'
 import { Database, Filter, type LucideIcon, Satellite, Sprout, Download } from 'lucide-react'
 import { Fragment } from 'react'
 import { AnimatedNumber } from '@/components/ui/AnimatedNumber'
+import { digits, numberLocale, useLang } from '@/lib/i18n'
 import type { DataStatus } from '@/types/api'
 
 interface Stage {
@@ -19,16 +20,19 @@ export function PipelineFlow({ status, farms }: { status: DataStatus; farms: num
   const rejected = status.sources.reduce((n, s) => n + s.rejected, 0)
   const stored = status.sources.reduce((n, s) => n + s.observations, 0)
 
+  const lang = useLang()
+  const bn = lang === 'bn'
+  const total = digits(status.sources.length, lang)
   const stages: Stage[] = [
-    { icon: Satellite, title: 'Satellites', value: status.missions.length, caption: 'NASA missions watched', color: 'var(--color-sky-300)' },
-    { icon: Download, title: 'Fetch', value: live, caption: `of ${status.sources.length} sources answering`, color: 'var(--color-sky-400)' },
-    { icon: Filter, title: 'Quality check', value: rejected, caption: 'cloudy views removed', color: 'var(--color-harvest-300)' },
-    { icon: Database, title: 'Store', value: stored, caption: 'clean readings saved', color: 'var(--color-leaf-300)' },
-    { icon: Sprout, title: 'Your farms', value: farms, caption: 'farms kept up to date', color: 'var(--color-leaf-400)' },
+    { icon: Satellite, title: bn ? 'উপগ্রহ' : 'Satellites', value: status.missions.length, caption: bn ? 'নাসার মিশনে নজর' : 'NASA missions watched', color: 'var(--color-sky-300)' },
+    { icon: Download, title: bn ? 'সংগ্রহ' : 'Fetch', value: live, caption: bn ? `${total}টি উৎসের মধ্যে উত্তর দিচ্ছে` : `of ${total} sources answering`, color: 'var(--color-sky-400)' },
+    { icon: Filter, title: bn ? 'মান যাচাই' : 'Quality check', value: rejected, caption: bn ? 'মেঘলা ছবি বাদ' : 'cloudy views removed', color: 'var(--color-harvest-300)' },
+    { icon: Database, title: bn ? 'সংরক্ষণ' : 'Store', value: stored, caption: bn ? 'পরিষ্কার তথ্য সংরক্ষিত' : 'clean readings saved', color: 'var(--color-leaf-300)' },
+    { icon: Sprout, title: bn ? 'আপনার খামার' : 'Your farms', value: farms, caption: bn ? 'খামার হালনাগাদ রাখা হচ্ছে' : 'farms kept up to date', color: 'var(--color-leaf-400)' },
   ]
 
   return (
-    <ol className="flex flex-col gap-2 md:flex-row md:items-stretch" aria-label="How NASA data reaches your farm">
+    <ol className="flex flex-col gap-2 md:flex-row md:items-stretch" aria-label={bn ? 'নাসার তথ্য যেভাবে আপনার খামারে পৌঁছায়' : 'How NASA data reaches your farm'}>
       {stages.map((stage, i) => (
         <Fragment key={stage.title}>
           <motion.li
@@ -43,7 +47,7 @@ export function PipelineFlow({ status, farms }: { status: DataStatus; farms: num
             <div>
               <p className="text-xs font-bold tracking-wide text-ink-muted uppercase">{stage.title}</p>
               <p className="text-2xl font-extrabold text-ink">
-                <AnimatedNumber value={stage.value} />
+                <AnimatedNumber value={stage.value} locale={numberLocale[lang]} />
               </p>
               <p className="text-xs text-ink-subtle">{stage.caption}</p>
             </div>

@@ -47,7 +47,8 @@ describe('DesignSystemPage', () => {
   it('switching to Bengali translates the risk playground', async () => {
     renderPage()
     await userEvent.click(screen.getByRole('radio', { name: 'বাংলা' }))
-    const section = screen.getByRole('region', { name: 'One risk language everywhere' })
+    expect(screen.getByRole('heading', { name: 'বোতাম ও সাড়া' })).toBeInTheDocument()
+    const section = screen.getByRole('region', { name: 'সব জায়গায় ঝুঁকির একই ভাষা' })
     expect(within(section).getByRole('meter', { name: 'বন্যার ঝুঁকি' })).toBeInTheDocument()
     expect(within(section).getByRole('slider', { name: 'এই সপ্তাহের বৃষ্টি' })).toBeInTheDocument()
   })

@@ -1,4 +1,5 @@
 // Turns observation series into farmer-friendly sentences and stat values.
+import { formatDate, type Lang } from '@/lib/i18n'
 import type { ObservationPoint, VariableSeries } from '@/types/api'
 
 const DAY_MS = 86_400_000
@@ -15,8 +16,8 @@ export function daysBetween(a: string, b: string) {
   return Math.round((new Date(`${b}T00:00:00`).getTime() - new Date(`${a}T00:00:00`).getTime()) / DAY_MS)
 }
 
-export function prettyDate(iso: string) {
-  return new Date(`${iso}T00:00:00`).toLocaleDateString('en', { month: 'short', day: 'numeric' })
+export function prettyDate(iso: string, lang: Lang = 'en') {
+  return formatDate(iso, lang, { month: 'short', day: 'numeric' })
 }
 
 export function find(variables: VariableSeries[], id: VariableSeries['id']) {
@@ -39,24 +40,32 @@ export function rainSummary(points: ObservationPoint[], today: string) {
   }
 }
 
-export function wetnessWord(value: number) {
-  if (value >= 0.8) return 'very wet'
-  if (value >= 0.6) return 'moist'
-  if (value >= 0.4) return 'drying'
-  return 'dry'
+const WETNESS: Record<Lang, [string, string, string, string]> = {
+  en: ['very wet', 'moist', 'drying', 'dry'],
+  bn: ['খুব ভেজা', 'আর্দ্র', 'শুকাচ্ছে', 'শুকনো'],
+}
+
+export function wetnessWord(value: number, lang: Lang = 'en') {
+  return WETNESS[lang][value >= 0.8 ? 0 : value >= 0.6 ? 1 : value >= 0.4 ? 2 : 3]
 }
 
 // NDVI in plain words. Below ~0.1 the pixel is mostly water or bare ground, not plants.
-export function greennessWord(ndvi: number) {
-  if (ndvi < 0.1) return 'Water or flooded'
-  if (ndvi < 0.2) return 'Bare soil'
-  if (ndvi < 0.4) return 'Sparse plants'
-  if (ndvi < 0.6) return 'Green'
-  return 'Lush and green'
+const GREENNESS: Record<Lang, [string, string, string, string, string]> = {
+  en: ['Water or flooded', 'Bare soil', 'Sparse plants', 'Green', 'Lush and green'],
+  bn: ['পানি বা বন্যা', 'খালি মাটি', 'হালকা গাছপালা', 'সবুজ', 'সতেজ ও সবুজ'],
+}
+
+export function greennessWord(ndvi: number, lang: Lang = 'en') {
+  return GREENNESS[lang][ndvi < 0.1 ? 0 : ndvi < 0.2 ? 1 : ndvi < 0.4 ? 2 : ndvi < 0.6 ? 3 : 4]
+}
+
+const COMPARISON: Record<Lang, Record<'water' | 'greener' | 'less' | 'normal', string>> = {
+  en: { water: 'the field was under water', greener: 'greener than normal', less: 'less green than normal', normal: 'about normal' },
+  bn: { water: 'জমি পানির নিচে ছিল', greener: 'স্বাভাবিকের চেয়ে বেশি সবুজ', less: 'স্বাভাবিকের চেয়ে কম সবুজ', normal: 'প্রায় স্বাভাবিক' },
 }
 
 /** Latest clear-sky greenness, how it compares with the VIIRS normal, and the cloud gap since. */
-export function greennessSummary(ndvi: ObservationPoint[], normal: ObservationPoint[], today: string) {
+export function greennessSummary(ndvi: ObservationPoint[], normal: ObservationPoint[], today: string, lang: Lang = 'en') {
   const last = ndvi[ndvi.length - 1]
   if (!last) return null
   const nearest = normal.reduce<ObservationPoint | null>(
@@ -64,15 +73,8 @@ export function greennessSummary(ndvi: ObservationPoint[], normal: ObservationPo
     null,
   )
   const diff = nearest ? last.value - nearest.value : null
+  const words = COMPARISON[lang]
   const comparison =
-    last.value < 0.1
-      ? 'the field was under water'
-      : diff === null
-        ? null
-        : diff > 0.08
-          ? 'greener than normal'
-          : diff < -0.08
-            ? 'less green than normal'
-            : 'about normal'
+    last.value < 0.1 ? words.water : diff === null ? null : diff > 0.08 ? words.greener : diff < -0.08 ? words.less : words.normal
   return { last, normal: nearest, comparison, cloudGapDays: daysBetween(last.date, today) }
 }

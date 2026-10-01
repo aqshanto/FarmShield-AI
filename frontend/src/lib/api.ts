@@ -1,4 +1,5 @@
 import { env } from '@/config/env'
+import type { Lang } from '@/lib/i18n'
 import type {
   AssistantStatus,
   ChatEvent,
@@ -12,6 +13,7 @@ import type {
   HealthStatus,
   LocateResult,
   MapOverview,
+  PointRisk,
   Places,
   Region,
 } from '@/types/api'
@@ -49,15 +51,25 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>
 }
 
+// Ask for Bengali text only when needed; English URLs stay as they were.
+const langQuery = (lang?: Lang, extra = '') => {
+  const params = new URLSearchParams(extra)
+  if (lang === 'bn') params.set('lang', 'bn')
+  const query = params.toString()
+  return query ? `?${query}` : ''
+}
+
 export const api = {
   health: (init?: RequestInit) => request<HealthStatus>('/health', init),
   sources: (init?: RequestInit) => request<DataSource[]>('/sources', init),
   defaultRegion: (init?: RequestInit) => request<Region>('/region/default', init),
-  farms: (init?: RequestInit) => request<FarmSummary[]>('/farms', init),
+  farms: (init?: RequestInit, lang?: Lang) => request<FarmSummary[]>(`/farms${langQuery(lang)}`, init),
   // `name` labels a farmer's own farm (custom ids only).
-  dashboard: (farmId: string, init?: RequestInit, name?: string) =>
-    request<Dashboard>(`/farms/${encodeURIComponent(farmId)}/dashboard${name ? `?name=${encodeURIComponent(name)}` : ''}`, init),
-  mapOverview: (init?: RequestInit) => request<MapOverview>('/map/overview', init),
+  dashboard: (farmId: string, init?: RequestInit, name?: string, lang?: Lang) =>
+    request<Dashboard>(`/farms/${encodeURIComponent(farmId)}/dashboard${langQuery(lang, name ? `name=${encodeURIComponent(name)}` : '')}`, init),
+  mapOverview: (init?: RequestInit, lang?: Lang) => request<MapOverview>(`/map/overview${langQuery(lang)}`, init),
+  mapPoint: (lat: number, lon: number, crop: string, init?: RequestInit, lang?: Lang) =>
+    request<PointRisk>(`/map/point${langQuery(lang, `lat=${lat.toFixed(4)}&lon=${lon.toFixed(4)}&crop=${crop}`)}`, init),
   dataStatus: (init?: RequestInit) => request<DataStatus>('/data/status', init),
   refreshData: (force = false) =>
     request<{ started: boolean; message: string }>(`/data/refresh${force ? '?force=true' : ''}`, { method: 'POST' }),

@@ -17,8 +17,8 @@ function renderApp(url: string) {
         element: <AppLayout />,
         errorElement: <RouteErrorPage />,
         children: [
-          { path: '/', element: <p>home</p>, handle: { title: 'Satellite eyes for every farm' } },
-          { path: '/data', element: <p>data</p>, handle: { title: 'NASA data' } },
+          { path: '/', element: <p>home</p>, handle: { title: { en: 'Satellite eyes for every farm', bn: 'প্রতিটি খামারে উপগ্রহের চোখ' } } },
+          { path: '/data', element: <p>data</p>, handle: { title: { en: 'NASA data', bn: 'নাসার তথ্য' } } },
           { path: '/broken', element: <Boom /> },
         ],
       },

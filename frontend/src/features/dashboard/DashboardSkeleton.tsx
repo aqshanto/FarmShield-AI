@@ -1,9 +1,11 @@
 import { Skeleton, SkeletonCard } from '@/components/ui/Skeleton'
+import { useLang } from '@/lib/i18n'
 
 // Mirrors the dashboard layout so nothing jumps when the data arrives.
 export function DashboardSkeleton() {
+  const label = useLang() === 'bn' ? 'আপনার খামার লোড হচ্ছে' : 'Loading your farm'
   return (
-    <div role="status" aria-label="Loading your farm" className="space-y-6">
+    <div role="status" aria-label={label} className="space-y-6">
       <div className="space-y-3">
         <Skeleton className="h-4 w-32" />
         <Skeleton className="h-10 w-72 max-w-full" />

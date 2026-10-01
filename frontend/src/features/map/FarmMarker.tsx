@@ -1,7 +1,8 @@
 import { motion } from 'framer-motion'
 import { Home } from 'lucide-react'
 import { cn } from '@/lib/cn'
-import { riskMeta } from '@/lib/risk'
+import { useLang } from '@/lib/i18n'
+import { levelLabel, riskMeta } from '@/lib/risk'
 import type { MapFarm, RiskModule } from '@/types/api'
 
 interface FarmMarkerProps {
@@ -12,6 +13,7 @@ interface FarmMarkerProps {
 
 // A farm pin colored by its level on the active layer; urgent farms pulse.
 export function FarmMarker({ farm, layer, selected }: FarmMarkerProps) {
+  const lang = useLang()
   const { level } = farm.modules[layer]
   const color = riskMeta[level].color
   const urgent = level === 'warning' || level === 'danger'
@@ -19,7 +21,7 @@ export function FarmMarker({ farm, layer, selected }: FarmMarkerProps) {
   return (
     <button
       type="button"
-      aria-label={`${farm.name}, ${farm.district}: ${riskMeta[level].label}`}
+      aria-label={`${farm.name}, ${farm.district}: ${levelLabel(level, lang)}`}
       className="group focus-ring relative flex cursor-pointer flex-col items-center rounded-full"
     >
       {/* Outer: one-time pop-in after the fly-in. Inner: selection / hover scale. */}

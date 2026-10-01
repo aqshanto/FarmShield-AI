@@ -2,10 +2,11 @@ import { useReducedMotion } from 'framer-motion'
 import { AttributionControl, Map as MapLibreMap, Marker, NavigationControl } from 'maplibre-gl'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/cn'
+import { useLang } from '@/lib/i18n'
 import { ATTRIBUTION, basemaps } from '@/features/map/basemaps'
 import { BANGLADESH } from '@/features/map/geo'
 import { baseLayerId, buildStyle } from '@/features/map/map-style'
-import '@/features/map/maplibre-setup'
+import { localizeMap } from '@/features/map/maplibre-setup'
 
 export interface PickedPoint {
   lat: number
@@ -56,6 +57,7 @@ function pinElement() {
 
 // A map of Bangladesh (street map or NASA satellite view): tap your field, or drag the pin.
 export function LocationPickerMap({ value, focus, onPick, label, viewLabels }: LocationPickerMapProps) {
+  const bn = useLang() === 'bn'
   const container = useRef<HTMLDivElement>(null)
   const mapRef = useRef<MapLibreMap | null>(null)
   const markerRef = useRef<Marker | null>(null)
@@ -129,13 +131,17 @@ export function LocationPickerMap({ value, focus, onPick, label, viewLabels }: L
   }, [view])
 
   useEffect(() => {
+    if (mapRef.current) localizeMap(mapRef.current, bn ? 'bn' : 'en', label)
+  }, [bn, label])
+
+  useEffect(() => {
     if (focus) mapRef.current?.flyTo({ center: [focus.lon, focus.lat], zoom: focus.zoom, duration: reduce ? 0 : 1400, essential: true })
   }, [focus, reduce])
 
   return (
     <div className="relative h-full w-full">
       <div ref={container} className="h-full w-full" role="application" aria-label={label} />
-      <div className="absolute top-3 left-3 z-10 flex rounded-full bg-night-950/80 p-1 backdrop-blur" role="group" aria-label="Map view">
+      <div className="absolute top-3 left-3 z-10 flex rounded-full bg-night-950/80 p-1 backdrop-blur" role="group" aria-label={bn ? 'মানচিত্রের ধরন' : 'Map view'}>
         {(['map', 'satellite'] as const).map((v) => (
           <button
             key={v}

@@ -6,7 +6,8 @@ import { Card } from '@/components/ui/Card'
 import { RiskBadge } from '@/components/ui/RiskBadge'
 import { cn } from '@/lib/cn'
 import { spring } from '@/lib/motion'
-import { riskMeta } from '@/lib/risk'
+import { digits, numberLocale, useLang, useText } from '@/lib/i18n'
+import { levelLabel, riskMeta } from '@/lib/risk'
 import type { RiskModuleSummary } from '@/types/api'
 import { ActionPill } from './ActionBanner'
 import { moduleVisuals } from './module-visuals'
@@ -19,18 +20,47 @@ interface RiskCardProps {
   onSelect: () => void
 }
 
+const text = {
+  en: {
+    up: (n: string) => `Up ${n} this week`,
+    down: (n: string) => `Down ${n} this week`,
+    steady: 'Steady this week',
+    live: 'Live',
+    liveTitle: 'Computed today from NASA data',
+    demo: 'Demo',
+    demoTitle: 'Demo scenario until this risk’s engine lands',
+    show: 'Show details',
+    hide: 'Hide details',
+    details: 'Details',
+  },
+  bn: {
+    up: (n: string) => `এই সপ্তাহে ${n} বেড়েছে`,
+    down: (n: string) => `এই সপ্তাহে ${n} কমেছে`,
+    steady: 'এই সপ্তাহে একই আছে',
+    live: 'লাইভ',
+    liveTitle: 'আজ নাসার তথ্য থেকে হিসাব করা',
+    demo: 'ডেমো',
+    demoTitle: 'ডেমো পরিস্থিতি',
+    show: 'বিস্তারিত দেখুন',
+    hide: 'বিস্তারিত লুকান',
+    details: 'বিস্তারিত',
+  },
+}
+
 function ChangeChip({ change }: { change: number }) {
+  const lang = useLang()
+  const t = useText(text)
   // Rising risk is bad news, falling risk is good news.
-  const [Icon, tone, text] =
+  const [Icon, tone, label] =
     change > 2
-      ? [TrendingUp, 'text-alert-300 bg-alert-400/10', `Up ${change} this week`]
+      ? [TrendingUp, 'text-alert-300 bg-alert-400/10', t.up(digits(change, lang))]
       : change < -2
-        ? [TrendingDown, 'text-leaf-300 bg-leaf-500/10', `Down ${Math.abs(change)} this week`]
-        : [Minus, 'text-ink-muted bg-surface-2', 'Steady this week']
+        ? [TrendingDown, 'text-leaf-300 bg-leaf-500/10', t.down(digits(Math.abs(change), lang))]
+        : [Minus, 'text-ink-muted bg-surface-2', t.steady]
   return (
     <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold', tone)}>
       <Icon className="size-3.5" aria-hidden="true" />
-      {text}
+      {label}
     </span>
   )
 }
@@ -39,6 +69,8 @@ export function RiskCard({ module, selected, onSelect }: RiskCardProps) {
   const visual = moduleVisuals[module.id]
   const Icon = visual.icon
   const color = riskMeta[module.level].color
+  const lang = useLang()
+  const t = useText(text)
 
   return (
     <Card
@@ -53,7 +85,7 @@ export function RiskCard({ module, selected, onSelect }: RiskCardProps) {
         onClick={onSelect}
         aria-expanded={selected}
         aria-controls={DETAIL_PANEL_ID}
-        aria-label={`${module.title}: ${riskMeta[module.level].label}. ${module.headline} ${selected ? 'Hide' : 'Show'} details`}
+        aria-label={`${module.title}: ${levelLabel(module.level, lang)}. ${module.headline} ${selected ? t.hide : t.show}`}
         className="focus-ring absolute inset-0 z-10 cursor-pointer rounded-[var(--radius-card)]"
       />
 
@@ -69,18 +101,18 @@ export function RiskCard({ module, selected, onSelect }: RiskCardProps) {
             <h3 className="font-bold text-ink">{module.title}</h3>
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
-            <RiskBadge level={module.level} />
+            <RiskBadge level={module.level} lang={lang} />
             {module.data_source === 'live' ? (
-              <Badge tone="leaf" className="px-2 text-[10px]" title="Computed today from NASA data">
+              <Badge tone="leaf" className="px-2 text-[10px]" title={t.liveTitle}>
                 <span className="relative mr-0.5 flex size-1.5" aria-hidden="true">
                   <span className="absolute inset-0 animate-ping-soft rounded-full bg-leaf-300" />
                   <span className="relative size-1.5 rounded-full bg-leaf-300" />
                 </span>
-                Live
+                {t.live}
               </Badge>
             ) : (
-              <Badge className="px-2 text-[10px]" title="Demo scenario until this risk's engine lands">
-                Demo
+              <Badge className="px-2 text-[10px]" title={t.demoTitle}>
+                {t.demo}
               </Badge>
             )}
           </div>
@@ -100,7 +132,7 @@ export function RiskCard({ module, selected, onSelect }: RiskCardProps) {
           <div key={metric.label} className="rounded-xl bg-surface-1 p-3 ring-1 ring-line">
             <dt className="text-xs text-ink-muted">{metric.label}</dt>
             <dd className="mt-1 flex items-baseline gap-1">
-              <AnimatedNumber value={metric.value} signed={metric.label.includes('change')} className="text-2xl font-extrabold text-ink" />
+              <AnimatedNumber value={metric.value} signed={metric.unit.includes('%') && metric.value < 0} locale={numberLocale[lang]} className="text-2xl font-extrabold text-ink" />
               <span className="text-xs text-ink-subtle">{metric.unit}</span>
             </dd>
             <dd className="mt-1 text-[10px] font-semibold tracking-wide text-ink-subtle uppercase">{metric.source}</dd>
@@ -111,7 +143,7 @@ export function RiskCard({ module, selected, onSelect }: RiskCardProps) {
       <div className="mt-auto flex items-center justify-between">
         <ChangeChip change={module.change_7d} />
         <span className="flex items-center gap-1 text-xs font-semibold text-ink-muted">
-          {selected ? 'Hide details' : 'Details'}
+          {selected ? t.hide : t.details}
           <motion.span animate={{ rotate: selected ? 180 : 0 }} transition={spring.snappy} className="inline-flex">
             <ChevronDown className="size-4" aria-hidden="true" />
           </motion.span>

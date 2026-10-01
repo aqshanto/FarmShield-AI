@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/cn'
+import { useLang } from '@/lib/i18n'
 
 interface OrbitLoaderProps {
   label?: string
@@ -7,7 +8,8 @@ interface OrbitLoaderProps {
 }
 
 // Branded loader: a tiny satellite circling the Earth while data loads.
-export function OrbitLoader({ label = 'Reading satellite data…', className }: OrbitLoaderProps) {
+export function OrbitLoader({ label, className }: OrbitLoaderProps) {
+  const lang = useLang()
   return (
     <div role="status" className={cn('flex flex-col items-center gap-3', className)}>
       <div className="relative size-16" aria-hidden="true">
@@ -21,7 +23,7 @@ export function OrbitLoader({ label = 'Reading satellite data…', className }: 
           <span className="absolute -top-1 left-1/2 size-2.5 -translate-x-1/2 rounded-full bg-harvest-300 shadow-[0_0_12px_var(--color-harvest-300)]" />
         </motion.div>
       </div>
-      <p className="text-sm text-ink-muted">{label}</p>
+      <p className="text-sm text-ink-muted">{label ?? (lang === 'bn' ? 'উপগ্রহের তথ্য পড়ছি…' : 'Reading satellite data…')}</p>
     </div>
   )
 }

@@ -78,11 +78,21 @@ _background: dict[str, asyncio.Task] = {}
 
 async def ensure_data(pipeline: PipelineService, farm: CustomFarm, days: int = 60) -> None:
     """Fetch the quick sources now (skipped when fresh) and start the slow ones in the background."""
-    location = farm.location
+    await ensure_location_data(pipeline, farm.location, days)
+
+
+async def ensure_location_data(pipeline: PipelineService, location: Location, days: int = 60) -> None:
+    """Same for any point on Earth (also used by the global map's point check)."""
     await pipeline.refresh_location(location, FAST_SOURCES, days)
     running = _background.get(location.id)
     if running is None or running.done():
         _background[location.id] = asyncio.create_task(_fetch_slow(pipeline, location, days))
+
+
+def satellites_pending(location: Location) -> bool:
+    """True while SMAP, GPM, MODIS and VIIRS are still downloading for this point."""
+    running = _background.get(location.id)
+    return running is not None and not running.done()
 
 
 async def _fetch_slow(pipeline: PipelineService, location: Location, days: int) -> None:

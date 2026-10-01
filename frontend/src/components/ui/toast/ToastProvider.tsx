@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { AlertTriangle, CheckCircle2, Info, OctagonAlert, X } from 'lucide-react'
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { spring } from '@/lib/motion'
+import { useLang } from '@/lib/i18n'
 import { type ToastApi, ToastContext, type ToastItem, type ToastTone } from './toast-context'
 
 const toneStyles: Record<ToastTone, { icon: ReactNode; color: string }> = {
@@ -43,13 +44,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const api = useMemo(() => ({ toast, dismiss }), [toast, dismiss])
+  const bn = useLang() === 'bn'
 
   return (
     <ToastContext.Provider value={api}>
       {children}
       <ol
         aria-live="polite"
-        aria-label="Notifications"
+        aria-label={bn ? 'বিজ্ঞপ্তি' : 'Notifications'}
         className="pointer-events-none fixed inset-x-4 bottom-4 z-50 flex flex-col items-center gap-2 sm:inset-x-auto sm:right-6 sm:bottom-6 sm:items-end"
       >
         <AnimatePresence initial={false}>
@@ -78,7 +80,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 <button
                   type="button"
                   onClick={() => dismiss(t.id)}
-                  aria-label="Dismiss notification"
+                  aria-label={bn ? 'বিজ্ঞপ্তি বন্ধ করুন' : 'Dismiss notification'}
                   className="focus-ring absolute top-3 right-3 cursor-pointer rounded-full p-1 text-ink-subtle transition hover:bg-surface-2 hover:text-ink"
                 >
                   <X className="size-4" />

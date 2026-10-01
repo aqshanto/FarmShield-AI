@@ -1,39 +1,84 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { Home, LayoutDashboard, Map as MapIcon, MessageCircle, Satellite, ShieldCheck } from 'lucide-react'
+import { Home, Languages, LayoutDashboard, Map as MapIcon, MessageCircle, Satellite, ShieldCheck } from 'lucide-react'
 import { useEffect } from 'react'
 import { Link, NavLink, Outlet, ScrollRestoration, useLocation, useMatches, useNavigation } from 'react-router-dom'
 import { prefetchPage, prefetchWhenIdle } from '@/app/routes'
 import { cn } from '@/lib/cn'
+import { type Lang, setLang, useLang, useText } from '@/lib/i18n'
 import { spring } from '@/lib/motion'
 import { Starfield } from './Starfield'
 
+const text = {
+  en: {
+    nav: { '/': 'Home', '/dashboard': 'Dashboard', '/map': 'Map', '/assistant': 'Assistant', '/data': 'Data' },
+    navLabel: 'Main',
+    loading: 'Loading page',
+    switchTo: 'বাংলা',
+    switchLabel: 'বাংলায় দেখুন (switch to Bengali)',
+    poweredBy: 'Powered by NASA Earth observation data',
+    design: 'Design system',
+  },
+  bn: {
+    nav: { '/': 'হোম', '/dashboard': 'ড্যাশবোর্ড', '/map': 'মানচিত্র', '/assistant': 'সহকারী', '/data': 'তথ্য' },
+    navLabel: 'প্রধান মেনু',
+    loading: 'পাতা লোড হচ্ছে',
+    switchTo: 'EN',
+    switchLabel: 'Switch to English (ইংরেজিতে দেখুন)',
+    poweredBy: 'নাসার পৃথিবী পর্যবেক্ষণ তথ্যের সাহায্যে',
+    design: 'ডিজাইন সিস্টেম',
+  },
+}
+
 // On phones the nav shows icons only (labels stay available to screen readers).
 const navItems = [
-  { to: '/', label: 'Home', icon: Home },
-  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/map', label: 'Map', icon: MapIcon },
-  { to: '/assistant', label: 'Assistant', icon: MessageCircle },
-  { to: '/data', label: 'Data', icon: Satellite },
-]
+  { to: '/', icon: Home },
+  { to: '/dashboard', icon: LayoutDashboard },
+  { to: '/map', icon: MapIcon },
+  { to: '/assistant', icon: MessageCircle },
+  { to: '/data', icon: Satellite },
+] as const
 
-/** The deepest route's `handle.title`, e.g. "Risk map · FarmShield AI". */
+export type RouteTitle = Record<Lang, string>
+
+/** The deepest route's `handle.title` in the farmer's language, e.g. "Risk map · FarmShield AI". */
 function useDocumentTitle() {
   const matches = useMatches()
-  const title = [...matches].reverse().map((m) => (m.handle as { title?: string } | undefined)?.title).find(Boolean)
+  const lang = useLang()
+  const title = [...matches].reverse().map((m) => (m.handle as { title?: RouteTitle } | undefined)?.title?.[lang]).find(Boolean)
   useEffect(() => {
     document.title = title ? `${title} · FarmShield AI` : 'FarmShield AI'
   }, [title])
 }
 
+/** One tap switches every screen between English and Bengali. */
+function LanguageSwitch() {
+  const lang = useLang()
+  const t = useText(text)
+  return (
+    <motion.button
+      type="button"
+      whileTap={{ scale: 0.92 }}
+      onClick={() => setLang(lang === 'en' ? 'bn' : 'en')}
+      aria-label={t.switchLabel}
+      lang={lang === 'en' ? 'bn' : 'en'}
+      className="focus-ring glass inline-flex h-10 shrink-0 cursor-pointer items-center gap-1.5 rounded-full px-3 text-sm font-bold text-leaf-200 transition hover:text-leaf-100"
+    >
+      <Languages className="size-4" aria-hidden="true" />
+      {t.switchTo}
+    </motion.button>
+  )
+}
+
 /** A slim glowing bar while the next page's code or data loads. */
 function NavigationProgress() {
   const busy = useNavigation().state !== 'idle'
+  const t = useText(text)
   return (
     <AnimatePresence>
       {busy && (
         <motion.div
           role="progressbar"
-          aria-label="Loading page"
+          aria-label={t.loading}
           className="fixed inset-x-0 top-0 z-50 h-0.5 origin-left bg-gradient-to-r from-sky-300 via-leaf-300 to-leaf-500 shadow-glow-leaf"
           initial={{ scaleX: 0, opacity: 1 }}
           animate={{ scaleX: 0.85, transition: { duration: 2.5, ease: [0.1, 0.8, 0.2, 1] } }}
@@ -46,6 +91,7 @@ function NavigationProgress() {
 
 export function AppLayout() {
   const location = useLocation()
+  const t = useText(text)
   useDocumentTitle()
   // The map is heavy (WebGL engine), so it only loads on intent; the rest warms up when idle.
   useEffect(() => prefetchWhenIdle(['/dashboard', '/assistant', '/data']), [])
@@ -69,7 +115,9 @@ export function AppLayout() {
           <span className="hidden sm:inline">FarmShield AI</span>
         </Link>
 
-        <nav aria-label="Main" className="glass flex rounded-full p-1">
+        <div className="flex items-center gap-2">
+        <LanguageSwitch />
+        <nav aria-label={t.navLabel} className="glass flex rounded-full p-1">
           {navItems.map((item) => (
             <NavLink
               key={item.to}
@@ -95,13 +143,14 @@ export function AppLayout() {
                   )}
                   <span className="relative flex items-center gap-1.5">
                     <item.icon className="size-4 sm:hidden" aria-hidden="true" />
-                    <span className="sr-only sm:not-sr-only">{item.label}</span>
+                    <span className="sr-only sm:not-sr-only">{t.nav[item.to]}</span>
                   </span>
                 </>
               )}
             </NavLink>
           ))}
         </nav>
+        </div>
       </header>
 
       <main className="relative z-10 mx-auto w-full max-w-6xl flex-1 px-4 sm:px-6">
@@ -118,9 +167,9 @@ export function AppLayout() {
 
       <footer className="relative z-10 mx-auto w-full max-w-6xl px-4 py-6 text-xs text-ink-subtle sm:px-6">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <span>Powered by NASA Earth observation data · SMAP · GPM · MODIS · VIIRS</span>
+          <span>{t.poweredBy} · SMAP · GPM · MODIS · VIIRS</span>
           <Link to="/design" className="focus-ring rounded hover:text-ink-muted">
-            Design system
+            {t.design}
           </Link>
         </div>
       </footer>

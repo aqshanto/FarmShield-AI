@@ -14,6 +14,9 @@ interface RiskMeta {
   color: string
 }
 
+/** The level's name in the reader's language. */
+export const levelLabel = (level: RiskLevel, lang: 'en' | 'bn') => (lang === 'bn' ? riskMeta[level].labelBn : riskMeta[level].label)
+
 export const riskMeta: Record<RiskLevel, RiskMeta> = {
   safe: {
     label: 'Safe',

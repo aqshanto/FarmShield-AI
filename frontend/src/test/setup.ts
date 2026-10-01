@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest'
 import { cleanup } from '@testing-library/react'
 import { afterEach, vi } from 'vitest'
+import { resetLang } from '@/lib/i18n'
 
 // jsdom does not implement scrolling; animation libraries and the dashboard call these.
 window.scrollTo = () => {}
@@ -34,4 +35,5 @@ window.IntersectionObserver = MockIntersectionObserver as unknown as typeof Inte
 afterEach(() => {
   cleanup()
   vi.restoreAllMocks()
+  resetLang() // each test starts in English (localStorage is cleared by the tests)
 })

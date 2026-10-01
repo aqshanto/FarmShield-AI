@@ -2,7 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
-from app.schemas.dashboard import OverallCondition, RiskLevel
+from app.schemas.dashboard import OverallCondition, Recommendation, RiskLevel, RiskModuleSummary
 from app.schemas.meta import RiskModule
 
 
@@ -50,3 +50,23 @@ class MapOverview(BaseModel):
     layers: list[MapLayer]
     cells: list[GridCell]
     farms: list[MapFarm]
+
+
+class PointRisk(BaseModel):
+    """Risk for one tapped spot anywhere on Earth (computed on demand)."""
+
+    # The ~5 km point the data was fetched for.
+    lat: float
+    lon: float
+    # Nearest named place and country (OpenStreetMap), when known.
+    place: str | None = None
+    country: str | None = None
+    # False for open water: nothing to farm, so no risks.
+    land: bool = True
+    in_bangladesh: bool = False
+    crop: str
+    overall: OverallCondition | None = None
+    modules: list[RiskModuleSummary] = []
+    recommendations: list[Recommendation] = []
+    # SMAP, GPM, MODIS and VIIRS are still downloading; look again in a few minutes.
+    satellites_pending: bool = False
