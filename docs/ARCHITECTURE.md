@@ -48,8 +48,9 @@ Phase 4/5 replace only the sample lookup; the schema stays the same.
 
 `app/services/risk.py` holds the shared vocabulary:
 - `score_to_level`: 0–24 safe · 25–49 watch · 50–74 warning · 75–100 danger (same as `frontend/src/lib/risk.ts`).
-- `overall_score = worst + 0.25 × mean(others)`, capped at 100 and at one level above the
-  worst module (all-safe modules stay safe). The overall level is
+- `overall_score = worst + 0.25 × mean(other real risks)`. Only modules at watch or worse
+  add to it, and the result is capped at 100 and at one level above the worst module, so
+  one watch beside two safe modules stays a watch. The overall level is
   **never calmer than the worst module**, and several medium risks outrank a single one.
 
 ## Frontend (`frontend/src/`)

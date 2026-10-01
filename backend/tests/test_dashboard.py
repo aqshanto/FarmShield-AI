@@ -23,7 +23,8 @@ def test_score_to_level_matches_frontend_thresholds(score, level):
 
 
 def test_overall_score_is_dominated_by_worst_risk():
-    assert overall_score([80, 10, 10]) == 82  # 80 + 0.25 * 10
+    assert overall_score([80, 10, 10]) == 80  # safe modules add nothing
+    assert overall_score([80, 40, 30]) == 89  # 80 + 0.25 * 35
     assert overall_score([40, 40, 40]) == 50  # 40 + 0.25 * 40
     assert overall_score([95, 90, 90]) == 100  # capped
     assert overall_score([30]) == 30
@@ -36,6 +37,12 @@ def test_safe_modules_never_add_up_to_a_risk():
     # Real case (Barind, 1 Oct 2026): flood 22, water 24, crop 14 used to read "watch".
     assert score_to_level(overall_score([22, 24, 14])) == "safe"
     assert overall_score([24, 24, 24]) == 24
+
+
+def test_one_watch_next_to_safe_modules_stays_a_watch():
+    # Real case (Haor on Render, 1 Oct 2026): flood 45, water 23, crop 16 read "warning".
+    assert overall_score([45, 23, 16]) == 45
+    assert score_to_level(overall_score([45, 23, 16])) == "watch"
 
 
 def test_compounding_lifts_a_real_risk_by_at_most_one_level():

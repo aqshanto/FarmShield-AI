@@ -34,13 +34,14 @@ def overall_score(scores: list[int]) -> int:
 
     Never lower than the worst risk, so the overall message can't be calmer than the most
     urgent module (a flooding field is a bad week no matter how green the crop is). Other
-    risks add a quarter of their average, so several medium risks outrank a single one,
-    but three "safe" signals still make a safe farm.
+    real risks (watch or worse) add a quarter of their average, so several medium risks
+    outrank a single one; safe modules add nothing, so one "watch" next to two "safe" stays
+    a watch and three "safe" signals stay safe.
     """
     if not scores:
         return 0
     ordered = sorted(scores, reverse=True)
-    others = ordered[1:]
+    others = [s for s in ordered[1:] if score_to_level(s) != "safe"]
     bump = 0.25 * (sum(others) / len(others)) if others else 0.0
     ceiling = OVERALL_CEILING[score_to_level(ordered[0])]
     return clamp_score(min(ordered[0] + bump, max(ceiling, ordered[0])))

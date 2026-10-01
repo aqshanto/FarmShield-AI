@@ -7,7 +7,7 @@ Short records of choices that shape the project. Newest first.
 | Topic | Decision | Why |
 |---|---|---|
 | Landing page | Replaced the Prompt 01 scaffold (system-status panel) with a story: hero, live pulse, scroll timeline, live farm cards | The first screen judges see should explain the idea in seconds, not show API health |
-| Overall score | Compounding capped at one level above the worst module; all-safe stays safe | Real data (Barind, 1 Oct): three "safe" risks produced "Watch: keep an eye on water stress" while water read Safe |
+| Overall score | Only real risks (watch or worse) compound, capped at one level above the worst module | Real data (Barind, 1 Oct): three "safe" risks produced "Watch: keep an eye on water stress" while water read Safe |
 | Startup race | Quiet retries for 5xx/network errors in `useAsync` | Seen in the demo stack: Vite answers before the API, the first request got a 502 and the farm cards never appeared |
 | Prefetching | Idle prefetch for light pages, intent (hover/focus) prefetch for the map | Instant clicks without making every visitor download the 300 kB WebGL map |
 | Demo mode | `npm run demo` = sample scenario, no NASA downloads | Stage Wi-Fi is unreliable, and live conditions are often calm; the bundled scenario shows every level |
