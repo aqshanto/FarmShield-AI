@@ -6,6 +6,24 @@ advice, in English and Bengali.
 
 Built for the NASA Space Apps Challenge.
 
+## Live demo
+
+**https://farm-shield-ai-pi.vercel.app**
+
+| Page | Link |
+|---|---|
+| Home | https://farm-shield-ai-pi.vercel.app |
+| Farm dashboard | https://farm-shield-ai-pi.vercel.app/dashboard |
+| Risk map | https://farm-shield-ai-pi.vercel.app/map |
+| AI Farmer Assistant (English / বাংলা) | https://farm-shield-ai-pi.vercel.app/assistant |
+| NASA data | https://farm-shield-ai-pi.vercel.app/data |
+| API health | https://farmshield-api.onrender.com/api/v1/health |
+| API docs (Swagger) | https://farmshield-api.onrender.com/docs |
+
+The website runs on Vercel and the API on Render's free plan, which sleeps after 15 minutes
+without visits. The first page load after a pause can take about a minute while the API
+wakes up. See [docs/DEPLOY.md](docs/DEPLOY.md) for how it's deployed.
+
 ## Quick start
 
 Requirements: **Node.js 20+** and **Python 3.11+**.

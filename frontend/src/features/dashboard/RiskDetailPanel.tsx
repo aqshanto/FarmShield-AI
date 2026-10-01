@@ -3,6 +3,8 @@ import { Badge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Card'
 import { RiskBadge } from '@/components/ui/RiskBadge'
 import { TrendChart } from '@/components/ui/TrendChart'
+import { StageMeter } from '@/features/field/FieldView'
+import { fieldCrop } from '@/features/field/fieldState'
 import { riskMeta } from '@/lib/risk'
 import type { RiskModuleSummary } from '@/types/api'
 import { ActionBanner } from './ActionBanner'
@@ -12,11 +14,13 @@ import { sourceDescriptions } from './module-visuals'
 
 interface RiskDetailPanelProps {
   module: RiskModuleSummary
+  // The farm's crop, so the stage reads right (e.g. paddy water is normal for rice).
+  crop?: string
   onClose: () => void
 }
 
 // "Why is it like this?" The explanation, two-week trend and the satellites behind it.
-export function RiskDetailPanel({ module, onClose }: RiskDetailPanelProps) {
+export function RiskDetailPanel({ module, crop, onClose }: RiskDetailPanelProps) {
   const meta = riskMeta[module.level]
 
   return (
@@ -39,6 +43,12 @@ export function RiskDetailPanel({ module, onClose }: RiskDetailPanelProps) {
           <X className="size-5" />
         </button>
       </div>
+
+      {crop && (
+        <div className="mt-5 max-w-sm">
+          <StageMeter module={module.id} level={module.level} crop={fieldCrop(crop)} lang="en" />
+        </div>
+      )}
 
       {module.action && (
         <div className="mt-5">

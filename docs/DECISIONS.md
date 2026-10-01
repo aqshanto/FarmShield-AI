@@ -2,6 +2,18 @@
 
 Short records of choices that shape the project. Newest first.
 
+## 2026-10-01: Living field view (Prompt 11)
+
+| Topic | Decision | Why |
+|---|---|---|
+| Stages | 4, the same levels as every risk | One scale everywhere: the picture, cards, map and assistant always agree |
+| Worst stage | "Could be damaged. Act today." | FarmShield predicts risk; it doesn't observe damage, so a false "damaged" would mislead |
+| Rice | Shallow paddy water is the safe picture; it drains when the soil dries | Standing water is normal for rice, but a warning sign for wheat and potato |
+| Look follows words | Visual anchors per level band (e.g. safe = no puddles at all) | Found in testing: a safe score drew small puddles under a "Dry field" label |
+| Replay | Trend scores only; today's heat, rain and disease signals hidden in the past | We only have 14-day trends for the three risks, so we don't invent past weather |
+| Wilting | Gentle lean and sag, not fanning out | The first version made wheat look like it was exploding |
+| Rendering | Hand-built SVG with CSS colour transitions, no new library | Small (+1.6 kB gzipped), crisp at any size, and themable |
+
 ## 2026-10-01: Final experience polish (Prompt 10)
 
 | Topic | Decision | Why |

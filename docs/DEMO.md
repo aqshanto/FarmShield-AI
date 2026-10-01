@@ -21,7 +21,8 @@ likely questions.
 | 0:00 | Home | Let the hero animate in | "Bangladesh's farmers lose crops to floods, dry spells and disease, often with little warning. FarmShield gives every farm satellite eyes." |
 | 0:30 | Home → How it works | Scroll slowly; the line draws itself | "Four NASA missions measure rain, soil water and crop greenness. We compare today with what is normal and turn it into one clear answer, in Bengali." |
 | 1:15 | Home → farm cards | Point at the three different levels | "Three real places, three different stories, read from the same pipeline." Click **Open farm** on the Haor. |
-| 1:30 | Dashboard | Overall ring, then click the **Flood risk** card | "No charts to decode: a colour, a sentence, and today's job. Here are the reasons, each from a named NASA source, and the 14-day trend." |
+| 1:30 | Dashboard | Overall ring, then **My field today**: press **Play last 2 weeks** | "This is the farmer's own field, drawn from the data. Watch the water rise as the flood risk grows. No numbers needed." |
+| 2:00 | Dashboard | Switch the field to **বাংলা**, then click the **Flood risk** card | "Every risk has the reasons, each from a named NASA source, and the 14-day trend." |
 | 2:30 | Map | Switch layers Flood → Water → Crop, click a farm, try the night-lights basemap | "The same engines run across 744 land areas of Bangladesh, so this scales to every district with no sensors in the field." |
 | 3:20 | Assistant | Switch to **বাংলা**, tap "এই সপ্তাহে কি বন্যার ভয় আছে?", then ask by microphone | "Farmers can simply ask by voice, in their own language. Answers come only from the farm's facts, with no made-up numbers." |
 | 4:20 | Data | Mission cards and the pipeline flow | "Everything is open NASA data: SMAP, GPM IMERG, MODIS, VIIRS and POWER, refreshed automatically." |

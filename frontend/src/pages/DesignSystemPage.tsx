@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { ButtonSection } from '@/features/design-system/ButtonSection'
 import { ColorSection } from '@/features/design-system/ColorSection'
+import { FieldStagesSection } from '@/features/design-system/FieldStagesSection'
 import { IllustrationSection } from '@/features/design-system/IllustrationSection'
 import { LoadingSection } from '@/features/design-system/LoadingSection'
 import { RiskPlayground } from '@/features/design-system/RiskPlayground'
@@ -41,6 +42,7 @@ export function DesignSystemPage() {
 
       <RiskPlayground lang={lang} />
       <IllustrationSection />
+      <FieldStagesSection lang={lang} />
       <StatsSection lang={lang} />
       <ButtonSection />
       <LoadingSection />

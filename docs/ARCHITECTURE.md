@@ -261,6 +261,26 @@ Frontend (`features/assistant/`):
 - `speech.ts` wraps the Web Speech API: recognition (`bn-BD` / `en-US`) and synthesis. The "Listen" button is disabled with a reason when the device has no voice for that language (many Windows PCs have no Bengali voice). Spoken questions get spoken answers.
 - The animated `AssistantAvatar` orbits faster while thinking, breathes while speaking and glows while listening.
 
+## Living field view (`features/field/`)
+
+The dashboard's "My field today" card draws the farmer's field as a living picture of the
+risks.
+
+| File | Role |
+|---|---|
+| `fieldState.ts` | Pure rules: scores → water level, dryness, sickness, heat, disease, rain; stage words (EN/BN) |
+| `FieldScene.tsx` | Layered SVG: sky, sun and haze, clouds and rain, hills, soil and cracks, 9 crop-specific plants, puddles or water drawn over the plants |
+| `FieldView.tsx` | Card: language switch, All / Flood / Water / Crop focus, stage meters, signal chips, danger warning, 2-week replay |
+
+Rules:
+- **Same scale as every risk.** The four stages map to safe / watch / warning / danger, and each stage's look matches its words (anchored per level band).
+- **Crop-aware.** Rice keeps normal paddy water when safe, and that water drains as the soil dries. For wheat and potato, any standing water is already a warning sign.
+- **Honest.** It says it's "a picture of today's risks, not a photo". The danger stage reads "could be damaged, act today", never "damaged". The replay shows only the three trended risks; today's heat, rain and disease signals aren't projected into the past.
+- **Patchy, not uniform.** Each plant has its own sensitivity, so trouble spreads plant by plant.
+- **Accessible.** The scene and every stage meter have text names; colours change through CSS transitions; reduced motion stops the sway, waves and rain.
+
+The design-system page has a gallery of all four stages for every crop and risk.
+
 ## Home page (`/`) and app polish
 
 The landing page tells the story for first-time visitors and judges:

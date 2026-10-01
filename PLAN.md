@@ -129,6 +129,42 @@ Tasks:
 
 ------------------------------------------------------------------------
 
+# Phase 9: Living Field View
+
+Goal:
+
+Show each farmer a living picture of their own field. The picture
+changes with the risks, so the danger is understood without reading
+numbers.
+
+Build:
+
+-   Animated field scene (sky, sun, clouds, soil, water, crop)
+-   Crop-specific drawings: rice, wheat, potato
+-   4 stages per risk, matching the risk scale:
+
+| Risk | Safe | Watch | Warning | Danger |
+|---|---|---|---|---|
+| Flood (wheat, potato) | Dry field | Wet soil, puddles | Water standing between rows | Crop under water |
+| Flood (rice) | Normal paddy water | Water rising | Water near plant tops | Plants under water |
+| Water | Moist soil | Topsoil pale | Cracked soil, leaves curling | Deep cracks, wilting |
+| Crop | Lush green | Some yellow leaves | Yellow-brown patches, spots | Many plants brown |
+
+-   Combined "My field today" scene on the dashboard; tap a risk to focus it
+-   Extra signals: heat haze, leaf spots, rain clouds, "clouds hide your field" badge
+-   "Play last 2 weeks" animation from the risk trend
+-   Bengali and English labels
+
+Rules:
+
+-   Show risk, never claim damage that was not observed.
+    The danger stage says "could be damaged, act today".
+-   Every stage has a text label, not color alone.
+-   Respect reduced motion.
+-   Later, the same scene powers the what-if simulator and the history replay (Phase 7).
+
+------------------------------------------------------------------------
+
 # Feature Approval Rule
 
 After every feature Claude must confirm:

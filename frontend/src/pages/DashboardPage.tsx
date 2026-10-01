@@ -12,6 +12,7 @@ import { OverallCard } from '@/features/dashboard/OverallCard'
 import { RecommendationList } from '@/features/dashboard/RecommendationList'
 import { DETAIL_PANEL_ID, RiskCard } from '@/features/dashboard/RiskCard'
 import { RiskDetailPanel } from '@/features/dashboard/RiskDetailPanel'
+import { FieldView } from '@/features/field/FieldView'
 import { ApiError, api } from '@/lib/api'
 import { fadeUp, spring, stagger } from '@/lib/motion'
 import { useAsync } from '@/lib/useAsync'
@@ -132,6 +133,10 @@ export function DashboardPage() {
           </div>
         </motion.div>
 
+        <motion.div variants={fadeUp}>
+          <FieldView dashboard={data} />
+        </motion.div>
+
         <motion.section variants={fadeUp} aria-labelledby="risks-title" className="space-y-4">
           <h2 id="risks-title" className="text-xs font-bold tracking-[0.2em] text-leaf-300 uppercase">
             Your three risks
@@ -153,7 +158,7 @@ export function DashboardPage() {
                   transition={spring.gentle}
                   className="overflow-hidden"
                 >
-                  <RiskDetailPanel module={selectedModule} onClose={() => setSelection(null)} />
+                  <RiskDetailPanel module={selectedModule} crop={data.farm.crop} onClose={() => setSelection(null)} />
                 </motion.div>
               )}
             </AnimatePresence>

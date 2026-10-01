@@ -141,6 +141,22 @@ Prepare for NASA Space Apps presentation.
 
 ------------------------------------------------------------------------
 
+# Prompt 11: Living Field View
+
+Create an animated picture of the farmer's field that changes with each risk.
+
+Requirements:
+
+-   Crop-specific field scene (rice, wheat, potato)
+-   4 stages for flood, water and crop health, matching the risk scale
+-   Rice keeps normal paddy water when safe
+-   Combined "My field today" scene on the dashboard
+-   "Play last 2 weeks" animation
+-   Bengali and English labels
+-   Never show damage as a fact; show risk and the action
+
+------------------------------------------------------------------------
+
 # After Every Prompt
 
 Claude must provide:
