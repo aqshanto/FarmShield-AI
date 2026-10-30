@@ -42,6 +42,9 @@ class SourceInfo:
     note: str = ""
     # Always fetch at least this far back (slow-changing or cloud-prone data).
     min_window_days: int = 0
+    # Fetch long windows (an empty database) in pieces this many days long, each saved as it
+    # arrives, so a slow server keeps what it got. None: one request covers the whole window.
+    chunk_days: int | None = None
 
 
 class Source(Protocol):

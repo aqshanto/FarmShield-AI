@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 from app.main import create_app
 from app.pipeline import get_pipeline
 from app.pipeline.models import Location, Observation
-from app.pipeline.service import PipelineService
+from app.pipeline.service import REFRESH_CONCURRENCY, PipelineService
 from app.pipeline.sources.base import SourceError, SourceInfo, TokenRequiredError
 from app.pipeline.store import ObservationStore
 from app.risk.inputs import flood_inputs
@@ -162,6 +162,60 @@ def test_vegetation_is_served_with_a_longer_lookback():
     asyncio.run(service.refresh([FARM]))
     ndvi = next(v for v in service.observations(FARM, days=30) if v.id == "ndvi")
     assert [p.value for p in ndvi.points] == [0.7]  # 120 days back, despite days=30
+
+
+# --- a cold server -------------------------------------------------------------------------
+
+
+class DailyRain:
+    """One reading per day, like GPM; hangs when asked for days after `hang_after`."""
+
+    def __init__(self, hang_after: date | None = None):
+        self.info = SourceInfo("gpm_imerg", "GPM", "test", "test", ("precipitation",), False, ttl_hours=6, overlap_days=3, chunk_days=15)
+        self.hang_after = hang_after
+        self.windows: list[tuple[date, date]] = []
+
+    async def fetch(self, client, location, start, end):
+        self.windows.append((start, end))
+        if self.hang_after and end > self.hang_after:
+            await asyncio.sleep(10)
+        return [Observation("gpm_imerg", "precipitation", start + timedelta(days=i), 1.0, "mm/day") for i in range((end - start).days + 1)]
+
+
+def test_an_empty_database_fills_in_pieces_that_survive_a_timeout(monkeypatch):
+    # The live server timed out on 60 days of daily files at once and saved nothing, so every
+    # refresh started over. Now each 15-day piece is saved as it arrives, oldest first.
+    monkeypatch.setattr("app.pipeline.service.FETCH_TIMEOUT_S", 0.05)
+    slow = DailyRain(hang_after=date(2026, 8, 31))
+    service, _ = make_service(slow)
+    [result] = asyncio.run(service.refresh([FARM], days=60))
+    assert slow.windows[:3] == [(date(2026, 8, 1), date(2026, 8, 15)), (date(2026, 8, 16), date(2026, 8, 30)), (date(2026, 8, 31), date(2026, 9, 14))]
+    assert (result.status, result.count) == ("error", 30)
+    assert result.message == "saved 30 readings, then timed out after 0.05 s; the next refresh carries on"
+
+    slow.hang_after, slow.windows = None, []
+    [result] = asyncio.run(service.refresh([FARM], days=60))
+    assert result.status == "ok" and slow.windows[0][0] == date(2026, 8, 27)  # from the newest saved day, less the overlap
+    rain = next(v for v in service.observations(FARM, days=60) if v.id == "precipitation")
+    assert rain.points[0].date == date(2026, 8, 1) and rain.points[-1].date == date(2026, 9, 30)
+
+
+def test_a_refresh_runs_a_few_jobs_at_a_time():
+    running = peak = 0
+
+    class Counting(FakeSource):
+        async def fetch(self, client, location, start, end):
+            nonlocal running, peak
+            running += 1
+            peak = max(peak, running)
+            await asyncio.sleep(0.01)
+            running -= 1
+            return []
+
+    service, _ = make_service(Counting("nasa_power"))
+    farms = [Location(f"farm-{i}", 24.0, 90.0 + i / 10) for i in range(10)]
+    asyncio.run(service.refresh(farms))
+    assert peak == REFRESH_CONCURRENCY
 
 
 # --- API ------------------------------------------------------------------------------------

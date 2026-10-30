@@ -8,6 +8,7 @@
 """
 
 import asyncio
+import contextlib
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -24,7 +25,22 @@ from app.pipeline.store import ObservationStore
 log = logging.getLogger("farmshield.pipeline")
 
 FETCH_TIMEOUT_S = 180
+# An empty database (a new server) asks every source for 60 days at every farm at once. Running a
+# few jobs at a time means each job's time limit is spent downloading, not queueing for one of
+# the client's connections.
+REFRESH_CONCURRENCY = 4
 FRESHNESS_TTL = timedelta(hours=1)
+
+
+def _pieces(start: date, end: date, days: int | None) -> list[tuple[date, date]]:
+    """The window [start, end], oldest first, in pieces of at most `days` days."""
+    if not days:
+        return [(start, end)]
+    pieces = []
+    while start <= end:
+        pieces.append((start, min(end, start + timedelta(days=days - 1))))
+        start = pieces[-1][1] + timedelta(days=1)
+    return pieces
 
 
 @dataclass(frozen=True)
@@ -78,7 +94,8 @@ class PipelineService:
     # --- fetch & store ------------------------------------------------------------------
     async def refresh(self, locations: list[Location], days: int = 60, force: bool = False) -> list[RefreshResult]:
         async with self._lock, self.client_factory() as client:
-            jobs = [self._refresh_one(client, source, loc, days, force) for source in self.sources.values() for loc in locations]
+            slots = asyncio.Semaphore(REFRESH_CONCURRENCY)
+            jobs = [self._refresh_one(client, source, loc, days, force, slots) for source in self.sources.values() for loc in locations]
             results = await asyncio.gather(*jobs)
         summary = {r.status: 0 for r in results}
         for r in results:
@@ -101,7 +118,9 @@ class PipelineService:
         cached = self.store.cache_get("last_run")
         return cached[0] if cached else None  # type: ignore[return-value]
 
-    async def _refresh_one(self, client: httpx2.AsyncClient, source: Source, location: Location, days: int, force: bool) -> RefreshResult:
+    async def _refresh_one(
+        self, client: httpx2.AsyncClient, source: Source, location: Location, days: int, force: bool, slots: asyncio.Semaphore | None = None
+    ) -> RefreshResult:
         info = source.info
         started = self.now()
         end = started.date()
@@ -115,19 +134,27 @@ class PipelineService:
         if latest and not force:
             start = max(start, latest - timedelta(days=info.overlap_days))
 
+        stored = 0
         try:
-            observations = await asyncio.wait_for(source.fetch(client, location, start, end), FETCH_TIMEOUT_S)
+            async with slots or contextlib.nullcontext():
+                # Long windows go in pieces, oldest first, each saved as it arrives: if time runs
+                # out, the next refresh carries on from the newest saved day.
+                for piece_start, piece_end in _pieces(start, end, info.chunk_days):
+                    observations = await asyncio.wait_for(source.fetch(client, location, piece_start, piece_end), FETCH_TIMEOUT_S)
+                    stored += self.store.upsert(location.id, observations, fetched_at=self.now())
         except TokenRequiredError as error:
             result = RefreshResult(info.id, location.id, "needs_token", message=str(error))
         except ApprovalRequiredError as error:
             message = f"{error} · {error.approve_url}" if error.approve_url else str(error)
             result = RefreshResult(info.id, location.id, "needs_approval", message=message)
         except Exception as error:  # isolate: one broken source never stops the others
-            log.warning("Source %s failed for %s: %s", info.id, location.id, error)
-            result = RefreshResult(info.id, location.id, "error", message=str(error) or type(error).__name__)
+            reason = f"timed out after {FETCH_TIMEOUT_S} s" if isinstance(error, TimeoutError) else str(error) or type(error).__name__
+            if stored:
+                reason = f"saved {stored} readings, then {reason}; the next refresh carries on"
+            log.warning("Source %s failed for %s: %s", info.id, location.id, reason)
+            result = RefreshResult(info.id, location.id, "error", stored, message=reason)
         else:
-            count = self.store.upsert(location.id, observations, fetched_at=self.now())
-            result = RefreshResult(info.id, location.id, "ok", count)
+            result = RefreshResult(info.id, location.id, "ok", stored)
 
         self.store.log_fetch(info.id, location.id, started, self.now(), (start, end), result.status, result.message, result.count)
         return result
