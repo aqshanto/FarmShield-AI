@@ -303,6 +303,55 @@ export interface FarmObservations {
   variables: VariableSeries[]
 }
 
+// --- rotation planner ----------------------------------------------------------------
+
+export type RotationPriority = 'soil' | 'water' | 'income' | 'food'
+export type RotationMetric = 'soil' | 'water' | 'climate' | 'pests' | 'income' | 'food'
+
+export interface RotationCrop {
+  id: string
+  name: string
+  months: number[] // 1–12, in the order the crop grows
+}
+
+export interface RotationStrategy {
+  id: string
+  name: string
+  existing: boolean
+  verdict: string
+  overall: number // 0–100 for the farmer's priorities
+  scores: Record<RotationMetric, number> // 0–100, higher is better
+  irrigation_mm: number // a year, on top of the usual rain
+  bare_months: number[]
+  crops: RotationCrop[]
+  why: string[]
+  evidence: string[]
+  benefits: string[]
+  gaps: string[]
+  risks: string[]
+}
+
+export interface RotationPlan {
+  farm_id: string
+  crop: string
+  in_bangladesh: boolean
+  priorities: RotationPriority[]
+  irrigation: boolean
+  existing_id: string
+  existing_options: { id: string; name: string }[]
+  strategies: RotationStrategy[] // the current rotation first
+  climate: { month: number; rain_mm: number; tmax: number; tmin: number }[]
+  wet_months: number[]
+  field_notes: string[]
+  sources: string[]
+}
+
+export interface RotationQuery {
+  priorities: RotationPriority[]
+  irrigation: boolean
+  existing?: string | null
+}
+
 // --- AI farmer assistant -------------------------------------------------------------
 
 export type AssistantEngine = 'claude' | 'offline'

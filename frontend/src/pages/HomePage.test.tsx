@@ -46,7 +46,7 @@ describe('HomePage', () => {
     renderHome()
     // Skeleton cards while loading, then the section steps aside once the request fails.
     expect(screen.getByRole('status', { name: 'Loading farms' })).toBeInTheDocument()
-    await waitFor(() => expect(screen.queryByRole('heading', { name: 'Three farms, three different stories' })).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByRole('heading', { name: 'Five farms, five different stories' })).not.toBeInTheDocument())
     expect(screen.getByRole('heading', { name: 'From space to the field, in time to act' })).toBeInTheDocument()
   })
 })

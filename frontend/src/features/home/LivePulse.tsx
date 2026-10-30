@@ -21,18 +21,18 @@ function Stat({ icon, value, label }: { icon: ReactNode; value: ReactNode; label
 const text = {
   en: {
     region: 'FarmShield today',
-    missions: 'NASA missions: SMAP, GPM, MODIS, VIIRS',
+    missions: 'NASA missions watching: SMAP, GPM, MODIS, VIIRS',
     areas: 'land areas checked across Bangladesh',
     liveFarms: 'farms watched with live data',
     demoFarms: 'demo farms',
     warnings: 'early warnings: flood, water, crop',
   },
   bn: {
-    region: 'আজ ফার্মশিল্ড',
-    missions: 'নাসার মিশন: SMAP, GPM, MODIS, VIIRS',
-    areas: 'বাংলাদেশজুড়ে জমির এলাকা পরীক্ষা করা হয়েছে',
-    liveFarms: 'খামারে লাইভ তথ্য দিয়ে নজর রাখা হচ্ছে',
-    demoFarms: 'ডেমো খামার',
+    region: 'আজ ফার্মশিল্ডে',
+    missions: 'নাসার মিশন নজর রাখছে: SMAP, GPM, MODIS, VIIRS',
+    areas: 'বাংলাদেশজুড়ে এলাকা যাচাই হয়েছে',
+    liveFarms: 'জমিতে লাইভ নজর চলছে',
+    demoFarms: 'ডেমো জমি',
     warnings: 'আগাম সতর্কতা: বন্যা, পানি, ফসল',
   },
 }

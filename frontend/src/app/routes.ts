@@ -6,6 +6,7 @@ export const pageLoaders = {
   '/assistant': () => import('@/pages/AssistantPage').then((m) => m.AssistantPage),
   '/farms/new': () => import('@/pages/AddFarmPage').then((m) => m.AddFarmPage),
   '/data': () => import('@/pages/DataPage').then((m) => m.DataPage),
+  '/rotation': () => import('@/pages/RotationPage').then((m) => m.RotationPage),
   '/design': () => import('@/pages/DesignSystemPage').then((m) => m.DesignSystemPage),
 } as const
 

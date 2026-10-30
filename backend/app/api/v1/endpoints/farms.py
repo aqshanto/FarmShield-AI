@@ -8,7 +8,7 @@ from datetime import UTC, datetime, timedelta
 from app.pipeline import farm_locations
 from app.data.sample.farms import SAMPLE_FARMS
 from app.i18n import Lang
-from app.i18n.localize import localize_dashboard, localize_farms
+from app.i18n.localize import localize_dashboard, localize_farms, localize_rotation
 from app.risk.live import (
     SOURCE_NAMES,
     crop_module,
@@ -23,6 +23,9 @@ from app.schemas.dashboard import Dashboard, FarmSummary, RiskAction, RiskFactor
 from app.schemas.flood import CropReport, FloodInputsOut, FloodReport, RainDay, WaterReport
 from app.services.dashboard import list_farms
 from app.services.farm_access import load_dashboard
+from app.risk.rotation import PRIORITIES as ROTATION_PRIORITIES
+from app.schemas.rotation import RotationPlan
+from app.services.rotation_plan import RotationDataPendingError, RotationFarmError, build_rotation_plan
 
 router = APIRouter(prefix="/farms", tags=["farms"])
 
@@ -42,6 +45,29 @@ async def dashboard(
 ) -> Dashboard:
     """A demo farm, or a farmer's own field (`my_<lat>_<lon>_<crop>`, see /locate and /crops)."""
     return localize_dashboard(await load_dashboard(farm_id, settings.data_mode, pipeline, name, lang), lang, custom_name_given=bool(name))
+
+
+@router.get("/{farm_id}/rotation", response_model=RotationPlan)
+async def rotation(
+    farm_id: str,
+    priorities: str = Query(default="", max_length=60, description="Comma-separated: soil, water, income, food"),
+    irrigation: bool = Query(default=True, description="Can the farmer irrigate in the dry season?"),
+    existing: str | None = Query(default=None, max_length=40, description="The rotation grown now (Bangladesh pattern id)"),
+    lang: Lang = Query(default="en", description="en or bn (Bengali)"),
+    settings: Settings = Depends(get_settings),
+    pipeline: PipelineService = Depends(get_pipeline),
+) -> RotationPlan:
+    """Compares the farm's current rotation with up to three alternatives, with NASA evidence."""
+    if settings.data_mode != "live":
+        raise HTTPException(status_code=409, detail="The rotation planner needs live NASA climate data, and the server is running the demo scenario.")
+    wanted = {p.strip() for p in priorities.split(",") if p.strip() in ROTATION_PRIORITIES}
+    try:
+        plan = await build_rotation_plan(farm_id, pipeline, wanted, irrigation, existing)
+    except RotationFarmError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from None
+    except RotationDataPendingError:
+        raise HTTPException(status_code=503, detail="Still downloading NASA climate history for this field. Try again in a moment.") from None
+    return localize_rotation(plan, lang)
 
 
 @router.get("/{farm_id}/flood", response_model=FloodReport)

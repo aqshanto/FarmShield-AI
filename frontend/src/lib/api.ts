@@ -15,6 +15,8 @@ import type {
   FoundPlace,
   MapOverview,
   PointRisk,
+  RotationPlan,
+  RotationQuery,
   Places,
   Region,
 } from '@/types/api'
@@ -71,6 +73,11 @@ export const api = {
   mapOverview: (init?: RequestInit, lang?: Lang) => request<MapOverview>(`/map/overview${langQuery(lang)}`, init),
   mapPoint: (lat: number, lon: number, crop: string, init?: RequestInit, lang?: Lang) =>
     request<PointRisk>(`/map/point${langQuery(lang, `lat=${lat.toFixed(4)}&lon=${lon.toFixed(4)}&crop=${crop}`)}`, init),
+  rotation: (farmId: string, q: RotationQuery, init?: RequestInit, lang?: Lang) => {
+    const params = new URLSearchParams({ priorities: q.priorities.join(','), irrigation: String(q.irrigation) })
+    if (q.existing) params.set('existing', q.existing)
+    return request<RotationPlan>(`/farms/${encodeURIComponent(farmId)}/rotation${langQuery(lang, params.toString())}`, init)
+  },
   dataStatus: (init?: RequestInit) => request<DataStatus>('/data/status', init),
   refreshData: (force = false) =>
     request<{ started: boolean; message: string }>(`/data/refresh${force ? '?force=true' : ''}`, { method: 'POST' }),

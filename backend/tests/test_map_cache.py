@@ -50,8 +50,9 @@ def test_a_quick_build_is_simply_awaited(builds):
     assert overview.grid_status == "live"
 
 
-def test_simultaneous_visits_share_one_build(builds):
+def test_simultaneous_visits_share_one_build(builds, monkeypatch):
     builds["delay"] = 0.02
+    monkeypatch.setattr(map_service, "COLD_WAIT_S", 2.0)  # every visit waits for the one build, however slow the machine
 
     async def go():
         return await asyncio.gather(*(map_service.get_map_overview("live", PIPELINE) for _ in range(5)))

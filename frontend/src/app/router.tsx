@@ -16,6 +16,7 @@ export const router = createBrowserRouter([
       { path: 'map', lazy: async () => ({ Component: await pageLoaders['/map']() }), handle: { title: { en: 'Risk map', bn: 'ঝুঁকির মানচিত্র' } } },
       { path: 'assistant', lazy: async () => ({ Component: await pageLoaders['/assistant']() }), handle: { title: { en: 'Ask FarmShield', bn: 'ফার্মশিল্ডকে জিজ্ঞেস করুন' } } },
       { path: 'farms/new', lazy: async () => ({ Component: await pageLoaders['/farms/new']() }), handle: { title: { en: 'Add my farm', bn: 'আমার জমি যোগ করুন' } } },
+      { path: 'rotation', lazy: async () => ({ Component: await pageLoaders['/rotation']() }), handle: { title: { en: 'Plan your rotation', bn: 'ফসলচক্র পরিকল্পনা' } } },
       { path: 'data', lazy: async () => ({ Component: await pageLoaders['/data']() }), handle: { title: { en: 'NASA data', bn: 'নাসার তথ্য' } } },
       // Showcase is code-split so it never weighs down the farmer-facing bundle.
       { path: 'design', lazy: async () => ({ Component: await pageLoaders['/design']() }), handle: { title: { en: 'Design system', bn: 'ডিজাইন সিস্টেম' } } },

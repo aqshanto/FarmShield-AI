@@ -61,8 +61,8 @@ def test_whole_dashboard_in_bengali():
 def test_api_speaks_the_requested_language():
     client = TestClient(create_app())
     farms = client.get("/api/v1/farms", params={"lang": "bn"}).json()
-    assert farms[0] == {"id": "sunamganj-haor", "name": "হাওরের ধানক্ষেত", "district": "সুনামগঞ্জ", "crop": "বোরো ধান"}
-    assert client.get("/api/v1/farms").json()[0]["name"] == "Haor Rice Field"
+    assert farms[0] == {"id": "dhaka-tomato", "name": "ধামরাইয়ের টমেটোক্ষেত", "district": "ঢাকা", "crop": "টমেটো"}
+    assert client.get("/api/v1/farms").json()[0]["name"] == "Dhamrai Tomato Field"
 
     d = client.get("/api/v1/farms/barind-wheat/dashboard", params={"lang": "bn"}).json()
     assert d["overall"]["summary"].startswith("আজই ব্যবস্থা নিন")
@@ -70,5 +70,5 @@ def test_api_speaks_the_requested_language():
 
     overview = client.get("/api/v1/map/overview", params={"lang": "bn"}).json()
     assert overview["layers"][0]["title"] == "বন্যার ঝুঁকি"
-    assert overview["farms"][1]["name"] == "বরেন্দ্রের গমক্ষেত"
+    assert overview["farms"][1]["name"] == "গোমতীর আমন ধানক্ষেত"
     assert client.get("/api/v1/farms", params={"lang": "fr"}).status_code == 422

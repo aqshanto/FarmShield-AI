@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { Check, Map as MapIcon, MapPin, MessageCircle, Pencil, Ruler, Satellite, Sprout, Trash2, X } from 'lucide-react'
+import { Check, Map as MapIcon, MapPin, MessageCircle, Pencil, Repeat, Ruler, Satellite, Sprout, Trash2, X } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Badge } from '@/components/ui/Badge'
@@ -30,6 +30,7 @@ const text = {
     pass: (ago: string) => `Satellite pass ${ago}`,
     seeMap: 'See on map',
     ask: 'Ask FarmShield',
+    rotation: 'Plan next year’s crops',
     demo: 'Demo data',
     demoTitle: 'Demo scenario. Set DATA_MODE=live for NASA data.',
     live: 'Live NASA data',
@@ -53,6 +54,7 @@ const text = {
     pass: (ago: string) => `উপগ্রহ গেছে ${ago}`,
     seeMap: 'মানচিত্রে দেখুন',
     ask: 'ফার্মশিল্ডকে জিজ্ঞেস করুন',
+    rotation: 'আগামী বছরের ফসল পরিকল্পনা',
     demo: 'ডেমো তথ্য',
     demoTitle: 'ডেমো পরিস্থিতি। নাসার তথ্যের জন্য DATA_MODE=live দিন।',
     live: 'নাসার লাইভ তথ্য',
@@ -174,6 +176,9 @@ export function FarmHeader({ dashboard, farms, myFarm, onFarmChange, onRemoveFar
           </Link>
           <Link to={`/assistant?farm=${encodeURIComponent(farm.id)}`} className={linkPill}>
             <MessageCircle className="size-3.5" aria-hidden="true" /> {t.ask}
+          </Link>
+          <Link to={`/rotation?farm=${encodeURIComponent(farm.id)}`} className={linkPill}>
+            <Repeat className="size-3.5" aria-hidden="true" /> {t.rotation}
           </Link>
           {dashboard.data_mode === 'sample' ? (
             <Badge tone="harvest" title={t.demoTitle}>

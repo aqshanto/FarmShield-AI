@@ -18,8 +18,8 @@ const text = {
     ask: 'Ask',
     eyebrowLive: 'Live right now',
     eyebrowDemo: 'Demo farms',
-    title: 'Three farms, three different stories',
-    intro: 'A flood-prone wetland, a drought-prone plateau and a river-plain potato field,',
+    title: 'Five farms, five different stories',
+    intro: 'A vegetable field near Dhaka, Cumilla’s Gomti rice field, a river-plain potato field, a drought-prone Barind plateau and a flood-prone haor wetland,',
     live: 'each read from today’s satellite data.',
     demo: 'shown with a demo scenario.',
     loading: 'Loading farms',
@@ -27,15 +27,15 @@ const text = {
   bn: {
     modules: { flood_risk: 'বন্যা', water_stress: 'পানি', crop_health: 'ফসল' } as Record<RiskModule, string>,
     risks: (name: string) => `${name}: ঝুঁকি`,
-    open: 'খামার খুলুন',
+    open: 'জমিটা দেখুন',
     ask: 'জিজ্ঞেস করুন',
-    eyebrowLive: 'এখনকার লাইভ তথ্য',
-    eyebrowDemo: 'ডেমো খামার',
-    title: 'তিনটি খামার, তিনটি আলাদা গল্প',
-    intro: 'বন্যাপ্রবণ জলাভূমি, খরাপ্রবণ বরেন্দ্র অঞ্চল আর নদী-অববাহিকার আলুক্ষেত,',
-    live: 'প্রতিটি আজকের উপগ্রহ তথ্য থেকে দেখা।',
+    eyebrowLive: 'এই মুহূর্তে লাইভ',
+    eyebrowDemo: 'ডেমো জমি',
+    title: 'পাঁচটি জমি, পাঁচটি আলাদা গল্প',
+    intro: 'ঢাকার পাশের সবজিক্ষেত, কুমিল্লার গোমতীর ধানক্ষেত, নদী-তীরের আলুক্ষেত, খরাপ্রবণ বরেন্দ্রের গমক্ষেত আর বন্যাপ্রবণ হাওরের ধানক্ষেত —',
+    live: 'প্রতিটিই আজকের স্যাটেলাইট ডেটা থেকে।',
     demo: 'ডেমো পরিস্থিতিতে দেখানো।',
-    loading: 'খামার লোড হচ্ছে',
+    loading: 'জমির ডেটা আসছে',
   },
 }
 
@@ -44,7 +44,7 @@ function FarmCard({ farm }: { farm: MapFarm }) {
   const lang = useLang()
   const t = useText(text)
   return (
-    <motion.li variants={fadeUp} className="h-full">
+    <motion.li variants={fadeUp} className="w-full md:w-[calc((100%-2rem)/3)]">
       <Card interactive glow={riskMeta[level].color} className="flex h-full flex-col gap-4 p-5">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -108,7 +108,7 @@ export function LiveFarms({ farms, live, failed }: { farms?: MapFarm[]; live: bo
           initial="hidden"
           whileInView="show"
           viewport={{ once: true, margin: '-60px' }}
-          className="grid gap-4 md:grid-cols-3"
+          className="flex flex-wrap justify-center gap-4"
         >
           {farms.map((farm) => (
             <FarmCard key={farm.id} farm={farm} />
@@ -116,7 +116,7 @@ export function LiveFarms({ farms, live, failed }: { farms?: MapFarm[]; live: bo
         </motion.ul>
       ) : (
         <div className="grid gap-4 md:grid-cols-3" role="status" aria-label={t.loading}>
-          {[0, 1, 2].map((i) => (
+          {[0, 1, 2, 3, 4].map((i) => (
             <Skeleton key={i} className="h-64 rounded-3xl" />
           ))}
         </div>

@@ -7,6 +7,7 @@ from app.data.places import DISTRICTS, DIVISIONS
 from app.i18n import bn, bn_of, translate
 from app.schemas.dashboard import Dashboard, FarmSummary, Recommendation, RiskModuleSummary
 from app.schemas.map import MapOverview, PointRisk
+from app.schemas.rotation import RotationPlan
 
 CROP_BN = {c.name.lower(): c.name_bn for c in CROPS}
 # Source lists mix mission names (kept: GPM, SMAP, NASA POWER…) with plain words.
@@ -107,3 +108,26 @@ def localize_overview(o: MapOverview, lang: str) -> MapOverview:
         f.name, f.district, f.crop = translate(f.name, lang), place_name(f.district, lang), crop_name(f.crop, lang)
         f.overall.summary = translate(f.overall.summary, lang)
     return o
+
+
+def _rotation_name(name: str, lang: str) -> str:
+    return " → ".join(crop_name(part, lang) for part in name.split(" → "))
+
+
+def localize_rotation(p: RotationPlan, lang: str) -> RotationPlan:
+    if lang != "bn":
+        return p
+    t = lambda text: translate(text, lang)  # noqa: E731
+    p = p.model_copy(deep=True)
+    p.crop = crop_name(p.crop, lang)
+    p.field_notes = [t(n) for n in p.field_notes]
+    for option in p.existing_options:
+        option.name = _rotation_name(option.name, lang)
+    for s in p.strategies:
+        s.name = _rotation_name(s.name, lang)
+        s.verdict = t(s.verdict)
+        for crop in s.crops:
+            crop.name = crop_name(crop.name, lang)
+        for field in ("why", "evidence", "benefits", "gaps", "risks"):
+            setattr(s, field, [t(x) for x in getattr(s, field)])
+    return p

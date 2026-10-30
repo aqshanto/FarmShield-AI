@@ -55,7 +55,7 @@ def test_map_overview_endpoint():
     assert body["data_mode"] == "sample"
     assert [layer["id"] for layer in body["layers"]] == ["flood_risk", "water_stress", "crop_health"]
     assert len(body["cells"]) == len(cell_centres())
-    assert {farm["id"] for farm in body["farms"]} == {"sunamganj-haor", "barind-wheat", "bogura-potato"}
+    assert {farm["id"] for farm in body["farms"]} == {"sunamganj-haor", "barind-wheat", "bogura-potato", "cumilla-aman", "dhaka-tomato"}
     haor = next(f for f in body["farms"] if f["id"] == "sunamganj-haor")
     assert haor["modules"]["flood_risk"] == {"score": 78, "level": "danger"}
 
