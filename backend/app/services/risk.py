@@ -2,10 +2,12 @@
 
 from app.schemas.dashboard import RiskLevel
 
+# As said in the overall summary ("Prepare now: {name} is rising"): each must read as a danger,
+# so "crop health is rising" (which sounds like good news) became "crop risk".
 MODULE_NAMES = {
     "flood_risk": "flood risk",
     "water_stress": "water stress",
-    "crop_health": "crop health",
+    "crop_health": "crop risk",
 }
 
 

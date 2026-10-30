@@ -116,6 +116,17 @@ class Recommendation(BaseModel):
     due: str
 
 
+class SmsPreview(BaseModel):
+    """The text message a farmer on a basic phone would get today (see app/services/sms.py)."""
+
+    lang: str
+    send: bool  # only a warning or danger sends a message
+    text: str = ""
+    length: int = 0  # characters, as the phone network counts them
+    parts: int = 0  # SMS parts the network would send
+    single_limit: int = 0  # characters that fit in one SMS: 160, or 70 for Bengali (Unicode)
+
+
 class Dashboard(BaseModel):
     farm: Farm
     generated_at: datetime
@@ -125,3 +136,5 @@ class Dashboard(BaseModel):
     modules: list[RiskModuleSummary]
     forecast: list[DayForecast]
     recommendations: list[Recommendation]
+    # The day's SMS in English and Bengali, whatever language the page is in.
+    sms: list[SmsPreview] = []

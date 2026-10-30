@@ -217,6 +217,16 @@ export interface MapOverview {
   grid_status?: string
 }
 
+/** The text message a farmer on a basic phone would get today. */
+export interface SmsPreview {
+  lang: 'en' | 'bn'
+  send: boolean // only a warning or danger sends a message
+  text: string
+  length: number // characters, as the phone network counts them
+  parts: number // SMS parts the network would send
+  single_limit: number // characters in one SMS: 160, or 70 for Bengali (Unicode)
+}
+
 export interface Dashboard {
   farm: Farm
   generated_at: string
@@ -226,6 +236,7 @@ export interface Dashboard {
   modules: RiskModuleSummary[]
   forecast: DayForecast[]
   recommendations: Recommendation[]
+  sms?: SmsPreview[] // the day's SMS in English and Bengali
 }
 
 export type SourceState = 'ok' | 'pending' | 'needs_token' | 'needs_approval' | 'error'

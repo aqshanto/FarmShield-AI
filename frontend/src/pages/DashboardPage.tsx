@@ -11,6 +11,7 @@ import type { FarmOption } from '@/features/farms/FarmPicker'
 import { ForecastStrip } from '@/features/dashboard/ForecastStrip'
 import { OverallCard } from '@/features/dashboard/OverallCard'
 import { RecommendationList } from '@/features/dashboard/RecommendationList'
+import { SmsPreviewCard } from '@/features/dashboard/SmsPreviewCard'
 import { DETAIL_PANEL_ID, RiskCard } from '@/features/dashboard/RiskCard'
 import { RiskDetailPanel } from '@/features/dashboard/RiskDetailPanel'
 import { FieldView } from '@/features/field/FieldView'
@@ -183,6 +184,12 @@ export function DashboardPage() {
         <motion.div variants={fadeUp}>
           <FieldView dashboard={data} />
         </motion.div>
+
+        {data.sms && data.sms.length > 0 && (
+          <motion.div variants={fadeUp}>
+            <SmsPreviewCard sms={data.sms} />
+          </motion.div>
+        )}
 
         <motion.section variants={fadeUp} aria-labelledby="risks-title" className="space-y-4">
           <h2 id="risks-title" className="text-xs font-bold tracking-[0.2em] text-leaf-300 uppercase">

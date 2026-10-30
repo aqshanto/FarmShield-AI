@@ -11,7 +11,7 @@ DIGITS = str.maketrans("0123456789", "০১২৩৪৫৬৭৮৯")
 
 # Same words as the risk badges (frontend lib/risk.ts) and the assistant.
 LEVELS = {"safe": "নিরাপদ", "watch": "নজরে রাখুন", "warning": "সতর্কতা", "danger": "বিপদ"}
-MODULES = {"flood risk": "বন্যার ঝুঁকি", "water stress": "পানির ঘাটতি", "crop health": "ফসলের স্বাস্থ্য"}
+MODULES = {"flood risk": "বন্যার ঝুঁকি", "water stress": "পানির ঘাটতি", "crop health": "ফসলের স্বাস্থ্য", "crop risk": "ফসলের ঝুঁকি"}
 CROPS = {
     "rice": "ধান",
     "wheat": "গম",
