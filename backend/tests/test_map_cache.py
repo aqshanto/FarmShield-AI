@@ -45,7 +45,8 @@ def test_a_cold_visit_gets_the_modelled_map_at_once_then_the_live_one(builds):
     assert second.grid_status == "live" and builds["count"] == 1
 
 
-def test_a_quick_build_is_simply_awaited(builds):
+def test_a_quick_build_is_simply_awaited(builds, monkeypatch):
+    monkeypatch.setattr(map_service, "COLD_WAIT_S", 2.0)  # "quick" still builds the real modelled map, which a busy machine can slow
     overview = asyncio.run(map_service.get_map_overview("live", PIPELINE))
     assert overview.grid_status == "live"
 

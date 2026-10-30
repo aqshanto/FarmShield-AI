@@ -6,8 +6,9 @@ re-fetching the same day simply updates it (providers revise recent data).
 
 import json
 import sqlite3
+import threading
 from collections.abc import Iterable, Iterator
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from pathlib import Path
@@ -75,20 +76,24 @@ class ObservationStore:
         self.path = str(path)
         if self.path != ":memory:":
             Path(self.path).parent.mkdir(parents=True, exist_ok=True)
-        # A shared in-memory DB needs one persistent connection; files open per call.
+        # A shared in-memory DB needs one persistent connection; files open per call. Risk
+        # assessments read it from worker threads while background fetches write to it, and
+        # one connection's transaction is shared by all of them, so calls take turns.
         self._memory = sqlite3.connect(":memory:", check_same_thread=False) if self.path == ":memory:" else None
+        self._memory_lock = threading.RLock()
         with self._connect() as db:
             db.executescript(SCHEMA)
 
     @contextmanager
     def _connect(self) -> Iterator[sqlite3.Connection]:
         db = self._memory or sqlite3.connect(self.path, timeout=10)
-        try:
-            yield db
-            db.commit()
-        finally:
-            if db is not self._memory:
-                db.close()
+        with self._memory_lock if db is self._memory else nullcontext():
+            try:
+                yield db
+                db.commit()
+            finally:
+                if db is not self._memory:
+                    db.close()
 
     # --- observations -----------------------------------------------------------------
     def upsert(self, location: str, observations: Iterable[Observation], fetched_at: datetime | None = None) -> int:
