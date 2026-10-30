@@ -2,6 +2,133 @@
 
 Short records of choices that shape the project. Newest first.
 
+## 2026-10-31: SMS alert preview
+
+| Topic | Decision | Why |
+|---|---|---|
+| When a text goes out | Only when the dashboard's overall level is warning or danger | A text should always mean "act now"; daily messages teach farmers to ignore them |
+| What it says | The overall summary + the most urgent advice for the worst risk, both already translated | The SMS can never disagree with the dashboard, and Bengali needs no second catalog |
+| Counting | As phone networks do: GSM alphabet 160 per SMS (153 per part), Unicode 70 (67 per part); Bengali is always Unicode | A Bengali SMS is less than half as long as an English one, so the advice must be short |
+| Typography | En dashes and curly quotes become plain ones | A single "–" forces Unicode and cuts an English SMS from 160 to 70 characters |
+| Field name | Added on its own line only if the message still fits in one SMS | Useful for farmers with several fields, but not worth a second paid SMS |
+| Both languages | The dashboard API returns the English and Bengali SMS whatever `lang` is | The card starts in Bengali (what farmers get) and switches instantly |
+| Scope | Preview only, nothing is sent | Sending needs an SMS gateway and farmers' phone numbers |
+| Wording bug | The overall summary said "Prepare now: crop health is rising", which reads like good news; it is now "crop risk" (ফসলের ঝুঁকি) | Found while checking the SMS: a warning must never sound like an improvement |
+
+Real-world check (30 Oct 2026, live data): Dhaka, Cumilla, Bogura and Sunamganj would get one
+Bengali SMS each (62–69 of 70 characters); Barind ("watch") gets none.
+
+## 2026-10-31: NASA downloads on a fresh server
+
+The live API (Render) had moved to a new server with an empty database. GPM, SMAP and VIIRS
+timed out at every farm on every refresh and never stored a reading.
+
+| Topic | Decision | Why |
+|---|---|---|
+| Cause | Reproduced locally with an empty database: the same 15 timeouts | All 40 source × farm jobs started at once on 8 shared connections, the 180 s limit counted the queueing, and a timed-out fetch saved nothing, so each refresh started over |
+| Jobs at a time | 4; a job's time limit starts when it gets its slot | Time is spent downloading, not waiting for a connection |
+| Long downloads | GPM and SMAP fetch an empty database's 60 days in 15-day pieces, oldest first, each saved as it arrives | After a timeout the next refresh carries on from the newest saved day instead of starting over |
+| Order | Sources marked `slow` (GPM, SMAP, VIIRS) queue after the quick ones | After a restart, terrain and climate normals waited ~6 min behind the satellite archives, leaving the rotation planner and haor detection without data |
+| VIIRS time limit | 420 s (others 180 s) | Its 11-year normal is ~44 requests per farm to a slow archive, fetched once a month; with the new order its five farms run together |
+| Messages | "timed out after 180 s", and how much was saved | The old error text was empty ("TimeoutError") |
+
+Real-world check (live server, 30 Oct 2026, empty database): 40 of 40 jobs ok; POWER ready in
+3 s, terrain ~25 s, VIIRS ~4 min, GPM ~4.5 min, SMAP ~5.5 min. Render's free disk starts empty
+after every deploy, so this happens each time.
+
+## 2026-10-31: Rainfall cross-check
+
+| Topic | Decision | Why |
+|---|---|---|
+| Second source | NASA POWER's own daily rain is drawn as a line over GPM's bars | Two NASA sources agreeing on which days rained is easy to see and to trust |
+| Honest totals | The caption gives POWER's 30-day total too, and says it averages a much larger area | Near Dhaka GPM measured 46 mm and POWER 25 mm for the same days; hiding that would mislead |
+| When shown | Only when GPM has data | Without GPM the bars already are POWER |
+| Latest reading | A dashed marker and "Latest: 28 Oct" label; later days are striped | Satellite rain arrives ~3 days late; empty days looked like days without rain |
+
+## 2026-10-30: One soil-moisture reading everywhere
+
+The dashboard said the Dhaka field's topsoil was 86% wet while the data page said 48%.
+
+| Topic | Decision | Why |
+|---|---|---|
+| Cause | SMAP (m³/m³) was divided by a fixed 0.50 porosity in Bangladesh; the data page showed POWER's own wetness | Live SMAP ÷ POWER ranged from 0.33 (Sunamganj haor) to 0.59 (Dhaka): no single value fits Bangladesh |
+| Calibration | Every field: median SMAP ÷ POWER over the last 30 days of shared days, clamped 0.30–0.60 | Puts SMAP on POWER's 0–100% scale, the usual way soil-moisture products are blended |
+| Noisy passes | Median of a week's SMAP passes | Dhaka swung between 0.30 and 0.47 from pass to pass |
+| Stuck pixels | Drop runs of 3+ identical passes | Giza once read 0.451 on 8 passes while POWER said the soil was dry |
+| Can't reconcile | SMAP ÷ POWER outside 0.15–1.0 → POWER alone | Open water or a city in SMAP's footprint |
+| One reading | `inputs.topsoil()` feeds the flood card, water card, map grid and data page | They can no longer disagree |
+
+Real-world check (30 Oct 2026): dashboard and data page both read Dhaka 62%, Cumilla 55%,
+Bogura 51%, Barind 55%, Sunamganj 55%.
+
+## 2026-10-30: Haor land in the rotation planner
+
+| Topic | Decision | Why |
+|---|---|---|
+| Detection | Bangladesh, ≤ 12 m (SRTM), April already a wet month and a monsoon peak ≥ 16 mm/day (POWER) | The April flash floods set the haor apart: Barisal is as wet and as low, but its rains start in May |
+| Flood months | Each wet month shifted one month later (May–October for Sunamganj) | The haor stays under water until the rain has drained from the hills |
+| Ideas | Dry-season patterns only: single Boro, Mustard → Boro, wheat, maize, lentil, potato; never Aman | Single Boro is the haor's own pattern; the others fit its higher edges |
+| Timeline | Flood months drawn as water, not bare land, and not counted as bare | A drowned field isn't an idle field |
+| Advice | Flash-flood risk before the harvest, "how high is your field inside the haor" as a gap, no groundwater warning for Boro | Haor Boro is watered from the beels and rivers |
+| Known miss | Baniachong (Habiganj) reads 16 m on SRTM and is treated as ordinary land | Calling a non-haor field haor would hide good Aman ideas; a miss is the safer error |
+
+Checked on 10 places: Tanguar, Hakaluki, Itna and Khaliajuri are haor; Barisal, Gopalganj,
+Sirajganj, Kurigram and Sylhet town are not.
+
+## 2026-10-30: Rotation planner
+
+| Topic | Decision | Why |
+|---|---|---|
+| What it compares | The farmer's current rotation + three ideas | The challenge asks for at least three strategies including the existing one |
+| Scores | Six things farmers weigh: soil 25%, water 20%, climate fit 20%, income 15%, pest break 10%, family food 10%; chosen priorities count double | A rotation is a trade-off; the farmer decides what matters |
+| Evidence | NASA POWER monthly normals (rain, highs, lows), SRTM height, MODIS greenness against the VIIRS normal | Each idea says what it's based on |
+| Bangladesh patterns | 11 common BRRI/BARI cropping patterns with their usual months | Real patterns farmers know, not invented combinations |
+| Elsewhere | The year split into three seasons from the place's own climate, starting with its wettest four months | Bangladeshi calendars don't travel |
+| Labels | "Best match for your priorities", "Better than now" / "Weaker than now" (≥ 5 points), "Similar to now" | Plain words instead of a ranking table |
+| Every idea | Why, evidence, what it may offer, what we don't know yet, what to check locally | The challenge's five questions, answered for each strategy |
+| Farmer first | "Your judgment comes first": ideas to discuss with the local agriculture officer, not orders | Typical crop values can't know a farmer's land, family or market |
+
+Crop values used (typical for Bangladesh; **exact sources still to be recorded and checked
+with local experts**):
+
+| Crop | Comfortable daily highs | Water need (season) | Main thing to check locally |
+|---|---|---|---|
+| Boro rice | 22–34°C | 1,100 mm | Groundwater pumping is falling in many areas |
+| Aman rice | 27–35°C | 650 mm | |
+| Aus rice | 27–36°C | 600 mm | |
+| Wheat | 18–28°C | 350 mm | Sown after November, it meets March heat while the grain fills |
+| Maize | 20–33°C | 500 mm | Needs good drainage and plenty of fertiliser |
+| Potato | 16–27°C | 450 mm | Costly seed and cold storage |
+| Tomato | 18–30°C | 450 mm | Prices swing a lot at harvest |
+| Mustard | 16–28°C | 250 mm | Sow a short-duration variety so the next crop isn't late |
+| Lentil | 16–28°C | 200 mm | Humid winter weeks can bring Stemphylium blight |
+| Mungbean | 28–37°C | 300 mm | Early monsoon rain can spoil pods at harvest |
+| Jute | 28–37°C | 500 mm | Needs a pond or canal nearby to ret the stems |
+
+## 2026-10-30: Bengali wording
+
+| Topic | Decision | Why |
+|---|---|---|
+| Field | জমি / ক্ষেত, not খামার | খামার suggests a livestock or poultry farm |
+| Satellite | স্যাটেলাইট, not উপগ্রহ | The word farmers hear on TV and from extension workers |
+| Data | ডেটা, not তথ্য, where it means data | তথ্য stays where it means information or sources (তথ্যসূত্র) |
+| Map | ম্যাপ, not মানচিত্র | Everyday word |
+
+Applied to every page and to the server's Bengali text; `docs/bangla-wording-audit.md` lists
+each string.
+
+## 2026-10-30: Live server hardening
+
+| Topic | Decision | Why |
+|---|---|---|
+| Rate limits | Per visitor per minute: assistant chat 10, data refresh 3, map spot 20, place search 20, locate 30, own fields 30, everything else 240 | Many endpoints make the server download from NASA, OpenStreetMap or weather services (or call Claude); one script could get our address blocked or run up AI costs |
+| Visitor address | The last entry Render's proxy appended to `X-Forwarded-For` | Earlier entries can be typed by the visitor |
+| Headers | `nosniff`, `strict-origin-when-cross-origin`, `X-Frame-Options: DENY`, cross-origin resource policy for the website's domain | Basic protection on a public API |
+| Data refresh | Anyone may ask, at most every 30 min; `force` (re-download everything) needs the `ADMIN_TOKEN` header | The Data page has a refresh button; a forced refresh re-downloads every source for every farm |
+| Chat size | 2,000 characters per message, 30 messages per request | Caps the cost of one request |
+| Place names | Photon (komoot, OpenStreetMap, no key) when Nominatim refuses | Nominatim blocks some cloud server addresses outright |
+| New server | API moved to `farmshield-api-2.onrender.com` | The first Render service used up its free monthly hours |
+
 ## 2026-10-01: Global map, Stage B (farms anywhere)
 
 | Topic | Decision | Why |

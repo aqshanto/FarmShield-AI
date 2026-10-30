@@ -3,7 +3,8 @@
 NASA-powered climate intelligence for farmers. FarmShield AI turns satellite data
 (SMAP, GPM, MODIS, VIIRS) into simple, visual flood, water-stress and crop-health
 advice, in English and Bengali: one switch in the header turns every page, number and date
-into Bengali.
+into Bengali. It also plans next year's crops (comparing the current rotation with three
+ideas, haor land included) and previews the SMS a farmer on a basic phone would get today.
 
 Built for the NASA Space Apps Challenge.
 
@@ -17,6 +18,7 @@ Built for the NASA Space Apps Challenge.
 | Farm dashboard | https://farm-shield-ai-pi.vercel.app/dashboard |
 | Risk map (Bangladesh + the world) | https://farm-shield-ai-pi.vercel.app/map |
 | AI Farmer Assistant (English / বাংলা) | https://farm-shield-ai-pi.vercel.app/assistant |
+| Rotation planner | https://farm-shield-ai-pi.vercel.app/rotation |
 | Add my farm | https://farm-shield-ai-pi.vercel.app/farms/new |
 | NASA data | https://farm-shield-ai-pi.vercel.app/data |
 | API health | https://farmshield-api-2.onrender.com/api/v1/health |

@@ -14,7 +14,8 @@ set `VITE_API_BASE_URL` to the deployed API.
 
 | Path | Responsibility |
 |---|---|
-| `app/main.py` | `create_app()` factory: CORS, router mounting |
+| `app/main.py` | `create_app()` factory: CORS, rate limits and security headers, router mounting |
+| `app/core/security.py` | Per-visitor rate limits per minute (chat 10, data refresh 3, map spot and place search 20, everything else 240) and security headers |
 | `app/core/config.py` | Typed settings from env vars / `.env` (pydantic-settings) |
 | `app/api/v1/router.py` | Aggregates v1 routers; each feature adds one line here |
 | `app/api/v1/endpoints/` | One module per feature (`meta.py` today) |
@@ -35,7 +36,8 @@ set `VITE_API_BASE_URL` to the deployed API.
 | GET | `/api/v1/sources` | NASA sources (SMAP, GPM, MODIS, VIIRS) |
 | GET | `/api/v1/region/default` | Default focus region (Bangladesh) |
 | GET | `/api/v1/farms` | Farm list (id, name, district, crop) |
-| GET | `/api/v1/farms/{id}/dashboard` | Everything the dashboard shows (404 for unknown farms) |
+| GET | `/api/v1/farms/{id}/dashboard` | Everything the dashboard shows, including the day's SMS in English and Bengali (404 for unknown farms) |
+| GET | `/api/v1/farms/{id}/rotation?priorities&irrigation&existing` | The rotation planner: the current rotation and three ideas, with evidence (409 in demo mode) |
 | GET | `/api/v1/map/overview` | Risk grid (0.2° cells × 3 layers), layer metadata, farms with levels |
 | GET | `/api/v1/map/point?lat&lon&crop` | Live flood, water and crop risk for any spot on Earth, with place name and top actions (409 in demo mode) |
 | GET | `/api/v1/assistant/status` | Which assistant engine answers (`claude` or `offline`) |
@@ -90,6 +92,7 @@ types to `types/api.ts`, then add a route in `app/router.tsx`.
 | Risk cards | `features/dashboard/RiskCard.tsx` | Whole card is one button (`aria-expanded`), metrics with NASA source, 7-day change |
 | Details | `features/dashboard/RiskDetailPanel.tsx` | Explanation, `TrendChart`, plain-language source descriptions |
 | Forecast | `features/dashboard/ForecastStrip.tsx` | 7 days, rain columns, heavy-rain / very-hot callouts |
+| SMS | `features/dashboard/SmsPreviewCard.tsx` | The day's SMS on a basic phone (typing in, a buzz), Bengali/English switch, length meter, quiet state (see below) |
 
 `lib/useAsync.ts` is the data-fetching hook: keyed requests, abort on change, previous
 data kept while loading, `retry()`.
@@ -112,7 +115,13 @@ sources (fetch) ──► clean & grade ──► SQLite store ──► serve (
 | all four | `catalog.py`: CMR granule search | none | Newest granule time per mission |
 
 **How it runs** (`service.PipelineService`):
-- Every (source × farm) job runs concurrently, with a timeout and **isolated failures**.
+- (source × farm) jobs run **4 at a time**, quick sources first: the ones marked `slow` (GPM, SMAP,
+  VIIRS) queue last, so weather, terrain and climate normals are ready within ~30 s of a restart.
+- Each job has a time limit that starts when it gets its slot: 180 s, or the source's own
+  `timeout_s` (VIIRS 420 s). Failures are **isolated**: one source never stops the others.
+- **Long windows in pieces:** sources with `chunk_days` (GPM, SMAP: 15) fetch an empty database's
+  60 days oldest first and save each piece as it arrives; after a timeout the next refresh
+  carries on from the newest saved day.
 - **Cache-aware:** each source has a TTL, so fresh data isn't re-downloaded.
 - **Incremental:** only days after the newest stored day, minus an overlap (providers revise recent data).
 - Slow or cloud-prone data (NDVI) always looks back 120 days.
@@ -132,10 +141,21 @@ and the CLI `python -m app.pipeline refresh|status`.
 |---|---|---|
 | GET | `/api/v1/data/status` | Sources' state, mission freshness (CMR), last run summary |
 | POST | `/api/v1/data/refresh` | 202; starts a background refresh (`?force=true` ignores cache) |
-| GET | `/api/v1/farms/{id}/observations?days=60` | Merged series per variable, with provenance |
+| GET | `/api/v1/farms/{id}/observations?days=60` | Merged series per variable, with provenance; plus `topsoil` (the reading the risk cards use), `smap_wetness` (calibrated SMAP) and `power_rain` (POWER's own rain, to cross-check GPM) |
 
 **Frontend:** `/data` (`pages/DataPage.tsx`, `features/data/`) shows the pipeline flow,
 the missions' states, a token how-to, and the farm's charts via `components/ui/TimeSeriesChart.tsx`.
+The rain chart draws POWER as a line over GPM's bars and marks the latest reading (later days
+striped: satellite rain arrives ~3 days late); the soil chart shows calibrated SMAP passes as
+dots on POWER's line.
+
+**Topsoil, one reading everywhere** (`risk/inputs.py`): SMAP measures m³/m³, POWER a 0–1
+fraction of saturation. For every field, SMAP ÷ POWER over the last 30 days of shared days
+(median, clamped 0.30–0.60; 0.50 until there are 3 days) is that soil's porosity, and SMAP
+divided by it is on POWER's scale. Before that, runs of 3+ identical passes (a stuck pixel) are
+dropped and each pass becomes the median of the week's passes; if SMAP ÷ POWER falls outside
+0.15–1.0, SMAP is ignored at that spot. `topsoil()` (SMAP within 5 days, else POWER) feeds the
+flood and water engines, the map grid (the farms' median porosity) and the data page.
 
 ## Flood risk engine (`backend/app/risk/`)
 
@@ -144,7 +164,7 @@ An explainable scorecard. Each factor is scored 0–100 and weighted:
 | Factor | Weight | Inputs | Scale |
 |---|---|---|---|
 | Water arriving | 40% | Rain in the last 3 days + the next 3 (GPM → POWER → forecast) | 200 mm over the 6 days = 100 |
-| Ground is full | 25% | Soil saturation: SMAP ÷ 0.50 porosity, else POWER wetness | 40% → 0, 90% → 100 |
+| Ground is full | 25% | Soil saturation: calibrated SMAP, else POWER wetness (see *Topsoil* above) | 40% → 0, 90% → 100 |
 | Unusually wet | 15% | Last 7 days against the NASA POWER normal for this month | normal → 0, 3× → 100 |
 | Low-lying land | 20% | NASA SRTM elevation | ≥ 40 m → 0, ≤ 8 m → 100 |
 
@@ -157,7 +177,7 @@ An explainable scorecard. Each factor is scored 0–100 and weighted:
 | File | Role |
 |---|---|
 | `flood.py` | Pure engine: `assess_flood`, `score_factors`, `flood_trend`, advice per level |
-| `inputs.py` | Pipeline observations → `FloodInputs` (source preference, SMAP freshness, porosity) |
+| `inputs.py` | Pipeline observations → engine inputs (source preference, SMAP cleaning and calibration, the shared topsoil reading) |
 | `live.py` | Engine → dashboard module, recommendations, and the live 7-day forecast (WMO codes) |
 | `grid.py` weather | Open-Meteo multi-point, sampled on a 0.4° lattice (each point serves the 0.2° cells around it), cached 6 h. When Open-Meteo refuses: the past 30 days from **NASA POWER's regional daily grid** (one request per variable: rain, high and mean temperature, humidity; ~2 days behind) and the next days from **MET Norway** on a 1° lattice. If both fail, the last good reading. `grid_status` on `/map/overview` says which weather the live grid used |
 | `water.py` | Water-stress engine + irrigation decision (see below) |
@@ -189,7 +209,7 @@ Earthdata errors are explained:
 
 | Factor | Weight | Inputs | Scale |
 |---|---|---|---|
-| Topsoil drying | 25% | SMAP ÷ porosity (a fresh SMAP reading is preferred over newer POWER ones), else POWER | 75% wet → 0, 25% → 100 |
+| Topsoil drying | 25% | Calibrated SMAP (a fresh SMAP reading is preferred over newer POWER ones), else POWER | 75% wet → 0, 25% → 100 |
 | Roots are thirsty | 20% | NASA POWER root-zone wetness | 80% → 0, 35% → 100 |
 | Rain shortfall | 20% | Last 30 days against the NASA POWER monthly normals | normal → 0, none → 100 |
 | Heat | 15% | Daily highs, 3 days back + 3 ahead (POWER + forecast) | 30°C → 0, 40°C → 100 |
@@ -281,9 +301,8 @@ calibration. Elsewhere:
 - *Terrain:* SRTM is read at the field and 8 points ~2 km around it (one OpenTopoData request);
   the flood engine scores the height above the lowest land nearby (≤3 m → 100, ≥25 m → 0)
   instead of height above sea level, which only fits deltas.
-- *Soil:* SMAP volumetric moisture ÷ NASA POWER surface wetness (a fraction of saturation) on
-  days with both estimates that soil's porosity (0.30–0.60; needs ≥3 days, else 0.50), so
-  "saturation" means the same on sand and clay.
+- *Soil:* SMAP is calibrated against NASA POWER per field, as in Bangladesh since 30 Oct (see
+  *Topsoil* in the pipeline section), so "saturation" means the same on sand and clay.
 - *Calendar:* "today" is the farm's own day (longitude ÷ 15 h).
 
 ```
@@ -317,7 +336,8 @@ Notes:
   `app/i18n/__init__.py` `translate()` splits sentences, fills slots and converts digits;
   `app/i18n/localize.py` translates a whole dashboard, farm list or map overview
   (names, places, crops, sources, metric units).
-- **API:** `?lang=bn` on `GET /farms`, `GET /farms/{id}/dashboard`, `GET /map/overview`.
+- **API:** `?lang=bn` on `GET /farms`, `GET /farms/{id}/dashboard`, `GET /farms/{id}/rotation`, `GET /map/overview`.
+- **Wording:** জমি / ক্ষেত (not খামার), স্যাটেলাইট, ডেটা (where it means data), ম্যাপ.
 - **Tests:** `backend/tests/test_i18n.py` fails if any engine or demo sentence has no Bengali.
 
 ## Living field view (`features/field/`)
@@ -339,6 +359,34 @@ Rules:
 - **Accessible.** The scene and every stage meter have text names; colours change through CSS transitions; reduced motion stops the sway, waves and rain.
 
 The design-system page has a gallery of all four stages for every crop and risk.
+
+## Rotation planner (`/rotation`, `backend/app/risk/rotation.py`)
+
+Compares the farmer's current rotation with three ideas, scored 0–100 on soil health (25%),
+water use (20%), climate fit (20%), income (15%), pest-cycle break (10%) and family food (10%).
+The farmer's chosen priorities count double; "no dry-season irrigation" penalises thirsty ideas.
+
+| Piece | Where | Notes |
+|---|---|---|
+| Field facts | `services/rotation_plan.py` | NASA POWER monthly normals (rain, highs, lows), SRTM height, MODIS greenness vs the VIIRS normal |
+| Patterns | `rotation.py` | Bangladesh: 11 BRRI/BARI cropping patterns with their usual months. Elsewhere: three seasons from the place's own climate |
+| Haor | `rotation.py` `haor()` | Bangladesh, ≤ 12 m, April already wet, monsoon peak ≥ 16 mm/day. Flood months (each wet month + 1) are water, not bare land; only dry-season patterns (single Boro, Mustard → Boro, wheat, maize, lentil, potato) |
+| Explanations | `rotation.py` `explain()` | Why, NASA evidence, benefits, gaps, local risks for every idea; translated by `app/i18n` |
+| Page | `pages/RotationPage.tsx`, `features/rotation/` | Priorities, irrigation and current rotation each re-plan; `ClimateStrip` (the field's usual year), `StrategyCard` with `YearTimeline` (crops, bare and flood months) |
+
+Every plan ends with "Your judgment comes first": ideas to discuss with the local agriculture
+officer. Crop values and their open questions are in `docs/DECISIONS.md`.
+
+## SMS alert preview (`services/sms.py`)
+
+What a farmer with a basic phone would get today, built from the finished dashboard:
+- **When:** only on an overall warning or danger, so a text always means "act now".
+- **Text:** the overall summary + the most urgent advice for the worst risk, in each language
+  (the dashboard endpoint localises a copy for Bengali, so both come in every response).
+- **Counting:** GSM alphabet 160 characters per SMS (153 per part), Unicode 70 (67 per part);
+  Bengali is always Unicode. Typographic dashes and quotes become plain ones, and the field's
+  name is added on its own line only if the message still fits in one SMS.
+- Nothing is sent: that needs an SMS gateway and farmers' phone numbers.
 
 ## Home page (`/`) and app polish
 
