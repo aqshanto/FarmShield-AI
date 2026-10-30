@@ -11,6 +11,7 @@ GSM) needs Unicode: only 70 characters in one SMS, 67 per part.
 
 from math import ceil
 
+from app.i18n.localize import localize_dashboard
 from app.schemas.dashboard import Dashboard, SmsPreview
 
 SENDS_ON = ("warning", "danger")
@@ -43,6 +44,12 @@ def sms_parts(text: str) -> tuple[int, int, int]:
 def _sentence(text: str, lang: str) -> str:
     end = "।" if lang == "bn" else "."
     return text if text.endswith(("।", ".", "!", "?")) else text + end
+
+
+def sms_messages(english: Dashboard, custom_name_given: bool = False) -> list[SmsPreview]:
+    """The day's SMS in English and Bengali, from the English dashboard."""
+    bengali = localize_dashboard(english, "bn", custom_name_given=custom_name_given)  # a copy
+    return [sms_preview(english, "en"), sms_preview(bengali, "bn")]
 
 
 def sms_preview(d: Dashboard, lang: str) -> SmsPreview:

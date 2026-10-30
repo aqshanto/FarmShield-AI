@@ -187,7 +187,7 @@ export function DashboardPage() {
 
         {data.sms && data.sms.length > 0 && (
           <motion.div variants={fadeUp}>
-            <SmsPreviewCard sms={data.sms} />
+            <SmsPreviewCard farmId={data.farm.id} sms={data.sms} />
           </motion.div>
         )}
 

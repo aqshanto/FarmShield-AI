@@ -47,9 +47,25 @@ class Settings(BaseSettings):
     # Optional secret for maintainers: send it as the X-Admin-Token header to force a full NASA
     # re-download. Without it anyone may still ask for a normal (cache-aware) refresh.
     admin_token: str | None = None
+    # Real SMS through Twilio (optional; without these the SMS card only previews and logs).
+    # Texts go only to the numbers in SMS_TEST_NUMBERS (comma-separated, +8801…), never to a
+    # number typed on the website, so visitors can't send SMS through the server.
+    twilio_account_sid: str | None = None
+    twilio_auth_token: str | None = None
+    twilio_from: str | None = None  # a Twilio number (+1…) or a Messaging Service SID (MG…)
+    sms_test_numbers: str = ""
+    sms_daily_limit: int = 10  # real sends per day, to protect the gateway credit
     assistant_model: str = "claude-opus-5-5"
     # Chat replies are short and grounded in facts we supply, so low effort keeps them fast.
     assistant_effort: Literal["low", "medium", "high"] = "low"
+
+    @property
+    def sms_numbers(self) -> list[str]:
+        return [n.strip() for n in self.sms_test_numbers.split(",") if n.strip()]
+
+    @property
+    def real_sms_ready(self) -> bool:
+        return bool(self.twilio_account_sid and self.twilio_auth_token and self.twilio_from and self.sms_numbers)
 
     @property
     def cors_origin_list(self) -> list[str]:

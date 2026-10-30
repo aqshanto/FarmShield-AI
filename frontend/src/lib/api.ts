@@ -16,6 +16,8 @@ import type {
   MapOverview,
   PointRisk,
   RotationPlan,
+  SmsLogEntry,
+  SmsStatus,
   RotationQuery,
   Places,
   Region,
@@ -88,6 +90,12 @@ export const api = {
   crops: (init?: RequestInit, region: 'bangladesh' | 'world' = 'bangladesh') =>
     request<CropOption[]>(region === 'world' ? '/crops?region=world' : '/crops', init),
   locate: (lat: number, lon: number, init?: RequestInit, lang?: Lang) => request<LocateResult>(`/locate${langQuery(lang, `lat=${lat}&lon=${lon}`)}`, init),
+  smsStatus: (init?: RequestInit) => request<SmsStatus>('/sms/status', init),
+  smsHistory: (farmId: string, lang: Lang, init?: RequestInit) =>
+    request<SmsLogEntry[]>(`/sms/history/${encodeURIComponent(farmId)}?lang=${lang}`, init),
+  // Texts today's SMS to the maintainers' own phones (set on the server), never to a typed number.
+  smsSend: (farmId: string, lang: Lang) =>
+    request<{ sent: number; failed: number; message: string }>(`/sms/send/${encodeURIComponent(farmId)}?lang=${lang}`, { method: 'POST' }),
   searchPlaces: (query: string, init?: RequestInit, lang?: Lang) =>
     request<FoundPlace[]>(`/places/search${langQuery(lang, new URLSearchParams({ q: query }).toString())}`, init),
 }

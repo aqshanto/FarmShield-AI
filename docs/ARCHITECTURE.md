@@ -386,7 +386,17 @@ What a farmer with a basic phone would get today, built from the finished dashbo
 - **Counting:** GSM alphabet 160 characters per SMS (153 per part), Unicode 70 (67 per part);
   Bengali is always Unicode. Typographic dashes and quotes become plain ones, and the field's
   name is added on its own line only if the message still fits in one SMS.
-- Nothing is sent: that needs an SMS gateway and farmers' phone numbers.
+- **Daily log** (`services/sms_delivery.py`, `sms_log` table): after each NASA refresh the
+  server writes every demo farm's SMS for the day, or "quiet", once per farm per day.
+- **Real sending:** Twilio's REST API, only to `SMS_TEST_NUMBERS`; capped by `SMS_DAILY_LIMIT`
+  (messages a day) and the rate limiter (3 requests a minute). Numbers are never stored, and
+  Twilio errors are kept as plain-language codes. Setup: `docs/DEPLOY.md`.
+
+| Method | Path | Returns |
+|---|---|---|
+| GET | `/api/v1/sms/status` | Whether real sending is set up, how many team phones, messages sent today, daily limit |
+| GET | `/api/v1/sms/history/{id}?lang` | The farm's SMS log, newest first (daily rows and real sends) |
+| POST | `/api/v1/sms/send/{id}?lang=bn` | Texts today's SMS to the team's phones (409 when not set up, quiet, or over the limit) |
 
 ## Home page (`/`) and app polish
 

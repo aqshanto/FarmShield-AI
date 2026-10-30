@@ -9,7 +9,7 @@ from app.pipeline import farm_locations
 from app.data.sample.farms import SAMPLE_FARMS
 from app.i18n import Lang
 from app.i18n.localize import localize_dashboard, localize_farms, localize_rotation
-from app.services.sms import sms_preview
+from app.services.sms import sms_messages
 from app.risk.live import (
     SOURCE_NAMES,
     crop_module,
@@ -46,9 +46,8 @@ async def dashboard(
 ) -> Dashboard:
     """A demo farm, or a farmer's own field (`my_<lat>_<lon>_<crop>`, see /locate and /crops)."""
     english = await load_dashboard(farm_id, settings.data_mode, pipeline, name, lang)
-    bengali = localize_dashboard(english, "bn", custom_name_given=bool(name))  # a copy: `english` stays English
-    page = bengali if lang == "bn" else english
-    return page.model_copy(update={"sms": [sms_preview(english, "en"), sms_preview(bengali, "bn")]})
+    page = localize_dashboard(english, lang, custom_name_given=bool(name))  # a copy: `english` stays English
+    return page.model_copy(update={"sms": sms_messages(english, custom_name_given=bool(name))})
 
 
 @router.get("/{farm_id}/rotation", response_model=RotationPlan)

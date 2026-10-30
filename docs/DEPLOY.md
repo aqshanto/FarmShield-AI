@@ -37,6 +37,7 @@ git push
    | `CORS_ORIGIN_REGEX` | Optional, for Vercel preview links, e.g. `https://farmshield-[a-z0-9-]+\.vercel\.app` |
    | `EARTHDATA_TOKEN` | Optional: your NASA Earthdata token (GPM and SMAP) |
    | `ANTHROPIC_API_KEY` | Optional: turns on Claude answers in the assistant |
+   | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM`, `SMS_TEST_NUMBERS` | Optional: real SMS to the team's phones (see *Real SMS* below) |
 
 4. Click **Apply**, then wait for the build to finish.
 5. Open `https://<your-service>.onrender.com/api/v1/health`. It should show `"status":"ok"`.
@@ -87,3 +88,36 @@ save. Render redeploys automatically.
 | Memory | The free plan has 512 MB. If the API restarts under load, set `DATA_MODE=sample` for a light, dramatic demo. |
 | Every push redeploys | Both hosts rebuild on each push to `main`. Vercel also makes a preview URL for other branches; allow those with `CORS_ORIGIN_REGEX`. |
 | CORS errors | `CORS_ORIGINS` must match the site address exactly: `https`, no trailing slash. |
+
+## Real SMS (optional, Twilio)
+
+Without these settings the dashboard's SMS card still previews the day's message and keeps
+the automatic daily log. With them, a **Send to our team phones** button texts the message
+to the numbers you list, and to no one else.
+
+1. Create a free Twilio account at twilio.com (the trial comes with a little credit).
+2. **Verify each team phone:** Phone Numbers → Manage → Verified Caller IDs. A trial account
+   can only text verified numbers.
+3. **Allow Bangladesh:** Messaging → Settings → Geo permissions → tick Bangladesh.
+4. Get a Twilio phone number (Phone Numbers → Buy a number; the trial covers one). This is
+   `TWILIO_FROM`.
+5. On Render, open **farmshield-api → Environment** and add:
+
+   | Variable | Value |
+   |---|---|
+   | `TWILIO_ACCOUNT_SID` | From the Twilio console home page (starts with `AC`) |
+   | `TWILIO_AUTH_TOKEN` | From the same page |
+   | `TWILIO_FROM` | The Twilio number, e.g. `+15551234567` |
+   | `SMS_TEST_NUMBERS` | The verified team numbers, comma-separated, e.g. `+8801711111111,+8801822222222` |
+   | `SMS_DAILY_LIMIT` | Optional, default 10 messages a day |
+
+6. Save; Render redeploys. `https://<your-service>.onrender.com/api/v1/sms/status` should
+   show `"real_sending":true`, and the button appears on the dashboard's SMS card.
+
+Notes:
+- The trial adds "Sent from your Twilio trial account" to each message, so it may arrive in
+  more than one SMS part.
+- Some Bangladeshi operators filter SMS from foreign numbers. Send a test early; the card's
+  log shows "Not delivered" with Twilio's reason if Twilio refuses it.
+- The numbers stay in Render's settings: they are never stored, logged or shown on the site.
+

@@ -12,7 +12,10 @@ Short records of choices that shape the project. Newest first.
 | Typography | En dashes and curly quotes become plain ones | A single "–" forces Unicode and cuts an English SMS from 160 to 70 characters |
 | Field name | Added on its own line only if the message still fits in one SMS | Useful for farmers with several fields, but not worth a second paid SMS |
 | Both languages | The dashboard API returns the English and Bengali SMS whatever `lang` is | The card starts in Bengali (what farmers get) and switches instantly |
-| Scope | Preview only, nothing is sent | Sending needs an SMS gateway and farmers' phone numbers |
+| Daily log | After each NASA refresh the server writes every demo farm's SMS for the day (or "no SMS needed"), once per farm per day; the card shows the last 7 | Shows the alerting runs by itself, with no gateway or account |
+| Real sending | Twilio's REST API, only to `SMS_TEST_NUMBERS` from the server settings, 3 requests a minute and `SMS_DAILY_LIMIT` messages a day | Proves delivery to a real phone, while no visitor can text an arbitrary number or use up the credit |
+| Phone numbers | Never stored, logged or returned; Twilio's error text is replaced by its error code in plain words | Twilio's messages can quote the number, and the log is public |
+| Farmers | Not texted yet | That needs farmers' consent and numbers, and a Bangladeshi SMS gateway with a registered sender |
 | Wording bug | The overall summary said "Prepare now: crop health is rising", which reads like good news; it is now "crop risk" (ফসলের ঝুঁকি) | Found while checking the SMS: a warning must never sound like an improvement |
 
 Real-world check (30 Oct 2026, live data): Dhaka, Cumilla, Bogura and Sunamganj would get one

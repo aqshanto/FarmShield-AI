@@ -6,8 +6,9 @@ re-fetching the same day simply updates it (providers revise recent data).
 
 import json
 import sqlite3
+import threading
 from collections.abc import Iterable, Iterator
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from pathlib import Path
@@ -47,6 +48,21 @@ CREATE TABLE IF NOT EXISTS cache (
     value      TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
+
+-- The SMS log: one automatic "daily" row per farm per day, plus every real send.
+CREATE TABLE IF NOT EXISTS sms_log (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    location   TEXT NOT NULL,
+    day        TEXT NOT NULL,
+    channel    TEXT NOT NULL,
+    status     TEXT NOT NULL,
+    text_en    TEXT NOT NULL DEFAULT '',
+    text_bn    TEXT NOT NULL DEFAULT '',
+    detail     TEXT,
+    sent       INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS sms_log_daily_once ON sms_log (location, day) WHERE channel = 'daily';
 """
 
 
@@ -58,6 +74,19 @@ class StoredObservation:
     value: float
     unit: str
     quality: str
+
+
+@dataclass(frozen=True)
+class SmsRecord:
+    location: str
+    day: date
+    channel: str  # daily (written automatically) · real (sent through the SMS gateway)
+    status: str  # daily: alert · quiet; real: sent · failed
+    text_en: str
+    text_bn: str
+    detail: str | None
+    created_at: datetime
+    sent: int = 0  # real: messages the gateway accepted (one per phone)
 
 
 @dataclass(frozen=True)
@@ -75,20 +104,24 @@ class ObservationStore:
         self.path = str(path)
         if self.path != ":memory:":
             Path(self.path).parent.mkdir(parents=True, exist_ok=True)
-        # A shared in-memory DB needs one persistent connection; files open per call.
+        # A shared in-memory DB needs one persistent connection; files open per call. Risk
+        # assessments read it from worker threads while background fetches write to it, and
+        # one connection's transaction is shared by all of them, so calls take turns.
         self._memory = sqlite3.connect(":memory:", check_same_thread=False) if self.path == ":memory:" else None
+        self._memory_lock = threading.RLock()
         with self._connect() as db:
             db.executescript(SCHEMA)
 
     @contextmanager
     def _connect(self) -> Iterator[sqlite3.Connection]:
         db = self._memory or sqlite3.connect(self.path, timeout=10)
-        try:
-            yield db
-            db.commit()
-        finally:
-            if db is not self._memory:
-                db.close()
+        with self._memory_lock if db is self._memory else nullcontext():
+            try:
+                yield db
+                db.commit()
+            finally:
+                if db is not self._memory:
+                    db.close()
 
     # --- observations -----------------------------------------------------------------
     def upsert(self, location: str, observations: Iterable[Observation], fetched_at: datetime | None = None) -> int:
@@ -161,6 +194,37 @@ class ObservationStore:
         if not row:
             return None
         return FetchRecord(row[0], row[1], datetime.fromisoformat(row[2]), row[3], row[4], row[5])
+
+    # --- SMS log ------------------------------------------------------------------------
+    def sms_record(self, r: SmsRecord) -> bool:
+        """Adds a row; False when the farm already has its daily row for that day."""
+        with self._connect() as db:
+            cursor = db.execute(
+                """INSERT OR IGNORE INTO sms_log (location, day, channel, status, text_en, text_bn, detail, sent, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (r.location, r.day.isoformat(), r.channel, r.status, r.text_en, r.text_bn, r.detail, r.sent, r.created_at.isoformat()),
+            )
+            return cursor.rowcount == 1
+
+    def sms_history(self, location: str, limit: int = 7) -> list[SmsRecord]:
+        with self._connect() as db:
+            rows = db.execute(
+                """SELECT location, day, channel, status, text_en, text_bn, detail, created_at, sent FROM sms_log
+                   WHERE location = ? ORDER BY created_at DESC, id DESC LIMIT ?""",
+                (location, limit),
+            ).fetchall()
+        return [SmsRecord(r[0], date.fromisoformat(r[1]), r[2], r[3], r[4], r[5], r[6], datetime.fromisoformat(r[7]), r[8]) for r in rows]
+
+    def sms_has_daily(self, location: str, day: date) -> bool:
+        with self._connect() as db:
+            row = db.execute("SELECT 1 FROM sms_log WHERE location = ? AND day = ? AND channel = 'daily'", (location, day.isoformat())).fetchone()
+        return row is not None
+
+    def sms_real_since(self, since: datetime) -> int:
+        """Real messages the gateway accepted since a moment (each costs credit)."""
+        with self._connect() as db:
+            row = db.execute("SELECT COALESCE(SUM(sent), 0) FROM sms_log WHERE channel = 'real' AND created_at >= ?", (since.isoformat(),)).fetchone()
+        return int(row[0])
 
     # --- small JSON cache (e.g. mission freshness) --------------------------------------
     def cache_get(self, key: str) -> tuple[object, datetime] | None:

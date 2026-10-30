@@ -19,6 +19,7 @@ WINDOW_S = 60
 LIMITS: list[tuple[str, int]] = [
     ("/api/v1/assistant/chat", 10),  # may call Claude
     ("/api/v1/data/refresh", 3),  # downloads every NASA source
+    ("/api/v1/sms/send", 3),  # a real SMS costs gateway credit
     ("/api/v1/map/point", 20),  # downloads for a new spot
     ("/api/v1/places/search", 20),  # OpenStreetMap search
     ("/api/v1/locate", 30),

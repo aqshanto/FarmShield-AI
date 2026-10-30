@@ -12,6 +12,7 @@ from app.risk.inputs import CALIBRATION_DAYS, smap_wetness, topsoil
 from app.risk.region import local_today
 from app.schemas.data import DataStatus, FarmObservations, ObservationPoint, RefreshStarted, VariableSeries
 from app.services.map import warm_map_overview
+from app.services.sms_delivery import write_daily_sms
 
 router = APIRouter(tags=["data"])
 
@@ -25,6 +26,8 @@ async def _refresh_and_warm(pipeline: PipelineService, days: int, force: bool) -
     # take minutes on a small server.
     first = warm_map_overview(pipeline) if live else None
     await pipeline.refresh(farm_locations(), days=days, force=force)
+    # The day's SMS for every farm, once a day, from the fresh data.
+    await write_daily_sms(pipeline, get_settings().data_mode)
     if first is not None:
         try:
             await asyncio.gather(first, return_exceptions=True)

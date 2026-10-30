@@ -217,6 +217,24 @@ export interface MapOverview {
   grid_status?: string
 }
 
+/** Whether real SMS can be sent (the maintainers' own phones only). */
+export interface SmsStatus {
+  real_sending: boolean
+  phones: number
+  sent_today: number // messages, one per phone
+  daily_limit: number
+}
+
+/** One row of a farm's SMS log, newest first. */
+export interface SmsLogEntry {
+  day: string // YYYY-MM-DD, the farmer's day
+  channel: 'daily' | 'real' // written automatically · sent through the SMS gateway
+  status: 'alert' | 'quiet' | 'sent' | 'failed'
+  text: string
+  detail: string | null
+  created_at: string
+}
+
 /** The text message a farmer on a basic phone would get today. */
 export interface SmsPreview {
   lang: 'en' | 'bn'
