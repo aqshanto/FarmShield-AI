@@ -342,6 +342,7 @@ export interface FarmObservations {
 
 export type RotationPriority = 'soil' | 'water' | 'income' | 'food'
 export type RotationMetric = 'soil' | 'water' | 'climate' | 'pests' | 'income' | 'food'
+export type SoilType = 'clay' | 'loam' | 'sandy' // as the farmer knows it by feel
 
 export interface RotationCrop {
   id: string
@@ -372,6 +373,7 @@ export interface RotationPlan {
   in_bangladesh: boolean
   priorities: RotationPriority[]
   irrigation: boolean
+  soil?: SoilType | null
   existing_id: string
   existing_options: { id: string; name: string }[]
   strategies: RotationStrategy[] // the current rotation first
@@ -386,6 +388,7 @@ export interface RotationQuery {
   priorities: RotationPriority[]
   irrigation: boolean
   existing?: string | null
+  soil?: SoilType | null
 }
 
 // --- AI farmer assistant -------------------------------------------------------------

@@ -38,6 +38,26 @@ LOW_RELIEF_M = 4  # elsewhere: this close to the lowest land nearby
 HAOR_EARLY_MONTH = 4  # haor: the rains (and flash floods from the hills) already arrive in April…
 HAOR_PEAK_MM_DAY = 16  # …and the monsoon peak is this wet (about 490 mm a month)
 FROST_C = 2
+# Soil the farmer knows by feel: clay (sticky, cracks when dry), loam (soft and crumbly), sandy
+# (gritty, dries fast). Sandy soil lets water drain past the roots; clay holds it longer.
+SOILS = ("clay", "loam", "sandy")
+SOIL_WATER = {"clay": 0.9, "loam": 1.0, "sandy": 1.3}
+# Points off a crop's fit on a soil it dislikes, and why (typical agronomy; like the crop
+# values below, to be checked with local experts).
+SOIL_MISFIT: dict[tuple[str, str], tuple[int, str]] = {
+    ("clay", "potato"): (25, "{crop} tubers grow misshapen and can rot in heavy clay"),
+    ("clay", "maize"): (15, "{crop} roots suffer when clay stays waterlogged after rain"),
+    ("clay", "mungbean"): (15, "{crop} roots suffer when clay stays waterlogged after rain"),
+    ("clay", "tomato"): (10, "{crop} roots suffer when clay stays waterlogged after rain"),
+    ("sandy", "rice"): (25, "{crop} loses water fast in sandy soil, so the field needs much more irrigation"),
+    ("sandy", "jute"): (15, "{crop} grows short in sandy soil that dries out quickly"),
+    ("sandy", "wheat"): (10, "{crop} needs more frequent irrigation in sandy soil"),
+}
+SOIL_GAPS = {
+    "clay": "You said the soil is clay: a soil test for pH and organic matter would sharpen this",
+    "loam": "You said the soil is loam: a soil test for pH and organic matter would sharpen this",
+    "sandy": "You said the soil is sandy: a soil test for pH and organic matter would sharpen this",
+}
 WEIGHTS = {"soil": 0.25, "water": 0.20, "climate": 0.20, "pests": 0.10, "income": 0.15, "food": 0.10}
 PRIORITIES = {"soil": "soil", "water": "water", "income": "income", "food": "food"}
 METRICS = list(WEIGHTS)
@@ -144,6 +164,7 @@ class FieldFacts:
     elevation_m: float | None = None
     relief_m: float | None = None  # height above the lowest land nearby
     greenness_ratio: float | None = None  # latest clear MODIS NDVI ÷ VIIRS normal
+    soil: str | None = None  # clay, loam or sandy, as the farmer describes it; None if not given
 
 
 @dataclass
@@ -299,12 +320,19 @@ def _weights(priorities: set[str]) -> dict[str, float]:
     return weights
 
 
+def soil_misfit(f: FieldFacts, slot: Slot) -> tuple[int, str]:
+    """Points off this crop's fit on the farmer's soil, and why (0 and "" when it suits)."""
+    return SOIL_MISFIT.get((f.soil or "", slot.crop.word), (0, ""))
+
+
 def score(f: FieldFacts, s: Strategy, priorities: set[str], irrigation: bool) -> None:
     # Months under haor floodwater aren't bare: no rain washes soil off land under water.
     covered = {m for slot in s.slots for m in slot.months} | set(flood_months(f))
     s.bare_months = [m for m in range(1, 13) if m not in covered]
-    s.irrigation_mm = round(sum(max(0.0, slot.crop.water_mm - season_rain_mm(f, slot.months)) for slot in s.slots))
-    fits = [climate_fit(f, slot) - flood_penalty(f, slot) for slot in s.slots]
+    s.irrigation_mm = round(
+        SOIL_WATER.get(f.soil or "", 1.0) * sum(max(0.0, slot.crop.water_mm - season_rain_mm(f, slot.months)) for slot in s.slots)
+    )
+    fits = [climate_fit(f, slot) - flood_penalty(f, slot) - soil_misfit(f, slot)[0] for slot in s.slots]
     families = {slot.crop.family for slot in s.slots}
     legumes = sum(slot.crop.family == "legume" for slot in s.slots)
     rice = sum(slot.crop.word == "rice" for slot in s.slots)
@@ -351,7 +379,8 @@ def explain(f: FieldFacts, s: Strategy, existing: Strategy, irrigation: bool) ->
         s.why = ["This is what you grow now, used as the baseline"]
     else:
         gains = sorted(((s.scores[k] - existing.scores[k], k) for k in METRICS), reverse=True)
-        s.why = [WHY[k] for gain, k in gains[:2] if gain >= 8] or ["Close to your rotation now, with a different mix of crops"]
+        why = {**WHY, "climate": "Fits this place's climate and your soil better than your rotation now"} if f.soil else WHY
+        s.why = [why[k] for gain, k in gains[:2] if gain >= 8] or ["Close to your rotation now, with a different mix of crops"]
 
     # Evidence: NASA data behind it.
     dry = min(s.slots, key=lambda sl: season_rain_mm(f, sl.months))
@@ -393,7 +422,7 @@ def explain(f: FieldFacts, s: Strategy, existing: Strategy, irrigation: bool) ->
 
     # Information gaps.
     on_haor = haor(f)
-    s.gaps = ["We don't know your soil type or test results: a soil test would sharpen this"]
+    s.gaps = [SOIL_GAPS.get(f.soil or "", "We don't know your soil type or test results: a soil test would sharpen this")]
     if on_haor:
         s.gaps.append("We can't see how high your field sits inside the haor: higher land drains sooner and can take a winter crop first")
     if s.tight:
@@ -412,6 +441,9 @@ def explain(f: FieldFacts, s: Strategy, existing: Strategy, irrigation: bool) ->
         if flood_penalty(f, slot) >= 20:
             wet = next(m for m in slot.months if f.climate[m].rain_mm_day >= WET_MM_PER_DAY)
             risks.append(f"{slot.crop.word.capitalize()} is sensitive to standing water, and this low field can flood in {MONTH_NAMES[wet - 1]}")
+        points, reason = soil_misfit(f, slot)
+        if points >= 15:
+            risks.append(reason.format(crop=slot.crop.word.capitalize()))
         hot = [m for m in slot.months if f.climate[m].tmax > slot.crop.tmax[1] + 3]
         if hot:
             risks.append(f"{slot.crop.word.capitalize()} may meet more heat than it likes in {MONTH_NAMES[hot[0] - 1]}")

@@ -37,8 +37,8 @@ def climate(table) -> dict[int, MonthNormal]:
     return {m: MonthNormal(*v) for m, v in table.items()}
 
 
-def bd_field(crop="Boro rice", elevation=20.0, greenness=None) -> FieldFacts:
-    return FieldFacts(True, crop, climate(BOGURA), elevation_m=elevation, greenness_ratio=greenness)
+def bd_field(crop="Boro rice", elevation=20.0, greenness=None, soil=None) -> FieldFacts:
+    return FieldFacts(True, crop, climate(BOGURA), elevation_m=elevation, greenness_ratio=greenness, soil=soil)
 
 
 def all_text(p) -> list[str]:
@@ -112,6 +112,25 @@ def test_the_farmer_can_say_which_rotation_they_grow_now():
     assert all(s.id != "mustard-boro-aman" for s in other.alternatives)
 
 
+def test_the_farmers_soil_changes_water_fit_and_risks():
+    unknown = engine.plan(bd_field(crop="Potato"))
+    sandy = engine.plan(bd_field(crop="Potato", soil="sandy"))
+    clay = engine.plan(bd_field(crop="Potato", soil="clay"))
+
+    # Sandy soil lets water drain past the roots: about 30% more irrigation, and rice fits worse.
+    assert sandy.existing.irrigation_mm == round(1.3 * unknown.existing.irrigation_mm)
+    assert sandy.existing.scores["climate"] < unknown.existing.scores["climate"]
+    assert "Rice loses water fast in sandy soil, so the field needs much more irrigation" in sandy.existing.risks
+    # Heavy clay is hard on potato tubers.
+    assert "Potato tubers grow misshapen and can rot in heavy clay" in clay.existing.risks
+    # The soil gap says what the farmer told us instead of "we don't know".
+    assert unknown.existing.gaps[0].startswith("We don't know your soil type")
+    assert clay.existing.gaps[0] == "You said the soil is clay: a soil test for pH and organic matter would sharpen this"
+    # Loam suits every crop here: no penalties, same water as before.
+    loam = engine.plan(bd_field(crop="Potato", soil="loam"))
+    assert loam.existing.scores == unknown.existing.scores and loam.existing.irrigation_mm == unknown.existing.irrigation_mm
+
+
 def haor_field(crop="Boro rice", elevation=8.0, table=HAOR) -> FieldFacts:
     return FieldFacts(True, crop, climate(table), elevation_m=elevation)
 
@@ -177,6 +196,9 @@ def rotation_texts():
         haor_field(crop="Lentil"),
         FieldFacts(False, "Rice", climate(TEMPERATE), relief_m=2.0, greenness_ratio=0.5),
         FieldFacts(False, "Potato", climate(BOGURA), relief_m=30.0),
+        bd_field(crop="Potato", soil="clay"),
+        bd_field(crop="Maize", soil="sandy"),
+        bd_field(crop="Lentil", soil="loam"),
     ]
     for f in fields:
         for priorities in [set(), {"soil"}, {"water", "income"}, {"food"}]:
@@ -233,6 +255,10 @@ def test_rotation_endpoint_in_english_and_bengali():
 
     chosen = client.get("/api/v1/farms/sunamganj-haor/rotation", params={"existing": "mustard-boro-aman", "irrigation": "false"}).json()
     assert chosen["existing_id"] == "mustard-boro-aman" and chosen["irrigation"] is False
+    assert chosen["soil"] is None
+    sandy = client.get("/api/v1/farms/sunamganj-haor/rotation", params={"soil": "sandy"}).json()
+    assert sandy["soil"] == "sandy" and sandy["strategies"][0]["gaps"][0].startswith("You said the soil is sandy")
+    assert client.get("/api/v1/farms/sunamganj-haor/rotation", params={"soil": "rocky"}).status_code == 422
 
     bn = client.get("/api/v1/farms/sunamganj-haor/rotation", params={"lang": "bn"}).json()
     texts = [bn["crop"], *bn["field_notes"], *(o["name"] for o in bn["existing_options"])]

@@ -1,11 +1,11 @@
-import type { RotationMetric, RotationPriority } from '@/types/api'
+import type { RotationMetric, RotationPriority, SoilType } from '@/types/api'
 
 export const rotationText = {
   en: {
     eyebrow: 'Rotation planner',
     title: 'Plan next year’s crops',
     intro:
-      'We compare what you grow now with three other rotations that suit this field, using NASA climate, terrain and greenness data. Pick what matters most and the ideas change.',
+      'We compare what you grow now with three other rotations that suit this field, using NASA climate, terrain and greenness data and what you tell us about your soil. Pick what matters most and the ideas change.',
     yourFarms: 'Your farms',
     choose: 'Choose a farm',
     add: 'Add my farm',
@@ -20,6 +20,14 @@ export const rotationText = {
     yes: 'Yes',
     no: 'No',
     nowTitle: 'What do you grow now?',
+    soilTitle: 'What is your soil like?',
+    soils: { unknown: 'Not sure', clay: 'Clay', loam: 'Loam', sandy: 'Sandy' } as Record<SoilType | 'unknown', string>,
+    soilFeel: {
+      unknown: 'Rub some moist soil between your fingers to tell.',
+      clay: 'Sticky when wet, cracks when dry. Holds water long.',
+      loam: 'Soft and crumbly. Holds water and drains well.',
+      sandy: 'Gritty, and dries out fast. Water drains away.',
+    } as Record<SoilType | 'unknown', string>,
     climateTitle: 'Your field’s usual year',
     climateNote: 'Normal monthly rain and daytime highs, NASA POWER',
     wet: 'Wet month',
@@ -36,7 +44,7 @@ export const rotationText = {
     metrics: {
       soil: 'Soil health',
       water: 'Water saving',
-      climate: 'Climate fit',
+      climate: 'Climate & soil fit',
       pests: 'Pest break',
       income: 'Income',
       food: 'Family food',
@@ -68,7 +76,7 @@ export const rotationText = {
     eyebrow: 'ফসলচক্র পরিকল্পনা',
     title: 'আগামী বছরের ফসল পরিকল্পনা',
     intro:
-      'আপনি এখন যা চাষ করেন, তার সঙ্গে এই জমির উপযোগী আরও তিনটি ফসলচক্র তুলনা করি, নাসার আবহাওয়া, ভূমি আর সবুজের ডেটা দিয়ে। আপনার কাছে যা জরুরি তা বেছে নিন, পরামর্শও বদলে যাবে।',
+      'আপনি এখন যা চাষ করেন, তার সঙ্গে এই জমির উপযোগী আরও তিনটি ফসলচক্র তুলনা করি, নাসার আবহাওয়া, ভূমি আর সবুজের ডেটা এবং আপনার মাটির কথা দিয়ে। আপনার কাছে যা জরুরি তা বেছে নিন, পরামর্শও বদলে যাবে।',
     yourFarms: 'আপনার জমি',
     choose: 'জমি বেছে নিন',
     add: 'আমার জমি যোগ করুন',
@@ -83,6 +91,14 @@ export const rotationText = {
     yes: 'হ্যাঁ',
     no: 'না',
     nowTitle: 'এখন কী চাষ করেন?',
+    soilTitle: 'আপনার জমির মাটি কেমন?',
+    soils: { unknown: 'জানি না', clay: 'এঁটেল', loam: 'দোআঁশ', sandy: 'বেলে' } as Record<SoilType | 'unknown', string>,
+    soilFeel: {
+      unknown: 'একটু ভেজা মাটি আঙুলে ঘষে দেখুন।',
+      clay: 'ভেজা অবস্থায় আঠালো, শুকালে ফাটে। পানি অনেকক্ষণ ধরে রাখে।',
+      loam: 'নরম ও ঝুরঝুরে। পানি ধরে রাখে, আবার ভালোভাবে নেমেও যায়।',
+      sandy: 'দানাদার, তাড়াতাড়ি শুকিয়ে যায়। পানি দ্রুত নেমে যায়।',
+    } as Record<SoilType | 'unknown', string>,
     climateTitle: 'আপনার জমির স্বাভাবিক বছর',
     climateNote: 'মাসের স্বাভাবিক বৃষ্টি আর দিনের তাপমাত্রা, নাসা পাওয়ার',
     wet: 'বর্ষার মাস',
@@ -99,7 +115,7 @@ export const rotationText = {
     metrics: {
       soil: 'মাটির স্বাস্থ্য',
       water: 'পানি সাশ্রয়',
-      climate: 'আবহাওয়ার মিল',
+      climate: 'আবহাওয়া ও মাটির মিল',
       pests: 'পোকার চক্র ভাঙা',
       income: 'আয়',
       food: 'পরিবারের খাবার',

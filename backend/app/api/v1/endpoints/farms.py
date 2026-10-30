@@ -1,3 +1,5 @@
+from typing import Literal
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.core.config import Settings, get_settings
@@ -56,6 +58,7 @@ async def rotation(
     priorities: str = Query(default="", max_length=60, description="Comma-separated: soil, water, income, food"),
     irrigation: bool = Query(default=True, description="Can the farmer irrigate in the dry season?"),
     existing: str | None = Query(default=None, max_length=40, description="The rotation grown now (Bangladesh pattern id)"),
+    soil: Literal["clay", "loam", "sandy"] | None = Query(default=None, description="The farmer's soil, by feel"),
     lang: Lang = Query(default="en", description="en or bn (Bengali)"),
     settings: Settings = Depends(get_settings),
     pipeline: PipelineService = Depends(get_pipeline),
@@ -65,7 +68,7 @@ async def rotation(
         raise HTTPException(status_code=409, detail="The rotation planner needs live NASA climate data, and the server is running the demo scenario.")
     wanted = {p.strip() for p in priorities.split(",") if p.strip() in ROTATION_PRIORITIES}
     try:
-        plan = await build_rotation_plan(farm_id, pipeline, wanted, irrigation, existing)
+        plan = await build_rotation_plan(farm_id, pipeline, wanted, irrigation, existing, soil)
     except RotationFarmError as error:
         raise HTTPException(status_code=404, detail=str(error)) from None
     except RotationDataPendingError:

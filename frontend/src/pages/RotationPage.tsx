@@ -16,7 +16,7 @@ import { useLang, useText } from '@/lib/i18n'
 import { fadeUp, spring, stagger } from '@/lib/motion'
 import { useMyFarms } from '@/lib/myFarms'
 import { useAsync } from '@/lib/useAsync'
-import type { RotationPlan, RotationPriority } from '@/types/api'
+import type { RotationPlan, RotationPriority, SoilType } from '@/types/api'
 
 const PRIORITIES: { id: RotationPriority; icon: ReactNode }[] = [
   { id: 'soil', icon: <Sprout className="size-4" aria-hidden="true" /> },
@@ -48,10 +48,13 @@ export function RotationPage() {
   // The rotation grown now belongs to a farm: switching farms goes back to its likely one.
   const [chosen, setChosen] = useState<{ farmId: string | null; id: string } | null>(null)
   const existing = chosen?.farmId === farmId ? chosen.id : null
+  // So is its soil: another field may have another.
+  const [soilChoice, setSoilChoice] = useState<{ farmId: string | null; soil: SoilType } | null>(null)
+  const soil = soilChoice?.farmId === farmId ? soilChoice.soil : null
 
-  const query = { priorities, irrigation, existing }
+  const query = { priorities, irrigation, existing, soil }
   const plan = useAsync(
-    farmId ? `${farmId}|${priorities.join(',')}|${irrigation}|${existing ?? ''}|${lang}` : null,
+    farmId ? `${farmId}|${priorities.join(',')}|${irrigation}|${existing ?? ''}|${soil ?? ''}|${lang}` : null,
     (signal) => api.rotation(farmId!, query, { signal }, lang),
     { retries: 2 },
   )
@@ -133,7 +136,7 @@ export function RotationPage() {
         </motion.div>
       </motion.header>
 
-      <Card className="grid gap-6 md:grid-cols-3">
+      <Card className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
         <fieldset className="space-y-2.5">
           <legend className="mb-2.5 text-sm font-bold text-ink">{t.prioritiesTitle}</legend>
           <div className="flex flex-wrap gap-2">
@@ -183,6 +186,29 @@ export function RotationPage() {
             value={irrigation ? 'yes' : 'no'}
             onChange={(v) => setIrrigation(v === 'yes')}
           />
+        </div>
+
+        <div className="space-y-2.5">
+          <p className="text-sm font-bold text-ink">{t.soilTitle}</p>
+          <SegmentedControl
+            ariaLabel={t.soilTitle}
+            size="sm"
+            options={(['unknown', 'clay', 'loam', 'sandy'] as const).map((value) => ({ value, label: t.soils[value] }))}
+            value={soil ?? 'unknown'}
+            onChange={(v) => setSoilChoice(v === 'unknown' ? null : { farmId, soil: v })}
+          />
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.p
+              key={soil ?? 'unknown'}
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 4 }}
+              transition={{ duration: 0.2 }}
+              className="text-xs text-ink-muted"
+            >
+              {t.soilFeel[soil ?? 'unknown']}
+            </motion.p>
+          </AnimatePresence>
         </div>
 
         <div className="space-y-2.5">

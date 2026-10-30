@@ -152,6 +152,20 @@ describe('RotationPage', () => {
     expect(rotationCalls().at(-1)).toBe('/api/v1/farms/barind/rotation?priorities=income&irrigation=false&existing=wheat-fallow-aman')
   })
 
+  it('the farmer can say what their soil is like', async () => {
+    renderAt('/rotation?farm=barind')
+    await screen.findByRole('heading', { level: 3, name: 'Boro rice → Aman rice' })
+    expect(screen.getByRole('radio', { name: 'Not sure' })).toBeChecked()
+    expect(screen.getByText(/Rub some moist soil/)).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('radio', { name: 'Sandy' }))
+    await waitFor(() => expect(rotationCalls().at(-1)).toBe('/api/v1/farms/barind/rotation?priorities=&irrigation=true&soil=sandy'))
+    expect(await screen.findByText(/Gritty, and dries out fast/)).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('radio', { name: 'Not sure' }))
+    await waitFor(() => expect(rotationCalls().at(-1)).toBe('/api/v1/farms/barind/rotation?priorities=&irrigation=true'))
+  })
+
   it('opens benefits, gaps and local risks on demand', async () => {
     renderAt()
     const card = (await screen.findAllByRole('article'))[1]

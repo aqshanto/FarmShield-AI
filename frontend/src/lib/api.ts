@@ -78,6 +78,7 @@ export const api = {
   rotation: (farmId: string, q: RotationQuery, init?: RequestInit, lang?: Lang) => {
     const params = new URLSearchParams({ priorities: q.priorities.join(','), irrigation: String(q.irrigation) })
     if (q.existing) params.set('existing', q.existing)
+    if (q.soil) params.set('soil', q.soil)
     return request<RotationPlan>(`/farms/${encodeURIComponent(farmId)}/rotation${langQuery(lang, params.toString())}`, init)
   },
   dataStatus: (init?: RequestInit) => request<DataStatus>('/data/status', init),

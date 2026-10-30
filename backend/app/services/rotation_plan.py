@@ -76,6 +76,7 @@ async def build_rotation_plan(
     priorities: set[str],
     irrigation: bool = True,
     existing_id: str | None = None,
+    soil: str | None = None,
 ) -> RotationPlan:
     if is_custom_id(farm_id):
         try:
@@ -106,6 +107,7 @@ async def build_rotation_plan(
         elevation_m=next(iter(series.get("elevation", {}).values()), None),
         relief_m=next(iter(series.get("height_above_low", {}).values()), None),
         greenness_ratio=greenness_ratio(series),
+        soil=soil if soil in engine.SOILS else None,
     )
     result = await asyncio.to_thread(engine.plan, facts, priorities, irrigation, existing_id)
     options = [RotationOption(id=o, name=pattern_name(o)) for o in result.existing_options if o in engine.PATTERNS_BY_ID]
@@ -115,6 +117,7 @@ async def build_rotation_plan(
         in_bangladesh=home,
         priorities=sorted(priorities),
         irrigation=irrigation,
+        soil=facts.soil,
         existing_id=result.existing.id,
         existing_options=options or [RotationOption(id=result.existing.id, name=result.existing.name)],
         strategies=[_strategy(s) for s in [result.existing, *result.alternatives]],

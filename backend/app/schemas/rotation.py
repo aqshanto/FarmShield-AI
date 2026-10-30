@@ -42,6 +42,7 @@ class RotationPlan(BaseModel):
     in_bangladesh: bool
     priorities: list[str]
     irrigation: bool
+    soil: str | None = None  # clay, loam or sandy, as the farmer said; None if not given
     existing_id: str
     existing_options: list[RotationOption]  # rotations the farmer may be growing now
     strategies: list[RotationStrategy]  # the current rotation first, then up to three ideas
