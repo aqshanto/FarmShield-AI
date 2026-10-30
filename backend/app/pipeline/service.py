@@ -153,6 +153,12 @@ class PipelineService:
             )
         return output
 
+    def source_points(self, location: Location, variable: str, source: str, days: int = 60) -> list[SeriesPoint]:
+        """One source's readings before the sources are merged, to cross-check another mission."""
+        today = self.now().date()
+        rows = self.store.series(location.id, variable, today - timedelta(days=days), today)
+        return [SeriesPoint(r.date, r.value, r.source, r.quality) for r in rows if r.source == source]
+
     def source_status(self) -> list[dict]:
         counts = self.store.counts()
         rejected = self.store.rejected_counts()

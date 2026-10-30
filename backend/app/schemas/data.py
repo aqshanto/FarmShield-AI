@@ -74,6 +74,8 @@ class FarmObservations(BaseModel):
     topsoil: ObservationPoint | None = None
     # SMAP on NASA POWER's 0–1 scale: stuck passes dropped, a week's median, calibrated for this soil.
     smap_wetness: list[ObservationPoint] = []
+    # NASA POWER's own daily rain, to cross-check GPM's (the merged rain series prefers GPM).
+    power_rain: list[ObservationPoint] = []
 
 
 class RefreshStarted(BaseModel):

@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/Card'
 import { TimeSeriesChart } from '@/components/ui/TimeSeriesChart'
 import { digits, useLang, useText } from '@/lib/i18n'
 import type { FarmObservations } from '@/types/api'
-import { find, greennessSummary, greennessWord, isoDaysBefore, prettyDate, rainSummary, wetnessWord } from './insights'
+import { find, greennessSummary, greennessWord, isoDaysBefore, prettyDate, rainSummary, sumSince, wetnessWord } from './insights'
 import { SOURCE_NAMES } from './missions'
 
 const CHART_1 = 'var(--color-chart-1)'
@@ -30,6 +30,10 @@ const text = {
     rainSummary: (month: string) => `Daily rainfall in millimetres. ${month} mm fell in the last 30 days.`,
     noData: 'No data.',
     rainSeries: 'Rainfall',
+    gpmSeries: 'GPM satellite',
+    powerSeries: 'NASA POWER model',
+    latestRain: (date: string) => `Latest: ${date}`,
+    powerCaption: (mm: string) => ` NASA POWER’s weather model averages a much larger area and puts the same 30 days at ${mm} mm.`,
     soilTitle: 'Soil wetness',
     soilCaption: (word: string, pct: string) => `Surface soil is ${word} (${pct}%). Root-zone water changes more slowly and shows what crops can reach.`,
     noSoil: 'No soil readings yet.',
@@ -77,6 +81,10 @@ const text = {
     rainSummary: (month: string) => `মিলিমিটারে দৈনিক বৃষ্টি। গত ৩০ দিনে ${month} মিমি বৃষ্টি হয়েছে।`,
     noData: 'ডেটা নেই।',
     rainSeries: 'বৃষ্টি',
+    gpmSeries: 'GPM স্যাটেলাইট',
+    powerSeries: 'NASA POWER মডেল',
+    latestRain: (date: string) => `সর্বশেষ: ${date}`,
+    powerCaption: (mm: string) => ` NASA POWER-এর আবহাওয়া মডেল অনেক বড় এলাকার গড় নেয়; একই ৩০ দিনে এটি দেখায় ${mm} মিমি।`,
     soilTitle: 'মাটির আর্দ্রতা',
     soilCaption: (word: string, pct: string) => `উপরের মাটি ${word} (${pct}%)। শিকড়ের কাছের পানি ধীরে বদলায় আর দেখায় ফসল কতটা পানি পায়।`,
     noSoil: 'এখনও মাটির ডেটা নেই।',
@@ -169,9 +177,15 @@ export function FarmDataCharts({ data }: { data: FarmObservations }) {
   const ndvi = find(data.variables, 'ndvi')
   const normal = find(data.variables, 'ndvi_normal')
 
-  const rainInfo = rain ? rainSummary(rain.points, today) : null
+  // With GPM's own readings, NASA POWER's model rain becomes a cross-check line over the bars.
+  const gpm = rain?.points.filter((p) => p.source === 'gpm_imerg') ?? []
+  const powerRain = data.power_rain ?? []
+  const crossCheck = gpm.length > 0 && powerRain.length > 0
+  const bars = crossCheck ? gpm : (rain?.points ?? [])
+  const powerMonth = crossCheck ? sumSince(powerRain, isoDaysBefore(today, 30)) : null
+  const rainInfo = bars.length ? rainSummary(bars, today) : null
   const green = ndvi && normal ? greennessSummary(ndvi.points, normal.points, today, lang) : null
-  const rainMax = niceMax(Math.max(0, ...(rain?.points.map((p) => p.value) ?? [0])))
+  const rainMax = niceMax(Math.max(0, ...bars.map((p) => p.value), ...(crossCheck ? powerRain.map((p) => p.value) : [])))
   const hottest = temp?.points.filter((p) => p.date > isoDaysBefore(today, 7)).reduce((a, b) => Math.max(a, b.value), -Infinity)
   const hottestText = hottest && Number.isFinite(hottest) ? `${n(hottest)}°C` : '—'
 
@@ -196,13 +210,22 @@ export function FarmDataCharts({ data }: { data: FarmObservations }) {
         <ChartCard
           icon={<CloudRain className="size-5 text-sky-300" aria-hidden="true" />}
           title={t.rainTitle}
-          sources={rain?.sources_used ?? []}
-          caption={rainInfo ? t.rainCaption(n(rainInfo.month), prettyDate(rainInfo.wettest.date, lang), n(rainInfo.wettest.value)) : t.noRain}
+          sources={crossCheck ? ['gpm_imerg', 'nasa_power'] : (rain?.sources_used ?? [])}
+          caption={
+            rainInfo
+              ? t.rainCaption(n(rainInfo.month), prettyDate(rainInfo.wettest.date, lang), n(rainInfo.wettest.value)) +
+                (powerMonth !== null ? t.powerCaption(n(powerMonth)) : '')
+              : t.noRain
+          }
         >
           <TimeSeriesChart
             label={t.rainLabel}
             summary={rainInfo ? t.rainSummary(n(rainInfo.month)) : t.noData}
-            series={[{ id: 'rain', label: t.rainSeries, color: CHART_1, kind: 'bar', points: rain?.points ?? [] }]}
+            series={[
+              { id: 'rain', label: crossCheck ? t.gpmSeries : t.rainSeries, color: CHART_1, kind: 'bar', points: bars },
+              ...(crossCheck ? [{ id: 'power', label: t.powerSeries, color: CHART_2, kind: 'line' as const, points: powerRain }] : []),
+            ]}
+            latest={rainInfo ? { date: rainInfo.lastDate, label: t.latestRain(prettyDate(rainInfo.lastDate, lang)) } : undefined}
             start={start60}
             end={today}
             yDomain={[0, rainMax]}

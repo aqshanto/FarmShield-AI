@@ -15,10 +15,11 @@ const rain: ChartSeries = {
 }
 const root: ChartSeries = { id: 'root', label: 'Root zone', color: 'orange', kind: 'line', points: [{ date: '2026-09-05', value: 20 }] }
 
-function renderChart(series: ChartSeries[]) {
+function renderChart(series: ChartSeries[], latest?: { date: string; label: string }) {
   return render(
     <TimeSeriesChart
       series={series}
+      latest={latest}
       start="2026-09-01"
       end="2026-09-10"
       yDomain={[0, 50]}
@@ -51,6 +52,18 @@ describe('TimeSeriesChart', () => {
     await userEvent.keyboard('{ArrowLeft}')
     // Snaps to the previous day that has data, not to empty days.
     expect(screen.getByText('Sep 1: Rainfall 12, Root zone no reading')).toBeInTheDocument()
+  })
+
+  it('marks the newest reading and stripes the days still on their way', () => {
+    const { container } = renderChart([rain], { date: '2026-09-05', label: 'Latest: Sep 5' })
+    expect(screen.getByText('Latest: Sep 5')).toBeInTheDocument()
+    expect(container.querySelector('rect[fill^="url(#stripes-"]')).toBeInTheDocument()
+  })
+
+  it('draws no stripes when the newest reading is the last day', () => {
+    const { container } = renderChart([rain], { date: '2026-09-10', label: 'Latest: Sep 10' })
+    expect(screen.getByText('Latest: Sep 10')).toBeInTheDocument()
+    expect(container.querySelector('rect[fill^="url(#stripes-"]')).not.toBeInTheDocument()
   })
 
   it('shows a friendly message when there is no data', () => {

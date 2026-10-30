@@ -80,11 +80,11 @@ function observations(farmId: string): FarmObservations {
 
 let statusResponses: DataStatus[]
 let refreshCalls = 0
-let serverSoil: Partial<FarmObservations> = {}
+let serverExtra: Partial<FarmObservations> = {}
 
 beforeEach(() => {
   refreshCalls = 0
-  serverSoil = {}
+  serverExtra = {}
   statusResponses = [statusFixture(new Date(Date.now() - 60_000).toISOString())]
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     const url = String(input)
@@ -98,7 +98,7 @@ beforeEach(() => {
     }
     if (url === '/api/v1/farms') return json(farmsFixture)
     const match = url.match(/^\/api\/v1\/farms\/([^/]+)\/observations/)
-    if (match) return json({ ...observations(match[1]), ...serverSoil })
+    if (match) return json({ ...observations(match[1]), ...serverExtra })
     return json({ detail: 'not found' }, 404)
   })
 })
@@ -158,7 +158,7 @@ describe('DataPage', () => {
 
   it('shows the same topsoil reading as the dashboard, with SMAP passes on the soil chart', async () => {
     const pass = (offset: number, value: number) => ({ date: day(offset), value, source: 'smap', quality: 'good' as const })
-    serverSoil = { topsoil: pass(3, 0.54), smap_wetness: [pass(7, 0.5), pass(5, 0.52), pass(3, 0.54)] }
+    serverExtra = { topsoil: pass(3, 0.54), smap_wetness: [pass(7, 0.5), pass(5, 0.52), pass(3, 0.54)] }
     renderAt('/data')
     await screen.findByText('11 mm')
     const soilTile = screen.getByText('Surface soil', { selector: 'p' }).parentElement!
@@ -166,6 +166,29 @@ describe('DataPage', () => {
     expect(within(soilTile).getByText(/SMAP$/)).toBeInTheDocument()
     expect(screen.getByText(/Surface soil is .* \(54%\)/)).toBeInTheDocument()
     expect(screen.getByText('SMAP passes')).toBeInTheDocument()
+  })
+
+  it('cross-checks GPM rain with NASA POWER and marks the latest reading', async () => {
+    const base = observations('haor')
+    const gpm = (v: FarmObservations['variables'][number]) => ({ ...v, points: v.points.map((p) => ({ ...p, source: 'gpm_imerg' })) })
+    serverExtra = {
+      variables: base.variables.map((v) => (v.id === 'precipitation' ? gpm(v) : v)),
+      power_rain: [5, 4].map((offset) => ({ date: day(offset), value: 2, source: 'nasa_power', quality: 'good' as const })),
+    }
+    renderAt('/data')
+    const caption = await screen.findByText(/puts the same 30 days at 4 mm/)
+    const legend = within(caption.parentElement!).getByRole('list', { name: 'Legend' })
+    expect(legend).toHaveTextContent('GPM satellite')
+    expect(legend).toHaveTextContent('NASA POWER model')
+    expect(screen.getByText(/^Latest: /)).toBeInTheDocument()
+  })
+
+  it('shows no comparison line when the rain already comes from NASA POWER', async () => {
+    serverExtra = { power_rain: [{ date: day(4), value: 3, source: 'nasa_power', quality: 'good' }] }
+    renderAt('/data')
+    await screen.findByText('11 mm')
+    expect(screen.queryByText('NASA POWER model')).not.toBeInTheDocument()
+    expect(screen.getByText(/^Latest: /)).toBeInTheDocument()
   })
 
   it('switching farm loads that farm and keeps it in the URL', async () => {

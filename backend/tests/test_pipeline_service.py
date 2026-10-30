@@ -204,6 +204,20 @@ def test_farm_observations_endpoint(api):
     assert smap["points"] == [] and smap["latest"] is None
 
 
+def test_observations_send_power_rain_beside_gpm_for_a_cross_check():
+    gpm = FakeSource("gpm_imerg", values={d(27): 12.0, d(28): 4.0})
+    power = FakeSource("nasa_power", values={d(26): 1.0, d(27): 6.0})
+    service = PipelineService(ObservationStore(":memory:"), [gpm, power], client_factory=cmr_client, now=lambda: NOW)
+    asyncio.run(service.refresh([FARM], days=30))
+    app = create_app()
+    app.dependency_overrides[get_pipeline] = lambda: service
+    body = TestClient(app).get("/api/v1/farms/barind-wheat/observations?days=30").json()
+
+    rain = next(v for v in body["variables"] if v["id"] == "precipitation")
+    assert [(p["value"], p["source"]) for p in rain["points"]] == [(1.0, "nasa_power"), (12.0, "gpm_imerg"), (4.0, "gpm_imerg")]
+    assert [(p["date"], p["value"]) for p in body["power_rain"]] == [("2026-09-26", 1.0), ("2026-09-27", 6.0)]
+
+
 def test_observations_carry_the_topsoil_the_risk_engines_use():
     # The data page and the dashboard read the soil from the same place, so they can't disagree.
     passes = {d(20): 0.30, d(22): 0.31, d(24): 0.47, d(26): 0.30, d(28): 0.43}

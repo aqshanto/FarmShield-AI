@@ -305,6 +305,8 @@ export interface FarmObservations {
   topsoil?: ObservationPoint | null
   // SMAP on NASA POWER's 0–1 scale: stuck passes dropped, a week's median, calibrated for this soil.
   smap_wetness?: ObservationPoint[]
+  // NASA POWER's own daily rain, to cross-check GPM's (the merged rain series prefers GPM).
+  power_rain?: ObservationPoint[]
 }
 
 // --- rotation planner ----------------------------------------------------------------

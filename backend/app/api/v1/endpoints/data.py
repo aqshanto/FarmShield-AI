@@ -118,4 +118,8 @@ def farm_observations(
         variables=variables,
         topsoil=ObservationPoint(date=soil.date, value=round(soil.value, 3), source=soil.source, quality="good") if soil else None,
         smap_wetness=[ObservationPoint(date=d, value=round(v, 3), source="smap", quality="good") for d, v in smap_wetness(observations, today)],
+        power_rain=[
+            ObservationPoint(date=p.date, value=p.value, source=p.source, quality=p.quality)
+            for p in pipeline.source_points(location, "precipitation", "nasa_power", days)
+        ],
     )

@@ -31,6 +31,8 @@ interface TimeSeriesChartProps {
   summary: string
   height?: number
   emptyMessage?: string
+  // Marks the newest reading; later days are striped as still on their way (satellite data arrives late).
+  latest?: { date: string; label: string }
   className?: string
 }
 
@@ -66,6 +68,7 @@ export function TimeSeriesChart({
   summary,
   height = 190,
   emptyMessage,
+  latest,
   className,
 }: TimeSeriesChartProps) {
   const lang = useLang()
@@ -74,6 +77,7 @@ export function TimeSeriesChart({
   const [width, setWidth] = useState(520)
   const [active, setActive] = useState<number | null>(null)
   const summaryId = useId()
+  const stripesId = `stripes-${useId().replace(/[^\w-]/g, '')}`
 
   useEffect(() => {
     const el = containerRef.current
@@ -133,6 +137,10 @@ export function TimeSeriesChart({
     endLabels.push({ id: s.id, y: ly, text: formatValue(last.value) })
   }
 
+  const latestDay = latest && dayOf(latest.date) >= 0 && dayOf(latest.date) < days ? dayOf(latest.date) : null
+  // The label sits left of the marker, unless that would push it past the plot's left edge.
+  const latestLeft = latestDay !== null && x(latestDay) > PAD.left + 90
+
   const readings =
     active === null ? [] : visible.map((s) => ({ series: s, point: s.points.find((p) => dayOf(p.date) === active) }))
   // Tooltip sits inside the plot beside the crosshair (cards clip overflow), flipping near the right edge.
@@ -166,6 +174,11 @@ export function TimeSeriesChart({
         className="focus-ring relative w-full rounded-xl"
       >
         <svg width={width} height={height} className="block" aria-hidden="true">
+          <defs>
+            <pattern id={stripesId} width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+              <line x1="0" y1="0" x2="0" y2="6" stroke="var(--color-line-strong)" strokeWidth="2" />
+            </pattern>
+          </defs>
           {yTicks.map((tick) => (
             <g key={tick}>
               <line x1={PAD.left} x2={PAD.left + plotW} y1={y(tick)} y2={y(tick)} stroke="var(--color-line)" strokeWidth="1" />
@@ -246,6 +259,33 @@ export function TimeSeriesChart({
               </g>
             )
           })}
+
+          {latest && latestDay !== null && (
+            <motion.g initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.7, duration: 0.4 }}>
+              {latestDay < days - 1 && (
+                <rect
+                  x={x(latestDay) + barWidth / 2 + 2}
+                  y={PAD.top}
+                  width={Math.max(0, PAD.left + plotW - (x(latestDay) + barWidth / 2 + 2))}
+                  height={plotH}
+                  fill={`url(#${stripesId})`}
+                  opacity={0.6}
+                />
+              )}
+              <line x1={x(latestDay)} x2={x(latestDay)} y1={PAD.top} y2={base} stroke="var(--color-ink-subtle)" strokeWidth="1" strokeDasharray="3 3" />
+              <text
+                x={x(latestDay) + (latestLeft ? -6 : 6)}
+                y={PAD.top + 9}
+                textAnchor={latestLeft ? 'end' : 'start'}
+                className="fill-ink-muted text-[10px] font-semibold"
+                stroke="var(--color-night-900)"
+                strokeWidth={3}
+                paintOrder="stroke"
+              >
+                {latest.label}
+              </text>
+            </motion.g>
+          )}
 
           {endLabels.map((l) => (
             <text key={l.id} x={PAD.left + plotW + 8} y={l.y} className="fill-ink text-[11px] font-bold tabular-nums">
