@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion'
+import { Waves } from 'lucide-react'
 import type { Lang } from '@/lib/i18n'
 import { spring } from '@/lib/motion'
 import type { RotationCrop } from '@/types/api'
@@ -26,6 +27,7 @@ function runs(months: number[], start: number): [number, number][] {
 interface YearTimelineProps {
   crops: RotationCrop[]
   bareMonths: number[]
+  floodMonths?: number[]
   start: number
   lang: Lang
   t: RotationText
@@ -33,13 +35,15 @@ interface YearTimelineProps {
 
 // Twelve months as a strip: each crop is a coloured bar that grows into its season;
 // months with nothing growing are hatched, because bare soil is what washes away.
-export function YearTimeline({ crops, bareMonths, start, lang, t }: YearTimelineProps) {
+// On haor land the flood months fill with slow-moving water instead.
+export function YearTimeline({ crops, bareMonths, floodMonths = [], start, lang, t }: YearTimelineProps) {
   const year = yearFrom(start)
   const span = (months: number[]) => `${monthName(months[0], lang)}–${monthName(months[months.length - 1], lang)}`
   return (
     <div className="space-y-1.5">
       <p className="sr-only">
         {crops.map((c) => `${c.name}: ${span(c.months)}`).join('; ')}
+        {floodMonths.length > 0 && `; ${t.flooded}: ${span(floodMonths)}`}
         {bareMonths.length > 0 && `; ${t.bare}: ${bareMonths.map((m) => monthName(m, lang)).join(', ')}`}
       </p>
       <div className="relative h-11" aria-hidden="true">
@@ -55,6 +59,23 @@ export function YearTimeline({ crops, bareMonths, start, lang, t }: YearTimeline
             />
           ))}
         </div>
+        {runs(floodMonths, start).map(([col, len]) => (
+          <motion.div
+            key={`flood-${col}`}
+            initial={{ scaleY: 0, opacity: 0 }}
+            whileInView={{ scaleY: 1, opacity: 1 }}
+            viewport={{ once: true }}
+            transition={{ ...spring.gentle, delay: 0.1 }}
+            className="absolute inset-y-0 flex origin-bottom items-center justify-center overflow-hidden rounded-lg bg-gradient-to-b from-sky-400/15 to-sky-500/40 px-1.5 ring-1 ring-sky-300/40"
+            style={{ left: `calc(${(col / 12) * 100}% + 1px)`, width: `calc(${(len / 12) * 100}% - 2px)` }}
+          >
+            <span className="absolute inset-0 animate-shimmer bg-gradient-to-r from-transparent via-sky-200/20 to-transparent [animation-duration:4s]" />
+            <span className="relative flex min-w-0 items-center gap-1 text-xs font-bold text-sky-200">
+              <Waves className="size-3.5 shrink-0" />
+              {len >= 3 && <span className="truncate">{t.flooded}</span>}
+            </span>
+          </motion.div>
+        ))}
         {crops.flatMap((crop, i) =>
           runs(crop.months, start).map(([col, len], j) => (
             <motion.div

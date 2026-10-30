@@ -19,12 +19,13 @@ beforeEach(() => mockOverview())
 describe('HomePage', () => {
   it('tells the story with clear calls to action', () => {
     renderHome()
-    expect(screen.getByRole('heading', { level: 1, name: 'FarmShield AI' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Know before the flood. Know before the drought.' })).toBeInTheDocument()
     expect(screen.getByText('Satellite eyes for every farm.')).toBeInTheDocument()
+    expect(screen.getByText('Live data from NASA SMAP · GPM · MODIS · VIIRS')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /See a live farm/ })).toHaveAttribute('href', '/dashboard')
     expect(screen.getByRole('link', { name: /Ask in বাংলা/ })).toHaveAttribute('href', '/assistant')
     expect(screen.getByRole('link', { name: /Explore the map/ })).toHaveAttribute('href', '/map')
-    expect(screen.getByRole('heading', { name: 'From space to the field, in time to act' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'From space to your field, in time to act' })).toBeInTheDocument()
     expect(screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toContain('Ask in your own language')
   })
 
@@ -47,6 +48,6 @@ describe('HomePage', () => {
     // Skeleton cards while loading, then the section steps aside once the request fails.
     expect(screen.getByRole('status', { name: 'Loading farms' })).toBeInTheDocument()
     await waitFor(() => expect(screen.queryByRole('heading', { name: 'Five farms, five different stories' })).not.toBeInTheDocument())
-    expect(screen.getByRole('heading', { name: 'From space to the field, in time to act' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'From space to your field, in time to act' })).toBeInTheDocument()
   })
 })

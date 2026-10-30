@@ -47,5 +47,6 @@ class RotationPlan(BaseModel):
     strategies: list[RotationStrategy]  # the current rotation first, then up to three ideas
     climate: list[ClimateMonth]
     wet_months: list[int]
+    flood_months: list[int] = []  # haor land under deep water: no crop is planned in these months
     field_notes: list[str]
     sources: list[str]

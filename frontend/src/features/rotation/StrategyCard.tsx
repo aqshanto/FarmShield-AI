@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { AlertTriangle, ArrowDown, ArrowUp, Check, ChevronDown, Droplets, HelpCircle, Lightbulb, Satellite, Sprout } from 'lucide-react'
+import { AlertTriangle, ArrowDown, ArrowUp, Check, ChevronDown, Droplets, HelpCircle, Lightbulb, Satellite, Sprout, Waves } from 'lucide-react'
 import { type ReactNode, useId, useState } from 'react'
 import { Badge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Card'
@@ -18,6 +18,7 @@ interface StrategyCardProps {
   strategy: RotationStrategy
   current: RotationStrategy
   best: boolean
+  floodMonths: number[]
   start: number
   lang: Lang
   t: RotationText
@@ -85,7 +86,7 @@ function MatchRing({ score, color, lang, t }: { score: number; color: string; la
   )
 }
 
-export function StrategyCard({ strategy: s, current, best, start, lang, t }: StrategyCardProps) {
+export function StrategyCard({ strategy: s, current, best, floodMonths, start, lang, t }: StrategyCardProps) {
   const [open, setOpen] = useState(false)
   const detailsId = useId()
   const delta = s.overall - current.overall
@@ -110,7 +111,7 @@ export function StrategyCard({ strategy: s, current, best, start, lang, t }: Str
           <MatchRing score={s.overall} color={ring} lang={lang} t={t} />
         </header>
 
-        <YearTimeline crops={s.crops} bareMonths={s.bare_months} start={start} lang={lang} t={t} />
+        <YearTimeline crops={s.crops} bareMonths={s.bare_months} floodMonths={floodMonths} start={start} lang={lang} t={t} />
 
         <ul className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-ink-muted">
           {s.crops.map((c) => (
@@ -125,6 +126,11 @@ export function StrategyCard({ strategy: s, current, best, start, lang, t }: Str
           <Badge tone="sky" icon={<Droplets className="size-3.5" />}>
             {s.irrigation_mm >= 50 ? t.water(digits(s.irrigation_mm, lang)) : t.noWater}
           </Badge>
+          {floodMonths.length > 0 && (
+            <Badge tone="sky" icon={<Waves className="size-3.5" />}>
+              {t.flooded} · {span(floodMonths)}
+            </Badge>
+          )}
           <Badge>{s.bare_months.length ? t.bareMonths(digits(s.bare_months.length, lang)) : t.noBare}</Badge>
         </div>
 

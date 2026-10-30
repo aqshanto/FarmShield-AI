@@ -29,7 +29,7 @@ export const NASA_LAYERS: NasaLayer[] = [
     stops: ['#ffa200', '#ffec00', '#88c300', '#009832', '#00f9f3', '#005fff', '#0000c9'],
     text: {
       en: { name: 'Soil moisture', low: 'Dry', high: 'Wet', about: 'How wet the topsoil is, from the SMAP satellite.' },
-      bn: { name: 'মাটির আর্দ্রতা', low: 'শুকনো', high: 'ভেজা', about: 'SMAP উপগ্রহ থেকে, উপরের মাটি কতটা ভেজা।' },
+      bn: { name: 'মাটির আর্দ্রতা', low: 'শুকনো', high: 'ভেজা', about: 'SMAP স্যাটেলাইট থেকে, উপরের মাটি কতটা ভেজা।' },
     },
   },
   {
@@ -42,7 +42,7 @@ export const NASA_LAYERS: NasaLayer[] = [
     stops: ['#00764e', '#1eb200', '#efed00', '#ff4d2d', '#b50000'],
     text: {
       en: { name: 'Rainfall', low: 'Light', high: 'Heavy', about: 'Where it rained, from the GPM satellites (IMERG).' },
-      bn: { name: 'বৃষ্টি', low: 'হালকা', high: 'ভারী', about: 'GPM উপগ্রহ (IMERG) থেকে, কোথায় বৃষ্টি হয়েছে।' },
+      bn: { name: 'বৃষ্টি', low: 'হালকা', high: 'ভারী', about: 'GPM স্যাটেলাইট (IMERG) থেকে, কোথায় বৃষ্টি হয়েছে।' },
     },
   },
   {
@@ -55,7 +55,7 @@ export const NASA_LAYERS: NasaLayer[] = [
     stops: ['#e5dbcd', '#c8b5a5', '#9a6e59', '#96ba20', '#5da300', '#197300', '#005a00'],
     text: {
       en: { name: 'Greenness', low: 'Bare', high: 'Very green', about: 'How green the plants are, from MODIS on the Terra satellite (last 8 days).' },
-      bn: { name: 'সবুজ ভাব', low: 'খালি মাটি', high: 'খুব সবুজ', about: 'Terra উপগ্রহের MODIS থেকে, গাছপালা কতটা সবুজ (গত ৮ দিন)।' },
+      bn: { name: 'সবুজ ভাব', low: 'খালি মাটি', high: 'খুব সবুজ', about: 'Terra স্যাটেলাইটের MODIS থেকে, গাছপালা কতটা সবুজ (গত ৮ দিন)।' },
     },
   },
 ]

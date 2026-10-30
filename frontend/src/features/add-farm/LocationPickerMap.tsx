@@ -141,7 +141,7 @@ export function LocationPickerMap({ value, focus, onPick, label, viewLabels }: L
   return (
     <div className="relative h-full w-full">
       <div ref={container} className="h-full w-full" role="application" aria-label={label} />
-      <div className="absolute top-3 left-3 z-10 flex rounded-full bg-night-950/80 p-1 backdrop-blur" role="group" aria-label={bn ? 'মানচিত্রের ধরন' : 'Map view'}>
+      <div className="absolute top-3 left-3 z-10 flex rounded-full bg-night-950/80 p-1 backdrop-blur" role="group" aria-label={bn ? 'ম্যাপের ধরন' : 'Map view'}>
         {(['map', 'satellite'] as const).map((v) => (
           <button
             key={v}

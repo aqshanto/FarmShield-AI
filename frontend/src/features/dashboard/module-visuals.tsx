@@ -51,7 +51,7 @@ export const sourceDescriptions: Record<'en' | 'bn', Record<string, string>> = {
     MODIS: 'গাছের সবুজ ভাব আর মাটির তাপমাত্রা',
     VIIRS: 'গাছ ও মাটির আরেকটি দৃশ্য, দিনে ও রাতে',
     SRTM: 'স্পেস শাটলের রাডারে মাপা জমির উচ্চতা',
-    'NASA POWER': 'উপগ্রহভিত্তিক আবহাওয়ার রেকর্ড আর মাসিক স্বাভাবিক মান',
+    'NASA POWER': 'স্যাটেলাইটভিত্তিক আবহাওয়ার রেকর্ড আর মাসিক স্বাভাবিক মান',
     পূর্বাভাস: 'আবহাওয়ার পূর্বাভাস (Open-Meteo: NOAA, DWD ও ECMWF মডেল)',
     Forecast: 'আবহাওয়ার পূর্বাভাস (Open-Meteo: NOAA, DWD ও ECMWF মডেল)',
     fallback: 'নাসার পৃথিবী পর্যবেক্ষণ',

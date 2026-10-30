@@ -246,7 +246,16 @@ export function RotationPage() {
 
           <motion.div variants={stagger(0.12)} className="grid gap-6 md:grid-cols-2">
             {[current, ...ideas].map((s, i) => (
-              <StrategyCard key={s.id} strategy={s} current={current} best={i === 1 && s.overall > current.overall} start={start} lang={lang} t={t} />
+              <StrategyCard
+                key={s.id}
+                strategy={s}
+                current={current}
+                best={i === 1 && s.overall > current.overall}
+                floodMonths={data.flood_months ?? []}
+                start={start}
+                lang={lang}
+                t={t}
+              />
             ))}
           </motion.div>
 

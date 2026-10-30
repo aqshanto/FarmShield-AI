@@ -342,6 +342,7 @@ export interface RotationPlan {
   strategies: RotationStrategy[] // the current rotation first
   climate: { month: number; rain_mm: number; tmax: number; tmin: number }[]
   wet_months: number[]
+  flood_months?: number[] // haor land under deep water: nothing is planted in these months
   field_notes: string[]
   sources: string[]
 }

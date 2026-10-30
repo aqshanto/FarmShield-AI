@@ -270,7 +270,7 @@ export function TimeSeriesChart({
 
         {empty && (
           <p className="absolute inset-0 grid place-items-center text-sm text-ink-subtle" style={{ paddingBottom: PAD.bottom }}>
-            {emptyMessage ?? (bn ? 'এখনও কোনো তথ্য নেই' : 'No readings yet')}
+            {emptyMessage ?? (bn ? 'এখনও কোনো ডেটা নেই' : 'No readings yet')}
           </p>
         )}
 
@@ -299,7 +299,7 @@ export function TimeSeriesChart({
         <p className="sr-only" aria-live="polite">
           {active === null
             ? ''
-            : `${shortDate(dateOf(active), lang)}: ${readings.map(({ series: s, point }) => `${s.label} ${point ? formatValue(point.value) : bn ? 'তথ্য নেই' : 'no reading'}`).join(', ')}`}
+            : `${shortDate(dateOf(active), lang)}: ${readings.map(({ series: s, point }) => `${s.label} ${point ? formatValue(point.value) : bn ? 'ডেটা নেই' : 'no reading'}`).join(', ')}`}
         </p>
       </div>
     </div>

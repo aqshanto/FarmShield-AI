@@ -19,12 +19,12 @@ const text = {
     design: 'Design system',
   },
   bn: {
-    nav: { '/': 'হোম', '/dashboard': 'ড্যাশবোর্ড', '/map': 'মানচিত্র', '/rotation': 'ফসলচক্র', '/assistant': 'সহকারী', '/data': 'তথ্য' },
+    nav: { '/': 'হোম', '/dashboard': 'ড্যাশবোর্ড', '/map': 'ম্যাপ', '/rotation': 'ফসলচক্র', '/assistant': 'সহকারী', '/data': 'ডেটা' },
     navLabel: 'প্রধান মেনু',
     loading: 'পাতা লোড হচ্ছে',
     switchTo: 'EN',
     switchLabel: 'Switch to English (ইংরেজিতে দেখুন)',
-    poweredBy: 'নাসার পৃথিবী পর্যবেক্ষণ তথ্যের সাহায্যে',
+    poweredBy: 'নাসার পৃথিবী পর্যবেক্ষণ ডেটার সাহায্যে',
     design: 'ডিজাইন সিস্টেম',
   },
 }
@@ -128,7 +128,7 @@ export function AppLayout() {
               onFocus={() => prefetchPage(item.to)}
               className={({ isActive }) =>
                 cn(
-                  'focus-ring relative rounded-full px-3 py-2 text-sm font-semibold transition-colors sm:px-3.5 sm:py-1.5 lg:px-4',
+                  'focus-ring relative rounded-full px-2 py-2 text-sm font-semibold transition-colors sm:px-3.5 sm:py-1.5 lg:px-4',
                   isActive ? 'text-night-950' : 'text-ink-muted hover:text-ink',
                 )
               }

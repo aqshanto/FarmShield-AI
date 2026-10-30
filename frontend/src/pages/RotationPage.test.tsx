@@ -68,21 +68,46 @@ function makePlan(url: URL): RotationPlan {
   }
 }
 
+// Haor land: under water May–October, so only dry-season crops are planned.
+function haorPlan(url: URL): RotationPlan {
+  const boro = { id: 'boro', name: 'Boro rice', months: [1, 2, 3, 4] }
+  return {
+    ...makePlan(url),
+    existing_id: 'boro-haor',
+    existing_options: [
+      { id: 'boro-haor', name: 'Boro rice' },
+      { id: 'mustard-boro-haor', name: 'Mustard → Boro rice' },
+    ],
+    strategies: [
+      strategy('boro-haor', 'Boro rice', 46, { existing: true, verdict: 'Your rotation now', bare_months: [11, 12], crops: [boro] }),
+      strategy('mustard-boro-haor', 'Mustard → Boro rice', 62, {
+        verdict: 'Best match for your priorities',
+        bare_months: [],
+        crops: [{ id: 'mustard', name: 'Mustard', months: [11, 12] }, boro],
+      }),
+    ],
+    flood_months: [5, 6, 7, 8, 9, 10],
+    field_notes: ['In the flood months the haor gives fish, not crops, so every idea here uses the dry months only'],
+  }
+}
+
 let fetchSpy: ReturnType<typeof vi.spyOn>
 let rotationStatus = 200
+let haorLand = false
 
 beforeEach(() => {
   localStorage.clear()
   myFarms.reset()
   setLang('en')
   rotationStatus = 200
+  haorLand = false
   fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
     const url = new URL(String(input), 'http://test')
     const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status })
     if (url.pathname === '/api/v1/farms') return json(farmsFixture)
     if (/^\/api\/v1\/farms\/[^/]+\/rotation$/.test(url.pathname)) {
       if (rotationStatus !== 200) return json({ detail: 'nope' }, rotationStatus)
-      return json(makePlan(url))
+      return json(haorLand ? haorPlan(url) : makePlan(url))
     }
     return json({ detail: 'not found' }, 404)
   })
@@ -142,6 +167,17 @@ describe('RotationPage', () => {
     await screen.findAllByRole('article')
     await userEvent.click(screen.getByRole('button', { name: /^April: about 120 mm/ }))
     expect(screen.getByText('April: about 120 mm of rain, days around 30°C')).toBeInTheDocument()
+  })
+
+  it('shows haor flood months as water, not as a bare field', async () => {
+    haorLand = true
+    renderAt()
+    expect(await screen.findByRole('heading', { level: 3, name: 'Boro rice' })).toBeInTheDocument()
+    expect(screen.getAllByText('Under water · May–Oct')).toHaveLength(2)
+    expect(screen.getByText('Field bare 2 months')).toBeInTheDocument()
+    expect(screen.getByText('Never bare')).toBeInTheDocument()
+    expect(screen.getByText(/Boro rice: Jan–Apr; Under water: May–Oct; Bare: Nov, Dec/)).toBeInTheDocument()
+    expect(screen.getByText(/the haor gives fish, not crops/)).toBeInTheDocument()
   })
 
   it('speaks Bengali', async () => {

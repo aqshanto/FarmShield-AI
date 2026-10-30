@@ -17,9 +17,9 @@ const text = {
   },
   bn: {
     confidence: {
-      high: { tone: 'leaf' as const, label: 'নির্ভরযোগ্যতা বেশি', hint: 'প্রতিটি কারণের জন্য মিশনের তথ্য আছে (SMAP মাটির আর্দ্রতাসহ)।' },
-      medium: { tone: 'sky' as const, label: 'নির্ভরযোগ্যতা মাঝারি', hint: 'কিছু কারণে বিকল্প তথ্য ব্যবহার হয়েছে (যেমন SMAP-এর বদলে NASA POWER)।' },
-      low: { tone: 'harvest' as const, label: 'নির্ভরযোগ্যতা কম', hint: 'কিছু তথ্য নেই, তাই স্কোর কম কারণের উপর নির্ভর করছে।' },
+      high: { tone: 'leaf' as const, label: 'নির্ভরযোগ্যতা বেশি', hint: 'প্রতিটি কারণের জন্য মিশনের ডেটা আছে (SMAP মাটির আর্দ্রতাসহ)।' },
+      medium: { tone: 'sky' as const, label: 'নির্ভরযোগ্যতা মাঝারি', hint: 'কিছু কারণে বিকল্প ডেটা ব্যবহার হয়েছে (যেমন SMAP-এর বদলে NASA POWER)।' },
+      low: { tone: 'harvest' as const, label: 'নির্ভরযোগ্যতা কম', hint: 'কিছু ডেটা নেই, তাই স্কোর কম কারণের উপর নির্ভর করছে।' },
     },
     counts: (pct: string) => `গুরুত্ব ${pct}%`,
     title: 'এই স্কোরের পেছনের কারণ',

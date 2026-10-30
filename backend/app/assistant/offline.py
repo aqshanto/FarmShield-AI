@@ -168,13 +168,13 @@ def crop_answer(d: Dashboard, today: date, lang: str) -> str:
             "disease": f"আবহাওয়া ভেজা আর গরম, তাই {disease} ছড়াতে পারে। প্রতিদিন পাতায় দাগ আছে কি না দেখুন।",
             "water": "জমিতে পানির ঘাটতি হচ্ছে, সেচের দিকে খেয়াল রাখুন।",
             "flood": "জমিতে পানি জমে থাকার ঝুঁকি আছে, নালা খুলে দিন।",
-            "greenness": "উপগ্রহের ছবিতে গাছ স্বাভাবিকের চেয়ে কম সবুজ দেখা যাচ্ছে। জমি ঘুরে দেখুন।",
-            "trend": "উপগ্রহের ছবিতে গাছের সবুজ ভাব কমছে। জমি ঘুরে দেখুন।",
+            "greenness": "স্যাটেলাইটের ছবিতে গাছ স্বাভাবিকের চেয়ে কম সবুজ দেখা যাচ্ছে। জমি ঘুরে দেখুন।",
+            "trend": "স্যাটেলাইটের ছবিতে গাছের সবুজ ভাব কমছে। জমি ঘুরে দেখুন।",
         }.get(top.id) if top else None
         if reason:
             parts.append(reason)
         if cloudy:
-            parts.append("মেঘের কারণে অনেক দিন উপগ্রহ আপনার জমি দেখতে পায়নি, তাই নিজে একবার জমি ঘুরে দেখুন।")
+            parts.append("মেঘের কারণে অনেক দিন স্যাটেলাইট আপনার জমি দেখতে পায়নি, তাই নিজে একবার জমি ঘুরে দেখুন।")
         return " ".join(parts)
     parts = [m.headline, m.explanation]
     advice = _first_advice(d, "crop_health")
@@ -219,7 +219,7 @@ def today_answer(d: Dashboard, today: date, lang: str) -> str:
     worst = max(d.modules, key=lambda m: m.score)
     if lang == "bn":
         opener = {
-            "safe": "আজ আপনার খামারের অবস্থা ভালো।",
+            "safe": "আজ আপনার জমির অবস্থা ভালো।",
             "watch": "আজ কয়েকটি বিষয়ে নজর রাখুন।",
             "warning": "এখনই প্রস্তুতি নিন।",
             "danger": "জরুরি: এখনই ব্যবস্থা নিন।",
@@ -253,7 +253,7 @@ def reply(d: Dashboard, question: str, today: date, lang: str) -> str:
         return "আপনাকেও ধন্যবাদ! আর কিছু জানতে চাইলে জিজ্ঞেস করুন। ভালো ফসল হোক!" if lang == "bn" else "You're welcome! Ask me anything else about your field. Wishing you a good harvest!"
     if "greeting" in found:
         if lang == "bn":
-            return f"আসসালামু আলাইকুম! আমি ফার্মশিল্ড, আপনার খামারের সাহায্যকারী। {bn_of(district)} জমি নিয়ে যেকোনো প্রশ্ন করুন: সেচ, বন্যা, ফসলের রোগ বা আবহাওয়া।"
+            return f"আসসালামু আলাইকুম! আমি ফার্মশিল্ড, আপনার জমির সাহায্যকারী। {bn_of(district)} জমি নিয়ে যেকোনো প্রশ্ন করুন: সেচ, বন্যা, ফসলের রোগ বা আবহাওয়া।"
         return f"Hello! I'm FarmShield, your farm helper. Ask me anything about your field in {district}: irrigation, floods, crop health or the weather."
     # Didn't recognise the question: say so, then give the day's picture.
     if lang == "bn":

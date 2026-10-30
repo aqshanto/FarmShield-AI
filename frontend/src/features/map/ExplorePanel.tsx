@@ -14,7 +14,7 @@ interface ExplorePanelProps {
 // Starting point, and the keyboard/screen-reader friendly way to explore the map.
 const text = {
   en: { tapStrong: 'Tap anywhere on the map', tapRest: ', in Bangladesh or anywhere in the world, to see flood, water and crop risk for that spot.', farms: 'Your farms', jump: 'Jump to a division' },
-  bn: { tapStrong: 'মানচিত্রের যেকোনো জায়গায় চাপ দিন,', tapRest: ' বাংলাদেশে বা পৃথিবীর যেকোনো স্থানে, সেখানকার বন্যা, পানি আর ফসলের ঝুঁকি দেখতে।', farms: 'আপনার খামার', jump: 'বিভাগে যান' },
+  bn: { tapStrong: 'ম্যাপের যেকোনো জায়গায় চাপ দিন,', tapRest: ' বাংলাদেশে বা পৃথিবীর যেকোনো স্থানে, সেখানকার বন্যা, পানি আর ফসলের ঝুঁকি দেখতে।', farms: 'আপনার জমি', jump: 'বিভাগে যান' },
 }
 
 export function ExplorePanel({ farms, layer, onPickFarm, onJump }: ExplorePanelProps) {

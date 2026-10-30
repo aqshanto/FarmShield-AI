@@ -36,7 +36,7 @@ const text = {
     close: 'বিস্তারিত বন্ধ করুন',
     trend: 'গত ২ সপ্তাহের ঝুঁকি',
     trendLabel: (title: string) => `${title}, গত ১৪ দিন`,
-    satellites: 'উপগ্রহ যা দেখেছে',
+    satellites: 'স্যাটেলাইট যা দেখেছে',
   },
 }
 

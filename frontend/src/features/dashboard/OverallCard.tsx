@@ -17,7 +17,7 @@ interface OverallCardProps {
 
 const text = {
   en: { ring: 'Overall farm risk', caption: 'overall risk' },
-  bn: { ring: 'খামারের সার্বিক ঝুঁকি', caption: 'সার্বিক ঝুঁকি' },
+  bn: { ring: 'জমির সার্বিক ঝুঁকি', caption: 'সার্বিক ঝুঁকি' },
 }
 
 // The single headline of the page: how is my farm, in one number and one sentence.

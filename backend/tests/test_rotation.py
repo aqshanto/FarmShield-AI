@@ -24,6 +24,13 @@ TEMPERATE = {
     1: (1.0, 4, -5), 2: (1.2, 6, -4), 3: (1.5, 12, 0), 4: (2.0, 18, 5), 5: (2.8, 23, 10), 6: (3.5, 27, 15),
     7: (4.0, 29, 18), 8: (3.6, 28, 17), 9: (2.5, 24, 12), 10: (1.8, 17, 6), 11: (1.4, 10, 1), 12: (1.1, 5, -3),
 }
+# Sunamganj haor (NASA POWER): the rains arrive in April and June brings about 690 mm.
+HAOR = {
+    1: (0.4, 25, 12), 2: (1.2, 27, 14), 3: (3.0, 31, 18), 4: (11.9, 31, 21), 5: (16.6, 31, 23), 6: (22.6, 31, 25),
+    7: (21.6, 31, 26), 8: (17.0, 32, 26), 9: (14.1, 31, 25), 10: (7.5, 30, 22), 11: (0.8, 28, 17), 12: (0.6, 26, 13),
+}
+# Barisal: just as wet at the peak, but the rains only start in May (a tidal floodplain, not a haor).
+BARISAL = {**HAOR, 4: (3.9, 33, 23), 5: (9.0, 33, 25), 6: (22.3, 31, 26)}
 
 
 def climate(table) -> dict[int, MonthNormal]:
@@ -105,6 +112,45 @@ def test_the_farmer_can_say_which_rotation_they_grow_now():
     assert all(s.id != "mustard-boro-aman" for s in other.alternatives)
 
 
+def haor_field(crop="Boro rice", elevation=8.0, table=HAOR) -> FieldFacts:
+    return FieldFacts(True, crop, climate(table), elevation_m=elevation)
+
+
+def test_haor_land_only_grows_in_the_dry_months():
+    p = engine.plan(haor_field())
+    assert p.flood_months == [5, 6, 7, 8, 9, 10]
+    assert p.existing.id == "boro-haor" and p.existing.name == "Boro rice"
+    assert p.existing_options == ["boro-haor", "mustard-boro-haor"]
+    assert len(p.alternatives) == 3
+    for s in [p.existing, *p.alternatives]:
+        months = {m for slot in s.slots for m in slot.months}
+        assert not months & set(p.flood_months), s.id  # nothing planted under the flood
+        assert not set(s.bare_months) & set(p.flood_months)  # flooded months aren't "bare"
+        assert all(slot.crop.id != "aman" for slot in s.slots)
+    assert p.existing.bare_months == [11, 12]
+    assert any("like a haor, it stays under deep water from May to October" in n for n in p.notes)
+    assert p.existing.risks[0].startswith("Flash floods from the hills upstream can arrive in April")
+    assert not any("groundwater" in r for r in p.existing.risks)
+    assert any("inside the haor" in g for g in p.existing.gaps)
+    # The haor's own improvement: a short mustard crop before Boro, as BARI promotes there.
+    assert "mustard-boro-haor" in [s.id for s in p.alternatives]
+
+
+def test_haor_farmers_can_pick_what_they_grow_and_other_crops_start_from_boro():
+    assert engine.plan(haor_field(crop="Mustard")).existing.id == "mustard-boro-haor"
+    assert engine.plan(haor_field(crop="Aman rice")).existing.id == "boro-haor"
+    # A rotation from the rest of Bangladesh can't be grown here, so it falls back to Boro.
+    assert engine.plan(haor_field(), existing_id="boro-fallow-aman").existing.id == "boro-haor"
+
+
+def test_only_low_land_with_early_rains_is_treated_as_haor():
+    assert engine.plan(haor_field(table=BARISAL, elevation=6.0)).flood_months == []  # rains start in May
+    assert engine.plan(haor_field(elevation=26.0)).flood_months == []  # Sylhet town: above the haor
+    assert engine.plan(haor_field(table=BARISAL, elevation=6.0)).existing.id == "boro-fallow-aman"
+    world = FieldFacts(False, "Rice", climate(HAOR), relief_m=1.0)
+    assert engine.plan(world).flood_months == []
+
+
 def test_world_farms_get_seasons_from_their_own_climate():
     f = FieldFacts(False, "Maize", climate(TEMPERATE), relief_m=10.0)
     p = engine.plan(f)
@@ -127,6 +173,8 @@ def rotation_texts():
         bd_field(),
         bd_field(crop="Wheat", elevation=4.0, greenness=0.6),
         bd_field(crop="Tomato", elevation=-2.0),
+        haor_field(),
+        haor_field(crop="Lentil"),
         FieldFacts(False, "Rice", climate(TEMPERATE), relief_m=2.0, greenness_ratio=0.5),
         FieldFacts(False, "Potato", climate(BOGURA), relief_m=30.0),
     ]
@@ -135,8 +183,8 @@ def rotation_texts():
             for irrigation in (True, False):
                 yield from all_text(engine.plan(f, priorities, irrigation))
         if f.in_bangladesh:
-            for pattern in engine.BANGLADESH_PATTERNS:
-                yield from all_text(engine.plan(f, set(), False, pattern.id))
+            for pattern_id in engine.PATTERNS_BY_ID:
+                yield from all_text(engine.plan(f, set(), False, pattern_id))
 
 
 def test_every_rotation_sentence_has_bengali():
@@ -191,6 +239,26 @@ def test_rotation_endpoint_in_english_and_bengali():
     for s in bn["strategies"]:
         texts += [s["name"], s["verdict"], *s["why"], *s["evidence"], *s["benefits"], *s["gaps"], *s["risks"]]
         texts += [c["name"] for c in s["crops"]]
+    assert [t for t in texts if LATIN.search(t)] == []
+
+
+def test_rotation_endpoint_on_haor_land():
+    pipe = pipeline_with({
+        "power_climatology": normals(HAOR),
+        "srtm": [Observation("srtm", "elevation", date(2000, 2, 11), 8.0, "m")],
+    })
+    client = client_for(pipe)
+    body = client.get("/api/v1/farms/sunamganj-haor/rotation").json()
+    assert body["flood_months"] == [5, 6, 7, 8, 9, 10]
+    assert body["existing_id"] == "boro-haor"
+    assert [o["name"] for o in body["existing_options"]] == ["Boro rice", "Mustard → Boro rice"]
+    assert body["strategies"][0]["bare_months"] == [11, 12]
+
+    bn = client.get("/api/v1/farms/sunamganj-haor/rotation", params={"lang": "bn"}).json()
+    assert any("হাওর" in n for n in bn["field_notes"])
+    texts = [*bn["field_notes"], *(o["name"] for o in bn["existing_options"])]
+    for s in bn["strategies"]:
+        texts += [s["name"], *s["why"], *s["evidence"], *s["benefits"], *s["gaps"], *s["risks"]]
     assert [t for t in texts if LATIN.search(t)] == []
 
 

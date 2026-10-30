@@ -5,7 +5,7 @@ import { useText } from '@/lib/i18n'
 
 const text = {
   en: { title: 'This field is off the map', body: 'Our satellites could not find that page.', home: 'Back to home' },
-  bn: { title: 'এই জমি মানচিত্রে নেই', body: 'আমাদের উপগ্রহ পাতাটি খুঁজে পায়নি।', home: 'হোমে ফিরুন' },
+  bn: { title: 'এই জমি ম্যাপে নেই', body: 'আমাদের স্যাটেলাইট পাতাটি খুঁজে পায়নি।', home: 'হোমে ফিরুন' },
 }
 
 export function NotFoundPage() {

@@ -123,6 +123,7 @@ async def build_rotation_plan(
             for m, c in sorted(climate.items())
         ],
         wet_months=result.wet_months,
+        flood_months=result.flood_months,
         field_notes=result.notes,
         sources=SOURCES,
     )
