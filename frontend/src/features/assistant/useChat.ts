@@ -40,7 +40,9 @@ export function useChat(farmId: string | null, lang: Lang, farmName?: string) {
       const reply: ChatTurn = { id: newId(), role: 'assistant', text: '', lang, status: 'waiting' }
       const history: ChatMessage[] = [...turns, user]
         .filter((t) => t.status === 'done' && t.text)
-        .map((t) => ({ role: t.role, content: t.text }))
+        .map((t) => ({ role: t.role, content: t.text.slice(0, 2000) }))
+        // The recent conversation is enough context, and keeps requests within the API's limits.
+        .slice(-20)
       setChat({ farmId, turns: [...turns, user, reply] })
 
       const abort = new AbortController()

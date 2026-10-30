@@ -333,7 +333,7 @@ export function MapCanvas({
       map,
       lang,
       lang === 'bn'
-        ? 'বাংলাদেশের ঝুঁকির মানচিত্র ও নাসার বিশ্ব-মানচিত্র। সরাতে তীর-চাবি, কাছে বা দূরে নিতে প্লাস বা মাইনাস চাপুন।'
+        ? 'বাংলাদেশের ঝুঁকির ম্যাপ ও নাসার বিশ্ব-ম্যাপ। সরাতে তীর-চাবি, কাছে বা দূরে নিতে প্লাস বা মাইনাস চাপুন।'
         : 'Risk map of Bangladesh and NASA world map. Use arrow keys to pan and plus or minus to zoom.',
     )
   }, [lang])

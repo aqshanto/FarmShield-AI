@@ -11,6 +11,8 @@ from app.pipeline.models import Location, Observation
 from app.pipeline.service import PipelineService
 from app.pipeline.sources.base import SourceError, SourceInfo, TokenRequiredError
 from app.pipeline.store import ObservationStore
+from app.risk.inputs import flood_inputs
+from app.risk.region import local_today
 
 NOW = datetime(2026, 9, 30, 12, 0, tzinfo=UTC)
 FARM = Location("barind-wheat", 24.62, 88.56)
@@ -168,7 +170,7 @@ def test_vegetation_is_served_with_a_longer_lookback():
 @pytest.fixture
 def api():
     rain = FakeSource("nasa_power", values={d(28): 9.0, d(29): 1.0})
-    service = PipelineService(ObservationStore(":memory:"), [rain], client_factory=cmr_client)
+    service = PipelineService(ObservationStore(":memory:"), [rain], client_factory=cmr_client, now=lambda: NOW)
     asyncio.run(service.refresh([FARM], days=30))
     app = create_app()
     app.dependency_overrides[get_pipeline] = lambda: service
@@ -200,6 +202,23 @@ def test_farm_observations_endpoint(api):
     assert rain["latest"]["value"] == 1.0 and rain["latest"]["source"] == "nasa_power"
     smap = next(v for v in body["variables"] if v["id"] == "soil_moisture")
     assert smap["points"] == [] and smap["latest"] is None
+
+
+def test_observations_carry_the_topsoil_the_risk_engines_use():
+    # The data page and the dashboard read the soil from the same place, so they can't disagree.
+    passes = {d(20): 0.30, d(22): 0.31, d(24): 0.47, d(26): 0.30, d(28): 0.43}
+    smap = FakeSource("smap", variable="soil_moisture", values=passes)
+    power = FakeSource("nasa_power", variable="soil_wetness", values={d(day): 0.48 for day in range(18, 30)})
+    service = PipelineService(ObservationStore(":memory:"), [smap, power], client_factory=cmr_client, now=lambda: NOW)
+    asyncio.run(service.refresh([FARM], days=30))
+    app = create_app()
+    app.dependency_overrides[get_pipeline] = lambda: service
+    body = TestClient(app).get("/api/v1/farms/barind-wheat/observations?days=60").json()
+
+    saturation = flood_inputs(service, FARM, local_today(NOW, FARM.lon)).saturation
+    assert body["topsoil"]["source"] == "smap" and body["topsoil"]["value"] == pytest.approx(saturation, abs=0.001)
+    assert body["smap_wetness"][-1]["value"] == body["topsoil"]["value"]
+    assert saturation < 0.7  # the old fixed scale read 0.43 m³/m³ as 86%
 
 
 def test_farm_observations_unknown_farm(api):

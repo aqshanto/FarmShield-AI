@@ -15,8 +15,8 @@ const text = {
     restart: 'Restart the backend, then press “Refresh from NASA”.',
   },
   bn: {
-    title: 'GPM আর SMAP-এর তথ্য চালু করুন',
-    body: 'এখন বৃষ্টি আর মাটির আর্দ্রতার তথ্য আসছে NASA POWER থেকে। বিনামূল্যের NASA Earthdata টোকেন দিলে ফার্মশিল্ড সরাসরি GPM আর SMAP মিশন থেকে তথ্য পড়বে।',
+    title: 'GPM আর SMAP-এর ডেটা চালু করুন',
+    body: 'এখন বৃষ্টি আর মাটির আর্দ্রতার ডেটা আসছে NASA POWER থেকে। বিনামূল্যের NASA Earthdata টোকেন দিলে ফার্মশিল্ড সরাসরি GPM আর SMAP মিশন থেকে ডেটা পড়বে।',
     create: 'এখানে অ্যাকাউন্ট খুলুন:',
     choose: 'তারপর বেছে নিন',
     generate: 'Generate Token',

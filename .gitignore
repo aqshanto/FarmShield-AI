@@ -27,3 +27,6 @@ Thumbs.db
 
 # NASA data pipeline cache
 backend/data/
+
+# Local tool settings
+.claude/

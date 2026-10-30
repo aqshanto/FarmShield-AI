@@ -11,40 +11,47 @@ import { useLang, useText } from '@/lib/i18n'
 import { fadeUp, stagger } from '@/lib/motion'
 import { useMapOverview } from '@/features/map/useMapOverview'
 
+// The headline's danger words wear the brand gradient: [text, accent?] pieces.
+type Headline = [string, boolean?][]
+
 const text = {
   en: {
-    badge: 'NASA Space Apps Challenge',
+    badge: 'NASA Space Apps Challenge 2026',
+    headline: [['Know before the '], ['flood', true], ['. Know before the '], ['drought', true], ['.']] as Headline,
     tagline: 'Satellite eyes for every farm.',
-    second: 'প্রতিটি খামারের জন্য স্যাটেলাইটের চোখ।',
+    second: 'মাঠে আপনি, আকাশে আমরা।',
     secondLang: 'bn',
     intro:
-      'FarmShield turns NASA satellite data into early, simple warnings about floods, dry soil and crop stress, so farmers in Bangladesh know what to do today, in Bengali or English.',
+      'FarmShield reads NASA satellite data every day and turns it into simple advice on floods, dry soil and crop health, so farmers in Bangladesh know what to do today, in Bangla or English.',
     seeFarm: 'See a live farm',
-    addFarm: 'Add my farm',
+    addFarm: 'Check my farm',
     ask: 'Ask in বাংলা',
     map: 'Explore the map',
+    trust: 'Live data from NASA SMAP · GPM · MODIS · VIIRS',
     howItWorks: 'How it works',
-    closingTitle: 'Warnings that arrive before the water does.',
-    closingBody: 'Built on free, open NASA data, so it can grow to every district without new sensors in the field.',
+    closingTitle: 'Warnings that arrive before the rain does.',
+    closingBody: 'Built on free, open NASA data, so it can reach every district without a single new sensor in the field.',
     openDashboard: 'Open the dashboard',
     seeData: 'See the NASA data',
   },
   bn: {
-    badge: 'নাসা স্পেস অ্যাপস চ্যালেঞ্জ',
-    tagline: 'প্রতিটি খামারের জন্য স্যাটেলাইটের চোখ।',
+    badge: 'নাসা স্পেস অ্যাপস চ্যালেঞ্জ ২০২৬',
+    headline: [['বন্যার', true], [' আগেই জানুন, '], ['খরার', true], [' আগেই জানুন।']] as Headline,
+    tagline: 'মাঠে আপনি, আকাশে আমরা।',
     second: 'Satellite eyes for every farm.',
     secondLang: 'en',
     intro:
-      'ফার্মশিল্ড নাসার উপগ্রহ তথ্য থেকে বন্যা, শুকনো মাটি আর ফসলের চাপের আগাম ও সহজ সতর্কবার্তা দেয়, যাতে বাংলাদেশের কৃষক বাংলা বা ইংরেজিতে জানতে পারেন আজ কী করতে হবে।',
-    seeFarm: 'একটি লাইভ খামার দেখুন',
-    addFarm: 'আমার জমি যোগ করুন',
+      'ফার্মশিল্ড প্রতিদিন নাসার স্যাটেলাইট ডেটা দেখে, আর বন্যা, শুকনো মাটি আর ফসলের অবস্থা নিয়ে সহজ ভাষায় জানিয়ে দেয় আজ কী করবেন।',
+    seeFarm: 'একটা জমি লাইভ দেখুন',
+    addFarm: 'আমার জমি দেখুন',
     ask: 'বাংলায় জিজ্ঞেস করুন',
-    map: 'মানচিত্র দেখুন',
+    map: 'ম্যাপ দেখুন',
+    trust: 'ডেটা আসে নাসার SMAP · GPM · MODIS · VIIRS স্যাটেলাইট থেকে',
     howItWorks: 'যেভাবে কাজ করে',
-    closingTitle: 'পানি আসার আগেই সতর্কবার্তা।',
-    closingBody: 'বিনামূল্যের, উন্মুক্ত নাসা তথ্যের উপর তৈরি, তাই মাঠে নতুন সেন্সর ছাড়াই প্রতিটি জেলায় ছড়িয়ে দেওয়া যায়।',
+    closingTitle: 'বৃষ্টি আসার আগেই সতর্কবার্তা।',
+    closingBody: 'নাসার ফ্রি, ওপেন ডেটায় তৈরি, তাই মাঠে নতুন কোনো যন্ত্র না বসিয়েই দেশের প্রতিটি জেলায় পৌঁছানো যায়।',
     openDashboard: 'ড্যাশবোর্ড খুলুন',
-    seeData: 'নাসার তথ্য দেখুন',
+    seeData: 'নাসার ডেটা দেখুন',
   },
 }
 
@@ -63,8 +70,16 @@ export function HomePage() {
           <motion.div variants={fadeUp}>
             <Badge tone="leaf">{t.badge}</Badge>
           </motion.div>
-          <motion.h1 variants={fadeUp} className="text-5xl font-extrabold tracking-tight sm:text-display">
-            <span className="text-gradient-brand">FarmShield AI</span>
+          <motion.h1 variants={fadeUp} className="text-5xl font-extrabold tracking-tight text-ink sm:text-display">
+            {t.headline.map(([words, accent], i) =>
+              accent ? (
+                <span key={i} className="text-gradient-brand">
+                  {words}
+                </span>
+              ) : (
+                words
+              ),
+            )}
           </motion.h1>
           <motion.p variants={fadeUp} className="text-2xl font-bold text-ink sm:text-3xl">
             {t.tagline}
@@ -93,6 +108,9 @@ export function HomePage() {
               {t.map}
             </Link>
           </motion.div>
+          <motion.p variants={fadeUp} className="text-sm text-ink-subtle">
+            {t.trust}
+          </motion.p>
         </motion.div>
 
         <motion.div

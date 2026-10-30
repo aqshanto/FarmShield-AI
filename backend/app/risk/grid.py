@@ -20,7 +20,7 @@ import asyncio
 import json
 import logging
 from datetime import date, datetime, timedelta
-from statistics import fmean
+from statistics import fmean, median
 
 import httpx2
 
@@ -37,7 +37,7 @@ from app.risk.crop import CropInputs
 from app.risk.crop import score_factors as crop_score
 from app.risk.flood import DailyRain, FloodInputs
 from app.risk.flood import score_factors as flood_score
-from app.risk.inputs import POROSITY, flood_inputs, water_inputs
+from app.risk.inputs import CALIBRATION_DAYS, POROSITY, flood_inputs, soil_porosity, water_inputs
 from app.risk.region import in_bangladesh
 from app.risk.water import Reading, WaterInputs
 from app.risk.water import score_factors as water_score
@@ -298,6 +298,8 @@ async def live_grid(pipeline: PipelineService, farms: list[Location], today: dat
     farm_water = [water_inputs(pipeline, farm, today) for farm in farms]
     saturations = [i.saturation for i in farm_flood if i.saturation is not None]
     national_saturation = fmean(saturations) if saturations else None
+    # Cells have no POWER series of their own: they use the farms' typical calibrated soil.
+    porosity = median(soil_porosity(pipeline.observations(farm, days=CALIBRATION_DAYS), today) for farm in farms) if farms else POROSITY
     normals: dict[int, float] = {}
     for month in range(1, 13):
         values = [w.normals[month] for w in farm_water if month in w.normals]
@@ -312,7 +314,7 @@ async def live_grid(pipeline: PipelineService, farms: list[Location], today: dat
         past_source = weather.get("past_source", "open_meteo")
         daily = [DailyRain(d, mm, past_source if d < today else "open_meteo", d > today) for d, mm in zip(days, rain_row, strict=False) if mm is not None]
         has_smap = bool(smap and smap[k] is not None)
-        sat = smap[k] / POROSITY if has_smap else national_saturation
+        sat = smap[k] / porosity if has_smap else national_saturation
         sat = min(1.0, sat) if sat is not None else None
 
         flood = FloodInputs(

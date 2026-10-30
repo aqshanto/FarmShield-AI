@@ -50,7 +50,7 @@ const text = {
         name: 'ব্র্যান্ড',
         swatches: [
           { name: 'পাতা', token: '--color-leaf-400', use: 'বৃদ্ধি, সাফল্য, মূল কাজ' },
-          { name: 'আকাশ', token: '--color-sky-400', use: 'পানি, বৃষ্টি, উপগ্রহ' },
+          { name: 'আকাশ', token: '--color-sky-400', use: 'পানি, বৃষ্টি, স্যাটেলাইট' },
           { name: 'ফসল', token: '--color-harvest-300', use: 'রোদ, গরম, বিশেষ অংশ' },
         ],
       },

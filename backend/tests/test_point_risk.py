@@ -104,10 +104,28 @@ def test_reverse_geocode_failure_is_quick_and_pauses_lookups(monkeypatch):
     calls = []
     pipeline.client_factory = lambda: httpx2.AsyncClient(transport=httpx2.MockTransport(lambda r: calls.append(r) or httpx2.Response(503)))
     assert asyncio.run(reverse_geocode(pipeline, *NAIROBI, "en")) is None
-    assert len(calls) == 1  # no retries
-    # While paused, taps don't even ask.
+    assert [c.url.host for c in calls] == ["nominatim.openstreetmap.org", "photon.komoot.io"]  # no retries, then the backup
+    # While both are paused, taps don't even ask.
     assert asyncio.run(reverse_geocode(pipeline, 10.0, 10.0, "en")) is None
-    assert len(calls) == 1
+    assert len(calls) == 2
+
+
+def test_photon_answers_when_nominatim_refuses_this_server():
+    def handler(request):
+        if request.url.host == "nominatim.openstreetmap.org":
+            return httpx2.Response(403)
+        if request.url.path == "/reverse":
+            return httpx2.Response(200, json={"features": [{"properties": {"name": "Plateau", "city": "Aguthi-gaaki ward", "country": "Kenya"}}]})
+        assert request.url.params.get_list("layer") == ["city", "district", "county", "state", "locality"]
+        return httpx2.Response(200, json={"features": [
+            {"properties": {"name": "Giza", "state": "Giza", "country": "Egypt"}, "geometry": {"coordinates": [31.21, 29.99]}},
+            {"properties": {"name": "broken"}},
+        ]})
+
+    pipeline = PipelineService(ObservationStore(":memory:"), [], client_factory=lambda: httpx2.AsyncClient(transport=httpx2.MockTransport(handler)), now=lambda: NOW)
+    assert asyncio.run(reverse_geocode(pipeline, *NAIROBI, "en")) == Place("Aguthi-gaaki ward", "Kenya", True)
+    found = asyncio.run(geo.search_places(pipeline, "Giza", "en"))
+    assert [(p.name, p.detail, p.lat, p.lon) for p in found] == [("Giza", "Egypt", 29.99, 31.21)]
 
 
 def test_slow_geocoder_is_abandoned(monkeypatch):

@@ -6,6 +6,8 @@ os.environ.setdefault("PIPELINE_DB_PATH", ":memory:")
 os.environ.setdefault("PIPELINE_AUTO_REFRESH", "false")
 os.environ.setdefault("EARTHDATA_TOKEN", "")
 os.environ.setdefault("DATA_MODE", "sample")
+# Tests call the API in quick loops; the limiter has its own tests.
+os.environ.setdefault("RATE_LIMIT_ENABLED", "false")
 # The assistant never calls Claude from tests (a fake client is injected where needed).
 os.environ["ANTHROPIC_API_KEY"] = ""
 
@@ -30,8 +32,15 @@ import pytest  # noqa: E402
 
 @pytest.fixture(autouse=True)
 def _fresh_map_cache():
+    from app.services import geocode
     from app.services.map import reset_map_cache
 
     reset_map_cache()
+    # Place-name services start each test reachable and un-paused.
+    geocode._geocode_paused_until = geocode._photon_paused_until = None
+    geocode._last_geocode = 0.0
+    from app.api.v1.endpoints import data as data_endpoint
+
+    data_endpoint._last_refresh = None  # each test may ask for a refresh
     yield
     reset_map_cache()

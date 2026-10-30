@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.endpoints.data import start_background_refresh
 from app.api.v1.router import api_router
 from app.core.config import get_settings
+from app.core.security import RateLimitMiddleware, SecurityHeadersMiddleware
 from app.pipeline import get_pipeline
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s:     %(name)s %(message)s")
@@ -35,11 +36,16 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    # Starlette runs the middleware added last first. Order, outermost first: CORS (so even a
+    # 429 reaches the website readably), security headers, then the rate limiter.
+    if settings.rate_limit_enabled:
+        app.add_middleware(RateLimitMiddleware)
+    app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origin_list,
         allow_origin_regex=settings.cors_origin_regex or None,
-        allow_credentials=True,
+        allow_credentials=False,  # no cookies or logins: nothing to send
         allow_methods=["*"],
         allow_headers=["*"],
     )

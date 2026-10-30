@@ -23,7 +23,7 @@ export function OrbitLoader({ label, className }: OrbitLoaderProps) {
           <span className="absolute -top-1 left-1/2 size-2.5 -translate-x-1/2 rounded-full bg-harvest-300 shadow-[0_0_12px_var(--color-harvest-300)]" />
         </motion.div>
       </div>
-      <p className="text-sm text-ink-muted">{label ?? (lang === 'bn' ? 'উপগ্রহের তথ্য পড়ছি…' : 'Reading satellite data…')}</p>
+      <p className="text-sm text-ink-muted">{label ?? (lang === 'bn' ? 'স্যাটেলাইটের ডেটা পড়ছি…' : 'Reading satellite data…')}</p>
     </div>
   )
 }

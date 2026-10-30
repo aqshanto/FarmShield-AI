@@ -43,7 +43,7 @@ async def get(
     client: httpx2.AsyncClient,
     url: str,
     *,
-    params: dict | None = None,
+    params: dict | list | None = None,
     headers: dict | None = None,
     retries: int = 2,
     backoff: float = 1.0,

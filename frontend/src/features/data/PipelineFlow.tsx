@@ -24,15 +24,15 @@ export function PipelineFlow({ status, farms }: { status: DataStatus; farms: num
   const bn = lang === 'bn'
   const total = digits(status.sources.length, lang)
   const stages: Stage[] = [
-    { icon: Satellite, title: bn ? 'উপগ্রহ' : 'Satellites', value: status.missions.length, caption: bn ? 'নাসার মিশনে নজর' : 'NASA missions watched', color: 'var(--color-sky-300)' },
+    { icon: Satellite, title: bn ? 'স্যাটেলাইট' : 'Satellites', value: status.missions.length, caption: bn ? 'নাসার মিশনে নজর' : 'NASA missions watched', color: 'var(--color-sky-300)' },
     { icon: Download, title: bn ? 'সংগ্রহ' : 'Fetch', value: live, caption: bn ? `${total}টি উৎসের মধ্যে উত্তর দিচ্ছে` : `of ${total} sources answering`, color: 'var(--color-sky-400)' },
     { icon: Filter, title: bn ? 'মান যাচাই' : 'Quality check', value: rejected, caption: bn ? 'মেঘলা ছবি বাদ' : 'cloudy views removed', color: 'var(--color-harvest-300)' },
-    { icon: Database, title: bn ? 'সংরক্ষণ' : 'Store', value: stored, caption: bn ? 'পরিষ্কার তথ্য সংরক্ষিত' : 'clean readings saved', color: 'var(--color-leaf-300)' },
-    { icon: Sprout, title: bn ? 'আপনার খামার' : 'Your farms', value: farms, caption: bn ? 'খামার হালনাগাদ রাখা হচ্ছে' : 'farms kept up to date', color: 'var(--color-leaf-400)' },
+    { icon: Database, title: bn ? 'সংরক্ষণ' : 'Store', value: stored, caption: bn ? 'পরিষ্কার ডেটা সংরক্ষিত' : 'clean readings saved', color: 'var(--color-leaf-300)' },
+    { icon: Sprout, title: bn ? 'আপনার জমি' : 'Your farms', value: farms, caption: bn ? 'জমির খবর হালনাগাদ রাখা হচ্ছে' : 'farms kept up to date', color: 'var(--color-leaf-400)' },
   ]
 
   return (
-    <ol className="flex flex-col gap-2 md:flex-row md:items-stretch" aria-label={bn ? 'নাসার তথ্য যেভাবে আপনার খামারে পৌঁছায়' : 'How NASA data reaches your farm'}>
+    <ol className="flex flex-col gap-2 md:flex-row md:items-stretch" aria-label={bn ? 'নাসার ডেটা যেভাবে আপনার জমিতে পৌঁছায়' : 'How NASA data reaches your farm'}>
       {stages.map((stage, i) => (
         <Fragment key={stage.title}>
           <motion.li

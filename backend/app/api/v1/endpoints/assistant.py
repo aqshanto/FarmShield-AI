@@ -41,7 +41,7 @@ async def chat(
     if body.messages[-1].role != "user":
         raise HTTPException(status_code=422, detail="The last message must be the farmer's question.")
     dashboard = await load_dashboard(body.farm_id, settings.data_mode, pipeline, body.farm_name, body.lang)
-    today = local_today(datetime.now(UTC), dashboard.farm.lon)  # the farm's own calendar day
+    today = local_today(pipeline.now(), dashboard.farm.lon)  # the farm's own calendar day
 
     async def sse() -> AsyncIterator[str]:
         async for event, data in chat_events(dashboard, body.messages, body.lang, today, claude):

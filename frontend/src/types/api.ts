@@ -301,6 +301,60 @@ export interface FarmObservations {
   generated_at: string
   days: number
   variables: VariableSeries[]
+  // The topsoil wetness (0–1) the risk engines use: SMAP when a pass is recent, else NASA POWER.
+  topsoil?: ObservationPoint | null
+  // SMAP on NASA POWER's 0–1 scale: stuck passes dropped, a week's median, calibrated for this soil.
+  smap_wetness?: ObservationPoint[]
+}
+
+// --- rotation planner ----------------------------------------------------------------
+
+export type RotationPriority = 'soil' | 'water' | 'income' | 'food'
+export type RotationMetric = 'soil' | 'water' | 'climate' | 'pests' | 'income' | 'food'
+
+export interface RotationCrop {
+  id: string
+  name: string
+  months: number[] // 1–12, in the order the crop grows
+}
+
+export interface RotationStrategy {
+  id: string
+  name: string
+  existing: boolean
+  verdict: string
+  overall: number // 0–100 for the farmer's priorities
+  scores: Record<RotationMetric, number> // 0–100, higher is better
+  irrigation_mm: number // a year, on top of the usual rain
+  bare_months: number[]
+  crops: RotationCrop[]
+  why: string[]
+  evidence: string[]
+  benefits: string[]
+  gaps: string[]
+  risks: string[]
+}
+
+export interface RotationPlan {
+  farm_id: string
+  crop: string
+  in_bangladesh: boolean
+  priorities: RotationPriority[]
+  irrigation: boolean
+  existing_id: string
+  existing_options: { id: string; name: string }[]
+  strategies: RotationStrategy[] // the current rotation first
+  climate: { month: number; rain_mm: number; tmax: number; tmin: number }[]
+  wet_months: number[]
+  flood_months?: number[] // haor land under deep water: nothing is planted in these months
+  field_notes: string[]
+  sources: string[]
+}
+
+export interface RotationQuery {
+  priorities: RotationPriority[]
+  irrigation: boolean
+  existing?: string | null
 }
 
 // --- AI farmer assistant -------------------------------------------------------------

@@ -40,7 +40,7 @@ const text = {
     progress: (done: string, total: string) => `${total}টির মধ্যে ${done}টি শেষ`,
     progressLabel: 'শেষ হওয়া কাজ',
     allDone: 'এই সপ্তাহের সব কাজ শেষ!',
-    allDoneHint: 'আপনার খামার এখন আরও প্রস্তুত। কিছু বদলালে আমরা জানাব।',
+    allDoneHint: 'আপনার জমি এখন আরও প্রস্তুত। কিছু বদলালে আমরা জানাব।',
     mark: (title: string, done: boolean) => `“${title}” ${done ? 'শেষ হয়নি হিসেবে চিহ্নিত করুন' : 'শেষ হিসেবে চিহ্নিত করুন'}`,
     modules: { flood_risk: 'বন্যা', water_stress: 'পানি', crop_health: 'ফসল' },
   },

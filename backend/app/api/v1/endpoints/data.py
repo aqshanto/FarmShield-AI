@@ -1,12 +1,15 @@
 import asyncio
 import logging
-from datetime import UTC, datetime
+import secrets
+from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 
 from app.core.config import Settings, get_settings
 from app.pipeline import farm_locations, get_pipeline
 from app.pipeline.service import PipelineService
+from app.risk.inputs import CALIBRATION_DAYS, smap_wetness, topsoil
+from app.risk.region import local_today
 from app.schemas.data import DataStatus, FarmObservations, ObservationPoint, RefreshStarted, VariableSeries
 from app.services.map import warm_map_overview
 
@@ -53,13 +56,29 @@ async def data_status(
     )
 
 
+# Anyone may ask for a refresh (the Data page has a button), but not more often than this:
+# each one checks every NASA source for every farm.
+REFRESH_COOLDOWN = timedelta(minutes=30)
+_last_refresh: datetime | None = None
+
+
 @router.post("/data/refresh", response_model=RefreshStarted, status_code=202)
 async def refresh(
     force: bool = False,
+    x_admin_token: str | None = Header(default=None),
     pipeline: PipelineService = Depends(get_pipeline),
     settings: Settings = Depends(get_settings),
 ) -> RefreshStarted:
+    """A cache-aware refresh. `force` (re-download everything) is for maintainers only."""
+    global _last_refresh
+    admin = bool(settings.admin_token) and x_admin_token is not None and secrets.compare_digest(x_admin_token, settings.admin_token)
+    if force and not admin:
+        raise HTTPException(status_code=403, detail="A forced re-download needs the maintainers' admin token.")
+    now = pipeline.now()
+    if not admin and _last_refresh and now - _last_refresh < REFRESH_COOLDOWN:
+        return RefreshStarted(started=False, message="NASA data was refreshed recently. Fresh data is already being used.")
     if start_background_refresh(pipeline, settings.pipeline_days, force):
+        _last_refresh = now
         return RefreshStarted(started=True, message="Downloading the latest NASA data for every farm.")
     return RefreshStarted(started=False, message="A refresh is already running.")
 
@@ -74,8 +93,9 @@ def farm_observations(
     if location is None:
         raise HTTPException(status_code=404, detail=f"Farm '{farm_id}' not found")
 
+    observations = pipeline.observations(location, days)
     variables = []
-    for series in pipeline.observations(location, days):
+    for series in observations:
         points = [ObservationPoint(date=p.date, value=p.value, source=p.source, quality=p.quality) for p in series.points]
         variables.append(
             VariableSeries(
@@ -88,4 +108,14 @@ def farm_observations(
                 latest=points[-1] if points else None,
             )
         )
-    return FarmObservations(farm_id=farm_id, generated_at=datetime.now(UTC), days=days, variables=variables)
+    # The same reading, from the same month of data, as the dashboard's flood and water cards.
+    today = local_today(pipeline.now(), location.lon)
+    soil = topsoil(pipeline.observations(location, CALIBRATION_DAYS), today)
+    return FarmObservations(
+        farm_id=farm_id,
+        generated_at=datetime.now(UTC),
+        days=days,
+        variables=variables,
+        topsoil=ObservationPoint(date=soil.date, value=round(soil.value, 3), source=soil.source, quality="good") if soil else None,
+        smap_wetness=[ObservationPoint(date=d, value=round(v, 3), source="smap", quality="good") for d, v in smap_wetness(observations, today)],
+    )

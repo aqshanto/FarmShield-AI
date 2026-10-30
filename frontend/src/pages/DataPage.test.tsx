@@ -80,9 +80,11 @@ function observations(farmId: string): FarmObservations {
 
 let statusResponses: DataStatus[]
 let refreshCalls = 0
+let serverSoil: Partial<FarmObservations> = {}
 
 beforeEach(() => {
   refreshCalls = 0
+  serverSoil = {}
   statusResponses = [statusFixture(new Date(Date.now() - 60_000).toISOString())]
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     const url = String(input)
@@ -96,7 +98,7 @@ beforeEach(() => {
     }
     if (url === '/api/v1/farms') return json(farmsFixture)
     const match = url.match(/^\/api\/v1\/farms\/([^/]+)\/observations/)
-    if (match) return json(observations(match[1]))
+    if (match) return json({ ...observations(match[1]), ...serverSoil })
     return json({ detail: 'not found' }, 404)
   })
 })
@@ -152,6 +154,18 @@ describe('DataPage', () => {
     // Exact day counting is unit-tested in insights.test.ts; here the fixture mixes UTC and
     // local dates, so the count can differ by one depending on the time of day.
     expect(screen.getByText(/Clouds have hidden this field for \d+ days/)).toBeInTheDocument()
+  })
+
+  it('shows the same topsoil reading as the dashboard, with SMAP passes on the soil chart', async () => {
+    const pass = (offset: number, value: number) => ({ date: day(offset), value, source: 'smap', quality: 'good' as const })
+    serverSoil = { topsoil: pass(3, 0.54), smap_wetness: [pass(7, 0.5), pass(5, 0.52), pass(3, 0.54)] }
+    renderAt('/data')
+    await screen.findByText('11 mm')
+    const soilTile = screen.getByText('Surface soil', { selector: 'p' }).parentElement!
+    expect(within(soilTile).getByText('54%')).toBeInTheDocument() // not POWER's 73%
+    expect(within(soilTile).getByText(/SMAP$/)).toBeInTheDocument()
+    expect(screen.getByText(/Surface soil is .* \(54%\)/)).toBeInTheDocument()
+    expect(screen.getByText('SMAP passes')).toBeInTheDocument()
   })
 
   it('switching farm loads that farm and keeps it in the URL', async () => {

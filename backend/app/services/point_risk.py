@@ -84,7 +84,7 @@ async def point_risk(
     if not MIN_LAT <= lat <= MAX_LAT:
         raise PointRiskError("There is no farmland this close to the poles.")
     lon = ((lon + 180) % 360) - 180  # the map can wrap around the world
-    now = now or datetime.now(UTC)
+    now = now or pipeline.now()
     location = point_location(lat, lon)
 
     place = await geocode(pipeline, lat, lon, lang)

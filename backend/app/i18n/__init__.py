@@ -20,12 +20,12 @@ MISSES: set[str] = set()
 _ALT = lambda words: "|".join(re.escape(w) for w in sorted(words, key=len, reverse=True))  # noqa: E731
 SLOT_PATTERNS = {
     "n": r"\d+(?:\.\d+)?",
-    "crop": _ALT(bn.CROPS),
+    "crop": _ALT([*bn.CROPS, *(c.capitalize() for c in bn.CROPS)]),
     "disease": _ALT(bn.DISEASES),
     "level": _ALT(bn.LEVELS),
     "module": _ALT(bn.MODULES),
     "weekday": _ALT(bn.WEEKDAYS),
-    "month": _ALT(m for m in bn.MONTHS if len(m) > 3),
+    "month": _ALT(list(bn.MONTHS)[:12]),  # full names (the short forms follow)
     "date": rf"\d{{1,2}} (?:{_ALT(bn.MONTHS)})",
 }
 SLOT = re.compile(r"\{([a-z]+)(\d*)\}")
@@ -79,8 +79,9 @@ def _slot_values(groups: dict[str, str]) -> dict[str, str]:
             values[name] = f"{bn_digits(str(int(day)))} {bn.MONTHS[month]}"
         else:
             table = {"crop": bn.CROPS, "disease": bn.DISEASES, "level": bn.LEVELS, "module": bn.MODULES, "weekday": bn.WEEKDAYS, "month": bn.MONTHS}[base]
-            values[name] = table[value]
-            values[f"{name}_of"] = bn_of(table[value])
+            word = table[value] if value in table else table[value.lower()]
+            values[name] = word
+            values[f"{name}_of"] = bn_of(word)
     return values
 
 

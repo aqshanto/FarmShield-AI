@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { Home, Languages, LayoutDashboard, Map as MapIcon, MessageCircle, Satellite, ShieldCheck } from 'lucide-react'
+import { Home, Languages, LayoutDashboard, Map as MapIcon, MessageCircle, Repeat, Satellite, ShieldCheck } from 'lucide-react'
 import { useEffect } from 'react'
 import { Link, NavLink, Outlet, ScrollRestoration, useLocation, useMatches, useNavigation } from 'react-router-dom'
 import { prefetchPage, prefetchWhenIdle } from '@/app/routes'
@@ -10,7 +10,7 @@ import { Starfield } from './Starfield'
 
 const text = {
   en: {
-    nav: { '/': 'Home', '/dashboard': 'Dashboard', '/map': 'Map', '/assistant': 'Assistant', '/data': 'Data' },
+    nav: { '/': 'Home', '/dashboard': 'Dashboard', '/map': 'Map', '/rotation': 'Rotation', '/assistant': 'Assistant', '/data': 'Data' },
     navLabel: 'Main',
     loading: 'Loading page',
     switchTo: 'বাংলা',
@@ -19,12 +19,12 @@ const text = {
     design: 'Design system',
   },
   bn: {
-    nav: { '/': 'হোম', '/dashboard': 'ড্যাশবোর্ড', '/map': 'মানচিত্র', '/assistant': 'সহকারী', '/data': 'তথ্য' },
+    nav: { '/': 'হোম', '/dashboard': 'ড্যাশবোর্ড', '/map': 'ম্যাপ', '/rotation': 'ফসলচক্র', '/assistant': 'সহকারী', '/data': 'ডেটা' },
     navLabel: 'প্রধান মেনু',
     loading: 'পাতা লোড হচ্ছে',
     switchTo: 'EN',
     switchLabel: 'Switch to English (ইংরেজিতে দেখুন)',
-    poweredBy: 'নাসার পৃথিবী পর্যবেক্ষণ তথ্যের সাহায্যে',
+    poweredBy: 'নাসার পৃথিবী পর্যবেক্ষণ ডেটার সাহায্যে',
     design: 'ডিজাইন সিস্টেম',
   },
 }
@@ -34,6 +34,7 @@ const navItems = [
   { to: '/', icon: Home },
   { to: '/dashboard', icon: LayoutDashboard },
   { to: '/map', icon: MapIcon },
+  { to: '/rotation', icon: Repeat },
   { to: '/assistant', icon: MessageCircle },
   { to: '/data', icon: Satellite },
 ] as const
@@ -127,7 +128,7 @@ export function AppLayout() {
               onFocus={() => prefetchPage(item.to)}
               className={({ isActive }) =>
                 cn(
-                  'focus-ring relative rounded-full px-3 py-2 text-sm font-semibold transition-colors sm:px-3.5 sm:py-1.5 lg:px-4',
+                  'focus-ring relative rounded-full px-2 py-2 text-sm font-semibold transition-colors sm:px-3.5 sm:py-1.5 lg:px-4',
                   isActive ? 'text-night-950' : 'text-ink-muted hover:text-ink',
                 )
               }

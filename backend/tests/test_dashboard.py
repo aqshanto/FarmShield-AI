@@ -103,7 +103,9 @@ def test_each_demo_farm_tells_a_different_story():
         worst[farm_id] = max(dash.modules, key=lambda m: m.score).id
     assert worst["sunamganj-haor"] == "flood_risk"
     assert worst["barind-wheat"] == "water_stress"
+    assert worst["cumilla-aman"] == "crop_health"
     assert build_dashboard("bogura-potato", data_mode="sample").overall.level == "safe"
+    assert build_dashboard("dhaka-tomato", data_mode="sample").overall.level == "watch"
 
 
 # --- API --------------------------------------------------------------------
@@ -113,7 +115,7 @@ def test_list_farms():
     response = client.get("/api/v1/farms")
     assert response.status_code == 200
     ids = [farm["id"] for farm in response.json()]
-    assert ids == ["sunamganj-haor", "barind-wheat", "bogura-potato"]
+    assert ids == ["dhaka-tomato", "cumilla-aman", "bogura-potato", "barind-wheat", "sunamganj-haor"]
 
 
 def test_get_dashboard():

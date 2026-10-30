@@ -34,8 +34,9 @@ const text = {
     soilCaption: (word: string, pct: string) => `Surface soil is ${word} (${pct}%). Root-zone water changes more slowly and shows what crops can reach.`,
     noSoil: 'No soil readings yet.',
     soilLabel: 'Soil wetness, last 60 days',
-    soilSummary: 'Surface and root-zone soil wetness from 0% (dry) to 100% (saturated).',
+    soilSummary: 'Surface and root-zone soil wetness from 0% (dry) to 100% (saturated). Dots are SMAP satellite passes on the same scale.',
     rootZone: 'Root zone',
+    smapPasses: 'SMAP passes',
     smapTitle: 'SMAP soil moisture',
     smapCaption: 'Measured directly by SMAP’s microwave radiometer, in cubic metres of water per cubic metre of soil.',
     smapLabel: 'SMAP soil moisture, last 60 days',
@@ -60,7 +61,7 @@ const text = {
   },
   bn: {
     mm: 'মিমি',
-    none: 'এখনও কোনো তথ্য নেই',
+    none: 'এখনও কোনো ডেটা নেই',
     rainWeek: 'বৃষ্টি, গত ৭ দিন',
     rainMonth: (mm: string) => `এই মাসে ${mm} মিমি`,
     surface: 'উপরের মাটি',
@@ -70,18 +71,19 @@ const text = {
     waitingView: 'পরিষ্কার ছবির অপেক্ষায়',
     rainTitle: 'দৈনিক বৃষ্টি',
     rainCaption: (month: string, date: string, wettest: string) =>
-      `গত ৩০ দিনে ${month} মিমি। সবচেয়ে বেশি বৃষ্টি: ${date} (${wettest} মিমি)। বৃষ্টির প্রায় ৩ দিন পর তথ্য আসে।`,
-    noRain: 'এখনও বৃষ্টির তথ্য নেই।',
+      `গত ৩০ দিনে ${month} মিমি। সবচেয়ে বেশি বৃষ্টি: ${date} (${wettest} মিমি)। বৃষ্টির প্রায় ৩ দিন পর ডেটা আসে।`,
+    noRain: 'এখনও বৃষ্টির ডেটা নেই।',
     rainLabel: 'দৈনিক বৃষ্টি, গত ৬০ দিন',
     rainSummary: (month: string) => `মিলিমিটারে দৈনিক বৃষ্টি। গত ৩০ দিনে ${month} মিমি বৃষ্টি হয়েছে।`,
-    noData: 'তথ্য নেই।',
+    noData: 'ডেটা নেই।',
     rainSeries: 'বৃষ্টি',
     soilTitle: 'মাটির আর্দ্রতা',
     soilCaption: (word: string, pct: string) => `উপরের মাটি ${word} (${pct}%)। শিকড়ের কাছের পানি ধীরে বদলায় আর দেখায় ফসল কতটা পানি পায়।`,
-    noSoil: 'এখনও মাটির তথ্য নেই।',
+    noSoil: 'এখনও মাটির ডেটা নেই।',
     soilLabel: 'মাটির আর্দ্রতা, গত ৬০ দিন',
-    soilSummary: 'উপরের মাটি আর শিকড়ের স্তরের আর্দ্রতা, ০% (শুকনো) থেকে ১০০% (পানিতে ভরা)।',
+    soilSummary: 'উপরের মাটি আর শিকড়ের স্তরের আর্দ্রতা, ০% (শুকনো) থেকে ১০০% (পানিতে ভরা)। বিন্দুগুলো একই মাপকাঠিতে SMAP স্যাটেলাইটের মাপ।',
     rootZone: 'শিকড়ের স্তর',
+    smapPasses: 'SMAP-এর মাপ',
     smapTitle: 'SMAP মাটির আর্দ্রতা',
     smapCaption: 'SMAP-এর মাইক্রোওয়েভ যন্ত্রে সরাসরি মাপা, প্রতি ঘনমিটার মাটিতে কত ঘনমিটার পানি।',
     smapLabel: 'SMAP মাটির আর্দ্রতা, গত ৬০ দিন',
@@ -160,6 +162,9 @@ export function FarmDataCharts({ data }: { data: FarmObservations }) {
   const wet = find(data.variables, 'soil_wetness')
   const root = find(data.variables, 'root_zone_wetness')
   const smap = find(data.variables, 'soil_moisture')
+  // The same topsoil reading as the dashboard's risk cards (older servers send only POWER's).
+  const soil = data.topsoil ?? wet?.latest ?? null
+  const smapWet = data.smap_wetness ?? []
   const temp = find(data.variables, 'temperature_max')
   const ndvi = find(data.variables, 'ndvi')
   const normal = find(data.variables, 'ndvi_normal')
@@ -176,8 +181,8 @@ export function FarmDataCharts({ data }: { data: FarmObservations }) {
         <Stat label={t.rainWeek} value={rainInfo ? `${n(rainInfo.week)} ${t.mm}` : '—'} hint={rainInfo ? t.rainMonth(n(rainInfo.month)) : t.none} />
         <Stat
           label={t.surface}
-          value={wet?.latest ? `${n(wet.latest.value * 100)}%` : '—'}
-          hint={wet?.latest ? `${wetnessWord(wet.latest.value, lang)} · ${prettyDate(wet.latest.date, lang)}` : t.none}
+          value={soil ? `${n(soil.value * 100)}%` : '—'}
+          hint={soil ? `${wetnessWord(soil.value, lang)} · ${prettyDate(soil.date, lang)} · ${SOURCE_NAMES[soil.source] ?? soil.source}` : t.none}
         />
         <Stat label={t.hottest} value={hottestText} hint={t.dailyMax} />
         <Stat
@@ -209,8 +214,8 @@ export function FarmDataCharts({ data }: { data: FarmObservations }) {
         <ChartCard
           icon={<Droplets className="size-5 text-sky-300" aria-hidden="true" />}
           title={t.soilTitle}
-          sources={[...new Set([...(wet?.sources_used ?? []), ...(root?.sources_used ?? [])])]}
-          caption={wet?.latest ? t.soilCaption(wetnessWord(wet.latest.value, lang), n(wet.latest.value * 100)) : t.noSoil}
+          sources={[...new Set([...(wet?.sources_used ?? []), ...(root?.sources_used ?? []), ...(smapWet.length ? ['smap'] : [])])]}
+          caption={soil ? t.soilCaption(wetnessWord(soil.value, lang), n(soil.value * 100)) : t.noSoil}
         >
           <TimeSeriesChart
             label={t.soilLabel}
@@ -218,6 +223,8 @@ export function FarmDataCharts({ data }: { data: FarmObservations }) {
             series={[
               { id: 'surface', label: t.surface, color: CHART_1, kind: 'line', points: wet?.points ?? [] },
               { id: 'root', label: t.rootZone, color: CHART_2, kind: 'line', points: root?.points ?? [] },
+              // Same colour as the surface line: the same soil, measured from orbit.
+              ...(smapWet.length ? [{ id: 'smap', label: t.smapPasses, color: CHART_1, kind: 'points' as const, points: smapWet }] : []),
             ]}
             start={start60}
             end={today}

@@ -1,9 +1,10 @@
-"""Place names anywhere on Earth, from OpenStreetMap's Nominatim.
+"""Place names anywhere on Earth, from OpenStreetMap: Nominatim, with Photon as backup.
 
 Used for spot checks on the map, farms outside Bangladesh, and the "find my village" search.
 Nominatim's usage policy: identify the app, at most one request per second, cache results.
 A name is nice to have, never worth a long wait: lookups give up after a few seconds, and
-after a failure they're skipped for a while so taps stay fast.
+after a failure they're skipped for a while so taps stay fast. Nominatim refuses some cloud
+server addresses outright, so Photon (komoot's OpenStreetMap geocoder, no key) answers then.
 """
 
 import asyncio
@@ -22,6 +23,10 @@ log = logging.getLogger("farmshield.geocode")
 
 REVERSE_URL = "https://nominatim.openstreetmap.org/reverse"
 SEARCH_URL = "https://nominatim.openstreetmap.org/search"
+PHOTON_SEARCH_URL = "https://photon.komoot.io/api/"
+PHOTON_REVERSE_URL = "https://photon.komoot.io/reverse"
+# Photon only searches these kinds of places, so "Giza" finds the city, not a shop.
+PHOTON_LAYERS = ["city", "district", "county", "state", "locality"]
 USER_AGENT = "FarmShield-AI/1.0 (NASA Space Apps Challenge; https://github.com/aqshanto/FarmShield-AI)"
 GEOCODE_TTL = timedelta(days=30)
 GEOCODE_TIMEOUT_S = 5
@@ -31,6 +36,7 @@ SNAP_DEG = 0.05  # ~5 km: nearby points share one cached name
 _geocode_lock = asyncio.Lock()
 _last_geocode = 0.0
 _geocode_paused_until: datetime | None = None
+_photon_paused_until: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -85,6 +91,40 @@ async def _nominatim(pipeline: PipelineService, url: str, params: dict):
         return None
 
 
+async def _photon(pipeline: PipelineService, url: str, params: dict):
+    """The backup service: same budget and pause rules as Nominatim."""
+    global _photon_paused_until
+    if _photon_paused_until and pipeline.now() < _photon_paused_until:
+        return None
+
+    async def call():
+        async with pipeline.client_factory() as client:
+            response = await get(client, url, params=params, headers={"User-Agent": USER_AGENT}, retries=0)
+        return response.json()
+
+    try:
+        return await asyncio.wait_for(call(), GEOCODE_TIMEOUT_S)
+    except (SourceError, httpx2.HTTPError, ValueError, OSError, TimeoutError) as error:
+        log.warning("Photon failed: %s", error or type(error).__name__)
+        _photon_paused_until = pipeline.now() + GEOCODE_PAUSE
+        return None
+
+
+def _photon_lang(lang: str) -> dict:
+    # Photon speaks a few languages (no Bengali); without one it gives local names, which in
+    # Bangladesh are Bengali.
+    return {"lang": "en"} if lang == "en" else {}
+
+
+def _photon_place(payload) -> Place | None:
+    features = payload.get("features") if isinstance(payload, dict) else None
+    if not features:
+        return None  # Photon finds no nearest place at sea or in remote areas: unknown, not water
+    props = features[0].get("properties", {})
+    name = props.get("city") or props.get("town") or props.get("village") or props.get("county") or props.get("name") or props.get("state")
+    return Place(name, props.get("country"), True)
+
+
 async def reverse_geocode(pipeline: PipelineService, lat: float, lon: float, lang: str) -> Place | None:
     """Nearest named place and country (in Bengali where OSM has it). Open water has no
     address, which is how we tell sea from land. None when the service can't be reached."""
@@ -95,7 +135,11 @@ async def reverse_geocode(pipeline: PipelineService, lat: float, lon: float, lan
         return Place(**hit[0])  # type: ignore[arg-type]
     payload = await _nominatim(pipeline, REVERSE_URL, {"format": "jsonv2", "lat": lat, "lon": lon, "zoom": 10, "accept-language": f"{lang},en"})
     if payload is None:
-        return None
+        backup = await _photon(pipeline, PHOTON_REVERSE_URL, {"lat": lat, "lon": lon, **_photon_lang(lang)})
+        place = _photon_place(backup) if backup is not None else None
+        if place is not None:
+            pipeline.store.cache_set(key, asdict(place), pipeline.now())
+        return place
     address = payload.get("address") if isinstance(payload, dict) else None
     place = Place(_pick_name(address), address.get("country"), True) if address else Place(None, None, False)
     pipeline.store.cache_set(key, asdict(place), pipeline.now())
@@ -113,7 +157,12 @@ async def search_places(pipeline: PipelineService, query: str, lang: str, limit:
         pipeline, SEARCH_URL, {"format": "jsonv2", "q": query, "limit": limit, "addressdetails": 1, "accept-language": f"{lang},en"}
     )
     if payload is None:
-        return None
+        backup = await _photon(pipeline, PHOTON_SEARCH_URL, [("q", query), ("limit", limit), *(("layer", x) for x in PHOTON_LAYERS), *_photon_lang(lang).items()])
+        if backup is None:
+            return None
+        found = _photon_found(backup)
+        pipeline.store.cache_set(key, [asdict(p) for p in found], pipeline.now())
+        return found
     found = []
     for item in payload if isinstance(payload, list) else []:
         try:
@@ -125,4 +174,18 @@ async def search_places(pipeline: PipelineService, query: str, lang: str, limit:
         except (KeyError, TypeError, ValueError):
             continue
     pipeline.store.cache_set(key, [asdict(p) for p in found], pipeline.now())
+    return found
+
+
+def _photon_found(payload) -> list[FoundPlace]:
+    found = []
+    for feature in payload.get("features", []) if isinstance(payload, dict) else []:
+        try:
+            props = feature["properties"]
+            lon, lat = feature["geometry"]["coordinates"][:2]
+            name = props["name"]
+            detail = ", ".join(x for x in (props.get("state") or props.get("county"), props.get("country")) if x and x != name)
+            found.append(FoundPlace(name, detail, props.get("country"), round(float(lat), 5), round(float(lon), 5)))
+        except (KeyError, TypeError, ValueError):
+            continue
     return found
