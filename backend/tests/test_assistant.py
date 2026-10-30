@@ -160,7 +160,7 @@ class FakeClaude:
 
 
 def test_history_starts_with_the_farmer_and_is_clipped():
-    msgs = [ChatMessage(role="assistant", content="Hello!"), user("x" * 3000), ChatMessage(role="assistant", content="ok"), user("and?")]
+    msgs = [ChatMessage(role="assistant", content="Hello!"), user("x" * 1999), ChatMessage(role="assistant", content="ok"), user("and?")]
     hist = claude_history(msgs)
     assert [m["role"] for m in hist] == ["user", "assistant", "user"]
     assert len(hist[0]["content"]) == MAX_CHARS

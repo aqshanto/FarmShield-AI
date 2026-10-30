@@ -26,6 +26,10 @@ NEIGHBOURS = [(dy, dx) for dy in (-1, 0, 1) for dx in (-1, 0, 1) if (dy, dx) != 
 POWER_CLIMATOLOGY_URL = "https://power.larc.nasa.gov/api/temporal/climatology/point"
 MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
 NORMAL_YEAR = 2001  # rows are dated <NORMAL_YEAR>-<month>-01
+# Long-term monthly averages: rain, mean temperature and the mean daily range. The normal
+# daily high and low are mean ± half the range. (POWER's climatology T2M_MAX / T2M_MIN are
+# each month's extremes, e.g. 43°C in a Bogura April, not a normal day.)
+CLIMATOLOGY = ["PRECTOTCORR", "T2M", "T2M_RANGE"]
 
 
 class SrtmElevationSource:
@@ -79,26 +83,35 @@ class PowerClimatologySource:
         id="power_climatology",
         mission="POWER",
         provider="NASA Langley POWER",
-        product="Monthly rainfall climatology",
-        variables=("precipitation_normal",),
+        product="Monthly climate normals: rain, daily high and low",
+        variables=("precipitation_normal", "temperature_max_normal", "temperature_min_normal"),
         requires_token=False,
         ttl_hours=24 * 365,
         overlap_days=0,
-        note="Normal daily rainfall for each month: the 'historical pattern' behind flood risk.",
+        note="Normal rain and temperature for each month: the 'historical pattern' behind flood risk and rotation planning.",
     )
 
     async def fetch(self, client: httpx2.AsyncClient, location: Location, start: date, end: date) -> list[Observation]:
         response = await get(
             client,
             POWER_CLIMATOLOGY_URL,
-            params={"parameters": "PRECTOTCORR", "community": "AG", "latitude": location.lat, "longitude": location.lon, "format": "JSON"},
+            params={"parameters": ",".join(CLIMATOLOGY), "community": "AG", "latitude": location.lat, "longitude": location.lon, "format": "JSON"},
         )
         try:
-            monthly = response.json()["properties"]["parameter"]["PRECTOTCORR"]
+            parameters = response.json()["properties"]["parameter"]
+            parameters["PRECTOTCORR"]  # rain is required; the temperatures are a bonus
         except (KeyError, TypeError) as error:
             raise SourceError(f"Unexpected POWER climatology payload: {error}") from None
-        return [
-            Observation(self.info.id, "precipitation_normal", date(NORMAL_YEAR, i + 1, 1), float(monthly[m]), "mm/day")
-            for i, m in enumerate(MONTHS)
-            if monthly.get(m) is not None and monthly[m] > -999
-        ]
+        def month_values(name: str) -> dict[int, float]:
+            monthly = parameters.get(name)
+            if not isinstance(monthly, dict):
+                return {}
+            return {i + 1: float(monthly[m]) for i, m in enumerate(MONTHS) if monthly.get(m) is not None and monthly[m] > -999}
+
+        rain, mean, spread = month_values("PRECTOTCORR"), month_values("T2M"), month_values("T2M_RANGE")
+        observations = [Observation(self.info.id, "precipitation_normal", date(NORMAL_YEAR, m, 1), v, "mm/day") for m, v in rain.items()]
+        for m in sorted(mean.keys() & spread.keys()):
+            day = date(NORMAL_YEAR, m, 1)
+            observations.append(Observation(self.info.id, "temperature_max_normal", day, round(mean[m] + spread[m] / 2, 1), "°C"))
+            observations.append(Observation(self.info.id, "temperature_min_normal", day, round(mean[m] - spread[m] / 2, 1), "°C"))
+        return observations

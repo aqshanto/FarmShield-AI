@@ -44,7 +44,7 @@ def build_dashboard(
     if sample is None:
         raise FarmNotFoundError(farm_id)
 
-    now = now or datetime.now(UTC)
+    now = now or (pipeline.now() if pipeline is not None else datetime.now(UTC))
     modules = [_build_module(module_id, raw) for module_id, raw in sample["modules"].items()]
     recommendations = [
         Recommendation(id=r[0], module=r[1], priority=r[2], title=r[3], reason=r[4], due=r[5]) for r in sample["recommendations"]
@@ -128,7 +128,7 @@ def build_custom_dashboard(
     from app.risk.region import local_today
     from app.services.custom_farms import last_data_time
 
-    now = now or datetime.now(UTC)
+    now = now or pipeline.now()
     today = local_today(now, farm.lon)
     location = farm.location
     flood = live_flood(pipeline, location, today)

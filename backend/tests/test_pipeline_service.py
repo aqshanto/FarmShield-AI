@@ -168,7 +168,7 @@ def test_vegetation_is_served_with_a_longer_lookback():
 @pytest.fixture
 def api():
     rain = FakeSource("nasa_power", values={d(28): 9.0, d(29): 1.0})
-    service = PipelineService(ObservationStore(":memory:"), [rain], client_factory=cmr_client)
+    service = PipelineService(ObservationStore(":memory:"), [rain], client_factory=cmr_client, now=lambda: NOW)
     asyncio.run(service.refresh([FARM], days=30))
     app = create_app()
     app.dependency_overrides[get_pipeline] = lambda: service

@@ -42,6 +42,11 @@ class Settings(BaseSettings):
     # Anthropic API key: turns on the Claude-powered farmer assistant. Without it the
     # assistant still answers from the risk engines with built-in bilingual replies.
     anthropic_api_key: str | None = None
+    # Per-visitor request limits (see app/core/security.py). Off only in tests.
+    rate_limit_enabled: bool = True
+    # Optional secret for maintainers: send it as the X-Admin-Token header to force a full NASA
+    # re-download. Without it anyone may still ask for a normal (cache-aware) refresh.
+    admin_token: str | None = None
     assistant_model: str = "claude-opus-5-5"
     # Chat replies are short and grounded in facts we supply, so low effort keeps them fast.
     assistant_effort: Literal["low", "medium", "high"] = "low"

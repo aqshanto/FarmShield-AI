@@ -19,8 +19,8 @@ Built for the NASA Space Apps Challenge.
 | AI Farmer Assistant (English / বাংলা) | https://farm-shield-ai-pi.vercel.app/assistant |
 | Add my farm | https://farm-shield-ai-pi.vercel.app/farms/new |
 | NASA data | https://farm-shield-ai-pi.vercel.app/data |
-| API health | https://farmshield-api.onrender.com/api/v1/health |
-| API docs (Swagger) | https://farmshield-api.onrender.com/docs |
+| API health | https://farmshield-api-2.onrender.com/api/v1/health |
+| API docs (Swagger) | https://farmshield-api-2.onrender.com/docs |
 
 The website runs on Vercel and the API on Render's free plan, which sleeps after 15 minutes
 without visits. The first page load after a pause can take about a minute while the API

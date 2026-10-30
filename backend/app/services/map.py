@@ -53,7 +53,7 @@ LAYERS = [
 async def build_map_overview(
     data_mode: str, now: datetime | None = None, pipeline=None, grid_timeout: float = LIVE_GRID_TIMEOUT_S
 ) -> MapOverview:
-    now = now or datetime.now(UTC)
+    now = now or (pipeline.now() if pipeline is not None else datetime.now(UTC))
     dashboards = [build_dashboard(farm_id, data_mode=data_mode, now=now, pipeline=pipeline) for farm_id in SAMPLE_FARMS]
 
     farms = [

@@ -5,9 +5,15 @@
 //   npm run warm                  the live API (Render)
 //   npm run warm -- --local       the API on this laptop (npm run dev)
 //   npm run warm -- --awake       then keep it awake: a tiny request every 10 minutes (Ctrl+C to stop)
+//   npm run warm -- --api=<url>   another API, e.g. --api=https://my-api.onrender.com/api/v1
+//
+// Keep --awake for recording and judging only: Render's free plan has 750 instance hours a
+// month per account, and a service kept awake all month uses almost all of them.
 
 const args = new Set(process.argv.slice(2))
-const API = args.has('--local') ? 'http://localhost:8000/api/v1' : 'https://farmshield-api.onrender.com/api/v1'
+const LIVE_API = 'https://farmshield-api-2.onrender.com/api/v1'
+const apiArg = [...args].find((a) => a.startsWith('--api='))?.slice('--api='.length)
+const API = (apiArg ?? (args.has('--local') ? 'http://localhost:8000/api/v1' : LIVE_API)).replace(/\/$/, '')
 const WAKE_TIMEOUT_MS = 4 * 60_000
 const AWAKE_EVERY_MS = 10 * 60_000
 

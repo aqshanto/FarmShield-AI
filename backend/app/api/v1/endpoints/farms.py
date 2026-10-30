@@ -49,7 +49,7 @@ def flood_report(farm_id: str, pipeline: PipelineService = Depends(get_pipeline)
     location = next((loc for loc in farm_locations() if loc.id == farm_id), None)
     if location is None:
         raise HTTPException(status_code=404, detail=f"Farm '{farm_id}' not found")
-    now = datetime.now(UTC)
+    now = pipeline.now()
     today = (now + timedelta(hours=6)).date()  # Bangladesh calendar day
     live = live_flood(pipeline, location, today)
     if live is None:
@@ -85,7 +85,7 @@ def water_report(farm_id: str, pipeline: PipelineService = Depends(get_pipeline)
     location = next((loc for loc in farm_locations() if loc.id == farm_id), None)
     if location is None:
         raise HTTPException(status_code=404, detail=f"Farm '{farm_id}' not found")
-    now = datetime.now(UTC)
+    now = pipeline.now()
     today = (now + timedelta(hours=6)).date()  # Bangladesh calendar day
     live = live_water(pipeline, location, today)
     if live is None:
@@ -114,7 +114,7 @@ def crop_report(farm_id: str, pipeline: PipelineService = Depends(get_pipeline))
     location = next((loc for loc in farm_locations() if loc.id == farm_id), None)
     if location is None:
         raise HTTPException(status_code=404, detail=f"Farm '{farm_id}' not found")
-    now = datetime.now(UTC)
+    now = pipeline.now()
     today = (now + timedelta(hours=6)).date()  # Bangladesh calendar day
     water = live_water(pipeline, location, today)
     flood = live_flood(pipeline, location, today)

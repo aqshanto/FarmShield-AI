@@ -1,8 +1,9 @@
 import asyncio
 import logging
-from datetime import UTC, datetime
+import secrets
+from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 
 from app.core.config import Settings, get_settings
 from app.pipeline import farm_locations, get_pipeline
@@ -53,13 +54,29 @@ async def data_status(
     )
 
 
+# Anyone may ask for a refresh (the Data page has a button), but not more often than this:
+# each one checks every NASA source for every farm.
+REFRESH_COOLDOWN = timedelta(minutes=30)
+_last_refresh: datetime | None = None
+
+
 @router.post("/data/refresh", response_model=RefreshStarted, status_code=202)
 async def refresh(
     force: bool = False,
+    x_admin_token: str | None = Header(default=None),
     pipeline: PipelineService = Depends(get_pipeline),
     settings: Settings = Depends(get_settings),
 ) -> RefreshStarted:
+    """A cache-aware refresh. `force` (re-download everything) is for maintainers only."""
+    global _last_refresh
+    admin = bool(settings.admin_token) and x_admin_token is not None and secrets.compare_digest(x_admin_token, settings.admin_token)
+    if force and not admin:
+        raise HTTPException(status_code=403, detail="A forced re-download needs the maintainers' admin token.")
+    now = pipeline.now()
+    if not admin and _last_refresh and now - _last_refresh < REFRESH_COOLDOWN:
+        return RefreshStarted(started=False, message="NASA data was refreshed recently. Fresh data is already being used.")
     if start_background_refresh(pipeline, settings.pipeline_days, force):
+        _last_refresh = now
         return RefreshStarted(started=True, message="Downloading the latest NASA data for every farm.")
     return RefreshStarted(started=False, message="A refresh is already running.")
 

@@ -3,7 +3,7 @@
 A 5-minute walkthrough for the NASA Space Apps judging, plus a checklist and answers to
 likely questions.
 
-Live site: **https://farm-shield-ai-pi.vercel.app** · API: https://farmshield-api.onrender.com
+Live site: **https://farm-shield-ai-pi.vercel.app** · API: https://farmshield-api-2.onrender.com
 
 ## Before you present
 
