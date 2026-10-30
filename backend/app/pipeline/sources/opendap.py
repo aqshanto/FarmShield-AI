@@ -116,6 +116,7 @@ class ImergSource(_OpendapPointSource):
         ttl_hours=6,
         overlap_days=3,
         chunk_days=15,  # one request per day
+        slow=True,
     )
     collection = "C2723754859-GES_DISC"
     variable = "precipitation"
@@ -141,6 +142,7 @@ class SmapSource(_OpendapPointSource):
         ttl_hours=12,
         overlap_days=3,
         chunk_days=15,  # one request per day
+        slow=True,
     )
     collection = "C2938664763-NSIDC_CPRD"
     variable = "soil_moisture"

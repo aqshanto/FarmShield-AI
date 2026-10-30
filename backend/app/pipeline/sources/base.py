@@ -45,6 +45,11 @@ class SourceInfo:
     # Fetch long windows (an empty database) in pieces this many days long, each saved as it
     # arrives, so a slow server keeps what it got. None: one request covers the whole window.
     chunk_days: int | None = None
+    # Takes minutes on an empty database (hundreds of requests). A refresh queues these after
+    # the quick sources, so weather, terrain and climate normals are ready first.
+    slow: bool = False
+    # Seconds one fetch (or one piece of it) may take; None: the pipeline's usual limit.
+    timeout_s: float | None = None
 
 
 class Source(Protocol):

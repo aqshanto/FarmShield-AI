@@ -1,4 +1,5 @@
 import asyncio
+import dataclasses
 from datetime import UTC, date, datetime, timedelta
 
 import httpx2
@@ -216,6 +217,42 @@ def test_a_refresh_runs_a_few_jobs_at_a_time():
     farms = [Location(f"farm-{i}", 24.0, 90.0 + i / 10) for i in range(10)]
     asyncio.run(service.refresh(farms))
     assert peak == REFRESH_CONCURRENCY
+
+
+def test_a_source_can_have_a_longer_time_limit(monkeypatch):
+    # VIIRS's 11-year normal takes minutes at a cold start and is fetched once a month.
+    monkeypatch.setattr("app.pipeline.service.FETCH_TIMEOUT_S", 0.05)
+
+    class Patient(FakeSource):
+        async def fetch(self, client, location, start, end):
+            await asyncio.sleep(0.1)
+            return []
+
+    patient = Patient("viirs")
+    patient.info = dataclasses.replace(patient.info, timeout_s=1.0)
+    service, _ = make_service(patient)
+    [result] = asyncio.run(service.refresh([FARM]))
+    assert result.status == "ok"
+
+
+def test_quick_sources_go_first_so_the_basics_are_ready_soon():
+    # After a restart, terrain and climate normals waited behind minutes of satellite archives.
+    started: list[str] = []
+
+    class Logged(FakeSource):
+        def __init__(self, source_id, slow=False):
+            super().__init__(source_id)
+            self.info = dataclasses.replace(self.info, slow=slow)
+
+        async def fetch(self, client, location, start, end):
+            started.append(self.info.id)
+            await asyncio.sleep(0.01)
+            return []
+
+    service, _ = make_service(Logged("smap", slow=True), Logged("srtm"))  # listed slow first
+    farms = [Location(f"farm-{i}", 24.0, 90.0 + i / 10) for i in range(6)]
+    asyncio.run(service.refresh(farms))
+    assert started == ["srtm"] * 6 + ["smap"] * 6
 
 
 # --- API ------------------------------------------------------------------------------------

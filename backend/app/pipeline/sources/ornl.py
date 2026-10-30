@@ -140,6 +140,9 @@ class ViirsNormalSource:
         overlap_days=0,
         note="Historical VIIRS archive used as the 'normal for this time of year' baseline.",
         min_window_days=120,
+        slow=True,  # 11 years of composites at every farm
+        # About 44 requests per farm to a slow archive, fetched once a month in the background.
+        timeout_s=420,
     )
 
     step_days = 8

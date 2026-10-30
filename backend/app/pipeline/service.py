@@ -94,8 +94,9 @@ class PipelineService:
     # --- fetch & store ------------------------------------------------------------------
     async def refresh(self, locations: list[Location], days: int = 60, force: bool = False) -> list[RefreshResult]:
         async with self._lock, self.client_factory() as client:
-            slots = asyncio.Semaphore(REFRESH_CONCURRENCY)
-            jobs = [self._refresh_one(client, source, loc, days, force, slots) for source in self.sources.values() for loc in locations]
+            slots = asyncio.Semaphore(REFRESH_CONCURRENCY)  # hands out slots in job order
+            quick_first = sorted(self.sources.values(), key=lambda source: source.info.slow)
+            jobs = [self._refresh_one(client, source, loc, days, force, slots) for source in quick_first for loc in locations]
             results = await asyncio.gather(*jobs)
         summary = {r.status: 0 for r in results}
         for r in results:
@@ -134,13 +135,14 @@ class PipelineService:
         if latest and not force:
             start = max(start, latest - timedelta(days=info.overlap_days))
 
+        timeout = info.timeout_s or FETCH_TIMEOUT_S
         stored = 0
         try:
             async with slots or contextlib.nullcontext():
                 # Long windows go in pieces, oldest first, each saved as it arrives: if time runs
                 # out, the next refresh carries on from the newest saved day.
                 for piece_start, piece_end in _pieces(start, end, info.chunk_days):
-                    observations = await asyncio.wait_for(source.fetch(client, location, piece_start, piece_end), FETCH_TIMEOUT_S)
+                    observations = await asyncio.wait_for(source.fetch(client, location, piece_start, piece_end), timeout)
                     stored += self.store.upsert(location.id, observations, fetched_at=self.now())
         except TokenRequiredError as error:
             result = RefreshResult(info.id, location.id, "needs_token", message=str(error))
@@ -148,7 +150,7 @@ class PipelineService:
             message = f"{error} · {error.approve_url}" if error.approve_url else str(error)
             result = RefreshResult(info.id, location.id, "needs_approval", message=message)
         except Exception as error:  # isolate: one broken source never stops the others
-            reason = f"timed out after {FETCH_TIMEOUT_S} s" if isinstance(error, TimeoutError) else str(error) or type(error).__name__
+            reason = f"timed out after {timeout:g} s" if isinstance(error, TimeoutError) else str(error) or type(error).__name__
             if stored:
                 reason = f"saved {stored} readings, then {reason}; the next refresh carries on"
             log.warning("Source %s failed for %s: %s", info.id, location.id, reason)
