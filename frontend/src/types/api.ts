@@ -301,6 +301,10 @@ export interface FarmObservations {
   generated_at: string
   days: number
   variables: VariableSeries[]
+  // The topsoil wetness (0–1) the risk engines use: SMAP when a pass is recent, else NASA POWER.
+  topsoil?: ObservationPoint | null
+  // SMAP on NASA POWER's 0–1 scale: stuck passes dropped, a week's median, calibrated for this soil.
+  smap_wetness?: ObservationPoint[]
 }
 
 // --- rotation planner ----------------------------------------------------------------

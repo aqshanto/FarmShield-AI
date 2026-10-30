@@ -70,6 +70,10 @@ class FarmObservations(BaseModel):
     generated_at: datetime
     days: int
     variables: list[VariableSeries]
+    # The topsoil wetness (0–1) the risk engines use: SMAP when a pass is recent, else NASA POWER.
+    topsoil: ObservationPoint | None = None
+    # SMAP on NASA POWER's 0–1 scale: stuck passes dropped, a week's median, calibrated for this soil.
+    smap_wetness: list[ObservationPoint] = []
 
 
 class RefreshStarted(BaseModel):

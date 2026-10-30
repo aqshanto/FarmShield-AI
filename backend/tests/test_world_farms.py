@@ -18,7 +18,7 @@ from app.pipeline.service import PipelineService, SeriesPoint, VariableSeries
 from app.pipeline.sources.static import SrtmElevationSource
 from app.pipeline.store import ObservationStore
 from app.risk.flood import FloodInputs, relief_words, score_factors
-from app.risk.inputs import POROSITY, soil_porosity
+from app.risk.inputs import POROSITY, clean_smap, smap_wetness, soil_porosity, topsoil
 from app.services import custom_farms, farm_access, geocode
 from app.services.custom_farms import CustomFarmError, parse_farm_id
 from app.services.geocode import Place, search_places
@@ -65,22 +65,62 @@ def test_relative_height_drives_flood_terrain_outside_bangladesh():
         assert not LATIN.search(translate(words, "bn"))
 
 
-# --- soil: porosity calibrated from SMAP and POWER -------------------------------------------------
+# --- soil: SMAP calibrated against POWER, cleaned and steadied ------------------------------------
 
 
-def _soil_obs(smap: float, wetness: float, days: int = 5) -> list[VariableSeries]:
-    def points(value: float):
-        return [SeriesPoint(TODAY - timedelta(days=i), value, "x", "good") for i in range(days)]
+def _soil_obs(smap: float | list[float], wetness: float, days: int = 5) -> list[VariableSeries]:
+    """Daily SMAP and POWER wetness, newest last. A single SMAP value wobbles a little from pass to
+    pass: identical passes would read as a stuck pixel."""
+    smaps = smap if isinstance(smap, list) else [smap * (1 + 0.01 * (i - days // 2)) for i in range(days)]
+    dates = [TODAY - timedelta(days=len(smaps) - 1 - i) for i in range(len(smaps))]
+    return [
+        VariableSeries("soil_moisture", "", "", "", [SeriesPoint(d, v, "smap", "good") for d, v in zip(dates, smaps, strict=True)]),
+        VariableSeries("soil_wetness", "", "", "", [SeriesPoint(d, wetness, "nasa_power", "good") for d in dates]),
+    ]
 
-    return [VariableSeries("soil_moisture", "", "", "", points(smap)), VariableSeries("soil_wetness", "", "", "", points(wetness))]
 
-
-def test_soil_porosity_is_calibrated_outside_bangladesh_only():
+def test_soil_porosity_is_calibrated_everywhere():
     kenya, bogura = Location("k", -1.29, 36.82), Location("b", 24.85, 89.37)
-    assert soil_porosity(_soil_obs(0.20, 0.50), bogura) == POROSITY  # home calibration kept
-    assert soil_porosity(_soil_obs(0.20, 0.50), kenya) == pytest.approx(0.40)  # a sandier soil
-    assert soil_porosity(_soil_obs(0.40, 0.50), kenya) == 0.60  # clamped
-    assert soil_porosity(_soil_obs(0.20, 0.50, days=2), kenya) == POROSITY  # too few days to tell
+    assert kenya and bogura  # the place no longer matters: Bangladesh's soils differ too
+    assert soil_porosity(_soil_obs(0.20, 0.50), TODAY) == pytest.approx(0.40)  # a sandier soil
+    assert soil_porosity(_soil_obs(0.40, 0.50), TODAY) == 0.60  # clamped
+    assert soil_porosity(_soil_obs(0.20, 0.50, days=2), TODAY) == POROSITY  # too few days to tell
+
+
+def test_smap_and_power_agree_on_the_same_soil():
+    # Near Dhaka SMAP ÷ POWER is about 0.59: the old fixed 0.50 turned 0.43 m³/m³ into "86%"
+    # while POWER said 48%. Calibrated and steadied, SMAP lands next to POWER.
+    passes = [0.3014, 0.3125, 0.3193, 0.472, 0.3032, 0.4278]
+    soil = topsoil(_soil_obs(passes, 0.48), TODAY)
+    assert soil.source == "smap" and soil.date == TODAY
+    assert 0.40 <= soil.value <= 0.60
+
+
+def test_a_wet_pass_does_not_swing_the_reading():
+    passes = [0.30, 0.31, 0.47, 0.30, 0.32, 0.46, 0.31]  # a river in the footprint now and then
+    values = [v for _, v in smap_wetness(_soil_obs(passes, 0.5), TODAY)]
+    assert max(values) - min(values) < 0.05
+
+
+def test_stuck_smap_passes_are_ignored():
+    assert clean_smap(_soil_obs([0.20, 0.451, 0.451, 0.451, 0.22], 0.5)[0].points)[1].value == 0.22
+    # Giza: one value pass after pass while POWER says the soil is dry. POWER is the reading.
+    soil = topsoil(_soil_obs([0.451] * 8, 0.08, days=8), TODAY)
+    assert (soil.source, soil.value) == ("nasa_power", 0.08)
+
+
+def test_smap_that_cannot_match_power_is_not_used():
+    # Open water in the footprint: SMAP reads wet, every day a little different, POWER reads dry.
+    soil = topsoil(_soil_obs(0.45, 0.08), TODAY)
+    assert (soil.source, soil.value) == ("nasa_power", 0.08)
+
+
+def test_topsoil_falls_back_to_power_when_smap_is_old():
+    smap = [SeriesPoint(TODAY - timedelta(days=12 - i), v, "smap", "good") for i, v in enumerate([0.30, 0.31, 0.32])]
+    power = [SeriesPoint(TODAY - timedelta(days=12 - i), 0.5, "nasa_power", "good") for i in range(13)]
+    obs = [VariableSeries("soil_moisture", "", "", "", smap), VariableSeries("soil_wetness", "", "", "", power)]
+    soil = topsoil(obs, TODAY)
+    assert (soil.source, soil.date) == ("nasa_power", TODAY)
 
 
 # --- farm ids --------------------------------------------------------------------------------------

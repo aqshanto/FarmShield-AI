@@ -8,6 +8,8 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from app.core.config import Settings, get_settings
 from app.pipeline import farm_locations, get_pipeline
 from app.pipeline.service import PipelineService
+from app.risk.inputs import CALIBRATION_DAYS, smap_wetness, topsoil
+from app.risk.region import local_today
 from app.schemas.data import DataStatus, FarmObservations, ObservationPoint, RefreshStarted, VariableSeries
 from app.services.map import warm_map_overview
 
@@ -91,8 +93,9 @@ def farm_observations(
     if location is None:
         raise HTTPException(status_code=404, detail=f"Farm '{farm_id}' not found")
 
+    observations = pipeline.observations(location, days)
     variables = []
-    for series in pipeline.observations(location, days):
+    for series in observations:
         points = [ObservationPoint(date=p.date, value=p.value, source=p.source, quality=p.quality) for p in series.points]
         variables.append(
             VariableSeries(
@@ -105,4 +108,14 @@ def farm_observations(
                 latest=points[-1] if points else None,
             )
         )
-    return FarmObservations(farm_id=farm_id, generated_at=datetime.now(UTC), days=days, variables=variables)
+    # The same reading, from the same month of data, as the dashboard's flood and water cards.
+    today = local_today(pipeline.now(), location.lon)
+    soil = topsoil(pipeline.observations(location, CALIBRATION_DAYS), today)
+    return FarmObservations(
+        farm_id=farm_id,
+        generated_at=datetime.now(UTC),
+        days=days,
+        variables=variables,
+        topsoil=ObservationPoint(date=soil.date, value=round(soil.value, 3), source=soil.source, quality="good") if soil else None,
+        smap_wetness=[ObservationPoint(date=d, value=round(v, 3), source="smap", quality="good") for d, v in smap_wetness(observations, today)],
+    )
