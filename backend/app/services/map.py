@@ -9,8 +9,9 @@ from datetime import UTC, datetime, timedelta
 
 from app.data.sample.farms import SAMPLE_FARMS
 from app.data.sample.grid import BBOX, CELL_SIZE_DEG, cell_centres, risk_surface
+from app.schemas.dashboard import Dashboard
 from app.schemas.map import GridCell, MapFarm, MapLayer, MapOverview, ModuleLevel
-from app.services.dashboard import build_dashboard
+from app.services.dashboard import FarmDataPendingError, build_dashboard
 
 log = logging.getLogger("farmshield.map")
 LIVE_GRID_TIMEOUT_S = 30
@@ -54,21 +55,9 @@ async def build_map_overview(
     data_mode: str, now: datetime | None = None, pipeline=None, grid_timeout: float = LIVE_GRID_TIMEOUT_S
 ) -> MapOverview:
     now = now or (pipeline.now() if pipeline is not None else datetime.now(UTC))
-    dashboards = [build_dashboard(farm_id, data_mode=data_mode, now=now, pipeline=pipeline) for farm_id in SAMPLE_FARMS]
+    dashboards = _farm_dashboards(data_mode, now, pipeline)
 
-    farms = [
-        MapFarm(
-            id=d.farm.id,
-            name=d.farm.name,
-            district=d.farm.district,
-            crop=d.farm.crop,
-            lat=d.farm.lat,
-            lon=d.farm.lon,
-            overall=d.overall,
-            modules={m.id: ModuleLevel(score=m.score, level=m.level) for m in d.modules},
-        )
-        for d in dashboards
-    ]
+    farms = [_map_farm(d) for d in dashboards]
 
     surfaces = {
         layer.id: risk_surface(layer.id, anchors=[(f.lat, f.lon, f.modules[layer.id].score) for f in farms])
@@ -121,6 +110,10 @@ async def build_map_overview(
                         "description": "Live: crop stress from heat, disease weather, water and waterlogging (rice). Greenness is checked at farms."}
             )
 
+    # Farms still waiting for NASA data: the page keeps asking, as on a cold start.
+    if data_mode == "live" and len(farms) < len(SAMPLE_FARMS):
+        grid_status = "warming"
+
     return MapOverview(
         generated_at=now,
         data_mode=data_mode,
@@ -131,6 +124,40 @@ async def build_map_overview(
         farms=farms,
         grid_status=grid_status,
     )
+
+
+def _farm_dashboards(data_mode: str, now: datetime | None, pipeline) -> list[Dashboard]:
+    """In live mode, only the farms whose NASA data has arrived: a marker or a Home card never
+    shows the demo scenario as today's condition."""
+    if data_mode == "live" and pipeline is None:  # the modelled map, while the live one builds
+        return []
+    dashboards = []
+    for farm_id in SAMPLE_FARMS:
+        try:
+            dashboards.append(build_dashboard(farm_id, data_mode=data_mode, now=now, pipeline=pipeline))
+        except FarmDataPendingError:
+            log.debug("No map marker for %s yet: its NASA data hasn't arrived", farm_id)
+    return dashboards
+
+
+def _map_farm(d: Dashboard) -> MapFarm:
+    return MapFarm(
+        id=d.farm.id,
+        name=d.farm.name,
+        district=d.farm.district,
+        crop=d.farm.crop,
+        lat=d.farm.lat,
+        lon=d.farm.lon,
+        overall=d.overall,
+        modules={m.id: ModuleLevel(score=m.score, level=m.level) for m in d.modules},
+    )
+
+
+async def _with_current_farms(overview: MapOverview, pipeline) -> MapOverview:
+    """While the map is warming, each visit reads the farms afresh: their NASA data usually
+    arrives well before the next map build."""
+    dashboards = await asyncio.to_thread(_farm_dashboards, "live", None, pipeline)
+    return overview.model_copy(update={"farms": [_map_farm(d) for d in dashboards]})
 
 
 # --- served map: cached, built once at a time, never a long wait --------------------------------
@@ -174,13 +201,13 @@ async def get_map_overview(data_mode: str, pipeline=None) -> MapOverview:
         fresh_for = OVERVIEW_FRESH if overview.grid_status.startswith("live") else FAILED_OVERVIEW_FRESH
         if datetime.now(UTC) - built_at >= fresh_for:
             warm_map_overview(pipeline)  # serve this one meanwhile
-        return overview
+        return await _with_current_farms(overview, pipeline) if overview.grid_status == "warming" else overview
     task = warm_map_overview(pipeline)
     try:
         return await asyncio.wait_for(asyncio.shield(task), COLD_WAIT_S)
     except Exception:  # still building (timeout), or the build failed: don't make the visitor wait
         warming = await build_map_overview("live", pipeline=None)
-        return warming.model_copy(update={"grid_status": "warming"})
+        return await _with_current_farms(warming.model_copy(update={"grid_status": "warming"}), pipeline)
 
 
 def reset_map_cache() -> None:

@@ -2,6 +2,26 @@
 
 Short records of choices that shape the project. Newest first.
 
+## 2026-11-05: No demo values on a live farm
+
+Right after a deploy the Haor dashboard said "Act today: flood risk is high" with an SMS to
+match, though the weather was dry. In live mode `build_dashboard` kept the bundled scenario for
+any risk without data, and the overall level and the SMS treated it as real. The daily SMS log
+wrote the same alert for the day when the data was late.
+
+| Decision | Choice | Why |
+|---|---|---|
+| Missing data on a demo farm | 503 "Still downloading…", the same as a farmer's own field | A false alert costs more trust than a short wait; a text must always mean act now |
+| Part of the data | All three risks or none | The overall level and the SMS come from all three; one demo score could still raise them |
+| SMS | Nothing shown, logged or sent until the data arrives; today's log entry waits for a later refresh | A logged false alert would stay for the whole day |
+| Map and Home | Only farms with data get a marker or card; the map says `warming` until all five do, reads the farms afresh on each visit meanwhile, and the page keeps asking | Home's farm cards come from the map, under a "Live right now" heading; a farm's data usually arrives well before the next map build |
+| Forecast and last pass | Never from the scenario in live mode: an empty forecast, the real fetch time | The same honesty as a farmer's own field |
+| Modelled map while warming | Stays, labelled "Getting live data…", with no farm anchors | It shows where risks usually concentrate and claims nothing about a farm |
+| Page waiting time | Dashboard and assistant retry for about a minute | Covers the wait after a restart, and a sleeping server |
+
+The cost: if every data source is down for more than three days, demo farms say "Still
+downloading" instead of showing a page. Sample mode still shows the full scenario.
+
 ## 2026-10-31: NASA GRACE groundwater in the rotation planner
 
 | Topic | Decision | Why |
@@ -331,7 +351,7 @@ Verified live with the user's Earthdata token:
 | Dry cap | ≤ 45 when the 6-day window has < 20 mm | Local flash-flooding needs water; avoids alarm on dry weeks |
 | Missing data | Drop the factor, re-normalise, lower confidence | Honest instead of guessing |
 | Live map | Same engine per cell, inputs cached, pre-computed after refresh | Map and farm agree by construction; first visit is instant |
-| Default mode | `DATA_MODE=live`, per-module Live/Demo marker | Real where possible; the demo scenario is still one setting away |
+| Default mode | `DATA_MODE=live`, per-module Live/Demo marker (the Demo marker now only appears in `sample` mode; see 2026-11-05 below) | Real where possible; the demo scenario is still one setting away |
 | Single-cell OPeNDAP | Request 2 cells, read ours | Hyrax returns an empty value for 1-element selections (verified live) |
 
 Real-world check (1 Oct 2026, monsoon ending): haor 27 watch (very low land, light

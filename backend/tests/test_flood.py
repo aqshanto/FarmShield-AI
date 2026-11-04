@@ -13,7 +13,7 @@ from app.risk.flood import DailyRain, FloodInputs, assess_flood, flood_trend, sc
 from app.risk.grid import in_bangladesh, land_cells
 from app.risk.inputs import flood_inputs
 from app.risk.live import live_flood, wmo_condition
-from app.services.dashboard import build_dashboard
+from app.services.dashboard import FarmDataPendingError, build_dashboard
 
 TODAY = date(2026, 10, 1)
 HAOR = Location("sunamganj-haor", 25.03, 91.25)
@@ -163,17 +163,30 @@ def test_live_flood_needs_recent_rain_data():
     assert live_flood(pipeline_with({"srtm": [Observation("srtm", "elevation", date(2000, 2, 11), 8.0, "m")]}), HAOR, TODAY) is None
 
 
-def test_live_dashboard_uses_the_engine_and_falls_back_to_the_demo():
-    pipe = pipeline_with({"open_meteo": [obs("open_meteo", "precipitation_forecast", d, 40.0) for d in range(-3, 7)]})
+def test_live_dashboard_is_all_engines_with_no_demo_values():
+    pipe = pipeline_with(
+        {
+            "open_meteo": [obs("open_meteo", "precipitation_forecast", d, 40.0) for d in range(-3, 7)]
+            + [obs("open_meteo", "temperature_max_forecast", d, 30.0) for d in range(-3, 7)],
+            "nasa_power": [obs("nasa_power", "soil_wetness", -3, 0.62)],
+        }
+    )
     live = build_dashboard("sunamganj-haor", "live", now=datetime(2026, 10, 1, 0, tzinfo=UTC), pipeline=pipe)
+    assert {m.data_source for m in live.modules} == {"live"}
     flood = next(m for m in live.modules if m.id == "flood_risk")
-    assert flood.data_source == "live" and flood.factors
+    assert flood.factors
     assert all(r.id.startswith("flood-") for r in live.recommendations if r.module == "flood_risk")
-    assert next(m for m in live.modules if m.id == "water_stress").data_source == "sample"
 
-    empty = pipeline_with({})
-    fallback = build_dashboard("sunamganj-haor", "live", pipeline=empty)
-    assert next(m for m in fallback.modules if m.id == "flood_risk").data_source == "sample"
+
+def test_live_dashboard_never_shows_the_demo_flood_as_today():
+    # The false alert: right after a deploy, the Haor scenario's flood (78, danger) read as real.
+    with pytest.raises(FarmDataPendingError):
+        build_dashboard("sunamganj-haor", "live", pipeline=pipeline_with({}))
+
+    # One risk's data isn't enough: rain but no temperature leaves crop health unknown.
+    rain_only = pipeline_with({"open_meteo": [obs("open_meteo", "precipitation_forecast", d, 40.0) for d in range(-3, 7)]})
+    with pytest.raises(FarmDataPendingError):
+        build_dashboard("sunamganj-haor", "live", now=datetime(2026, 10, 1, 0, tzinfo=UTC), pipeline=rain_only)
 
 
 # --- grid ----------------------------------------------------------------------------------------

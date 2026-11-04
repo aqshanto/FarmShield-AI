@@ -186,9 +186,10 @@ An explainable scorecard. Each factor is scored 0–100 and weighted:
 | `grid.py` | Flood, water **and** crop engines per 0.2° land cell from shared inputs: SRTM (batched, cached for a year), weather (30 days back + 5 ahead: rain, high/mean temperature, humidity; multi-point, 3 h), SMAP bounding-box subsets (newest valid pass over 3 days, 6 h) |
 
 `DATA_MODE=live` (default) puts the flood, water and crop engines on the dashboard, all three map layers and
-`GET /api/v1/farms/{id}/flood` (the full evidence). Modules without an engine yet stay on
-the demo scenario and are marked **Demo** in the UI. The grid is pre-computed after each
-background refresh, so the map loads instantly.
+`GET /api/v1/farms/{id}/flood` (the full evidence). The demo scenario is never mixed in: until a
+demo farm's data has arrived its dashboard answers 503 "Still downloading…", no SMS is shown,
+logged or sent for it, it has no map marker or Home card, and the map says `warming` so the page
+keeps asking. The grid is pre-computed after each background refresh, so the map loads instantly.
 
 New pipeline sources:
 - `forecast.ForecastSource` (Open-Meteo; the one non-NASA input). When Open-Meteo refuses

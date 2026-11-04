@@ -168,7 +168,7 @@ export function AppLayout() {
 
       <footer className="relative z-10 mx-auto w-full max-w-6xl px-4 py-6 text-xs text-ink-subtle sm:px-6">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <span>{t.poweredBy} · SMAP · GPM · MODIS · VIIRS</span>
+          <span>{t.poweredBy} · SMAP · GPM · MODIS · VIIRS · GRACE</span>
           <Link to="/design" className="focus-ring rounded hover:text-ink-muted">
             {t.design}
           </Link>

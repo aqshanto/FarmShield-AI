@@ -56,8 +56,9 @@ export function DashboardPage() {
   // The farmer's own fields come first.
   const farmId = params.get('farm') ?? mine[0]?.id ?? farms.data?.[0]?.id ?? null
   const myFarm = mine.find((f) => f.id === farmId) ?? null
+  // ~1 minute of quiet retries: long enough for a sleeping server, or NASA data after a restart.
   const dashboard = useAsync(farmId ? `${farmId}|${myFarm?.name ?? ''}|${lang}` : null, (signal) => api.dashboard(farmId!, { signal }, myFarm?.name, lang), {
-    retries: 3,
+    retries: 8,
   })
   const options: FarmOption[] = [
     ...mine.map((f) => ({ id: f.id, label: f.name, mine: true })),
@@ -86,8 +87,8 @@ export function DashboardPage() {
 
   if (error && !data) {
     const notFound = error instanceof ApiError && error.status === 404
-    // For a farmer's own field the server explains itself (e.g. data still downloading).
-    const serverReason = error instanceof ApiError && farmId && isMyFarmId(farmId) ? error.detail : null
+    // The server explains itself for a farmer's own field, and on any farm whose data is still downloading.
+    const serverReason = error instanceof ApiError && farmId && (isMyFarmId(farmId) || error.status === 503) ? error.detail : null
     return (
       <div className="grid place-items-center py-20">
         <Card className="max-w-md space-y-4 p-8 text-center">

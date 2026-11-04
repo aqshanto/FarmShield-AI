@@ -1,8 +1,5 @@
-"""Builds the farmer dashboard.
-
-Today this reads the bundled sample farms. When the NASA pipeline (Phase 4) and risk
-engines (Phase 5) land, they replace the sample lookup; the output shape stays the same.
-"""
+"""Builds the farmer dashboard: from the risk engines on NASA data in live mode, from the
+bundled demo scenario in sample mode. The output shape is the same."""
 
 from datetime import UTC, date, datetime, timedelta
 from typing import TYPE_CHECKING
@@ -21,6 +18,7 @@ from app.schemas.dashboard import (
 from app.services.risk import overall_score, overall_summary, score_to_level
 
 if TYPE_CHECKING:
+    from app.pipeline.models import Location
     from app.pipeline.service import PipelineService
     from app.services.custom_farms import CustomFarm
 
@@ -38,50 +36,26 @@ def list_farms() -> list[FarmSummary]:
 def build_dashboard(
     farm_id: str, data_mode: str, now: datetime | None = None, pipeline: "PipelineService | None" = None
 ) -> Dashboard:
-    """In live mode, the flood, water and crop engines run on NASA data;
-    the rest, and anything without enough data, fall back to the demo scenario."""
+    """A demo farm: in sample mode, its bundled scenario. In live mode, every risk comes from
+    the engines, as on a farmer's own field. The scenario must never pass for today's
+    conditions (its flood would read as a real alert), so until the NASA data has arrived this
+    raises FarmDataPendingError."""
     sample = SAMPLE_FARMS.get(farm_id)
     if sample is None:
         raise FarmNotFoundError(farm_id)
 
     now = now or (pipeline.now() if pipeline is not None else datetime.now(UTC))
+    if data_mode == "live" and pipeline is not None:
+        from app.pipeline.models import Location
+
+        farm = Farm(**sample["farm"])
+        return _live_dashboard(farm, Location(farm.id, farm.lat, farm.lon), farm.crop, _local_today(now), pipeline, now)
+
     modules = [_build_module(module_id, raw) for module_id, raw in sample["modules"].items()]
     recommendations = [
         Recommendation(id=r[0], module=r[1], priority=r[2], title=r[3], reason=r[4], due=r[5]) for r in sample["recommendations"]
     ]
     forecast = _build_forecast(sample["forecast"], now.date())
-
-    if data_mode == "live" and pipeline is not None:
-        from app.pipeline.models import Location
-        from app.risk.live import (
-            flood_module,
-            flood_recommendations,
-            live_flood,
-            live_forecast,
-            crop_module,
-            crop_recommendations,
-            live_crop,
-            live_water,
-            water_module,
-            water_recommendations,
-        )
-
-        farm = sample["farm"]
-        location = Location(farm["id"], farm["lat"], farm["lon"])
-        today = _local_today(now)
-        flood = live_flood(pipeline, location, today)
-        if flood is not None:
-            modules = [flood_module(flood) if m.id == "flood_risk" else m for m in modules]
-            recommendations = [r for r in recommendations if r.module != "flood_risk"] + flood_recommendations(flood)
-        water = live_water(pipeline, location, today)
-        if water is not None:
-            modules = [water_module(water) if m.id == "water_stress" else m for m in modules]
-            recommendations = [r for r in recommendations if r.module != "water_stress"] + water_recommendations(water)
-        crop = live_crop(pipeline, location, today, farm["crop"], water=water, flood=flood)
-        if crop is not None:
-            modules = [crop_module(crop) if m.id == "crop_health" else m for m in modules]
-            recommendations = [r for r in recommendations if r.module != "crop_health"] + crop_recommendations(crop)
-        forecast = live_forecast(pipeline, location, today) or forecast
 
     worst = max(modules, key=lambda m: m.score)
     score = overall_score([m.score for m in modules])
@@ -100,7 +74,7 @@ def build_dashboard(
 
 
 class FarmDataPendingError(RuntimeError):
-    """A new farm's NASA data hasn't arrived yet (or a source is down); try again shortly."""
+    """A farm's NASA data hasn't arrived yet (or a source is down); try again shortly."""
 
 
 def build_custom_dashboard(
@@ -113,6 +87,14 @@ def build_custom_dashboard(
     """A farmer's own field: every risk from the live engines, nothing from the demo.
 
     `place` is (nearest named place, country) for fields outside Bangladesh."""
+    from app.risk.region import local_today
+
+    now = now or pipeline.now()
+    return _live_dashboard(_custom_farm(farm, name, place), farm.location, farm.crop.name, local_today(now, farm.lon), pipeline, now)
+
+
+def _live_dashboard(farm: Farm, location: "Location", crop_name: str, today: date, pipeline: "PipelineService", now: datetime) -> Dashboard:
+    """Every risk from the engines, or FarmDataPendingError: nothing from the demo scenario."""
     from app.risk.live import (
         crop_module,
         crop_recommendations,
@@ -125,15 +107,11 @@ def build_custom_dashboard(
         water_module,
         water_recommendations,
     )
-    from app.risk.region import local_today
     from app.services.custom_farms import last_data_time
 
-    now = now or pipeline.now()
-    today = local_today(now, farm.lon)
-    location = farm.location
     flood = live_flood(pipeline, location, today)
     water = live_water(pipeline, location, today)
-    crop = live_crop(pipeline, location, today, farm.crop.name, water=water, flood=flood)
+    crop = live_crop(pipeline, location, today, crop_name, water=water, flood=flood)
     forecast = live_forecast(pipeline, location, today)
     # The forecast is welcome but optional: without it the engines use NASA's measured rain.
     if flood is None or water is None or crop is None:
@@ -145,9 +123,9 @@ def build_custom_dashboard(
     score = overall_score([m.score for m in modules])
     level = score_to_level(score)
     return Dashboard(
-        farm=_custom_farm(farm, name, place),
+        farm=farm,
         generated_at=now,
-        last_satellite_pass=last_data_time(pipeline, farm, now),
+        last_satellite_pass=last_data_time(pipeline, location, now),
         data_mode="live",
         overall=OverallCondition(score=score, level=level, summary=overall_summary(level, worst.id)),
         modules=modules,

@@ -4,7 +4,8 @@ import type { Lang } from '@/lib/i18n'
 import { useAsync } from '@/lib/useAsync'
 
 // Right after the server starts, it answers with the modelled map ("warming") instead of
-// making visitors wait for the live one; ask again until the live map is ready.
+// making visitors wait for the live one, and stays "warming" until every farm's NASA data has
+// arrived; ask again until it's all ready.
 const WARMING_RECHECK_MS = import.meta.env.MODE === 'test' ? 20 : 8000
 const MAX_RECHECKS = 15 // ~2 minutes, then the modelled map simply stays
 

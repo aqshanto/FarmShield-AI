@@ -21,7 +21,7 @@ function Stat({ icon, value, label }: { icon: ReactNode; value: ReactNode; label
 const text = {
   en: {
     region: 'FarmShield today',
-    missions: 'NASA missions watching: SMAP, GPM, MODIS, VIIRS',
+    missions: 'NASA missions watching: SMAP, GPM, MODIS, VIIRS, GRACE',
     areas: 'land areas checked across Bangladesh',
     liveFarms: 'farms watched with live data',
     demoFarms: 'demo farms',
@@ -29,7 +29,7 @@ const text = {
   },
   bn: {
     region: 'আজ ফার্মশিল্ডে',
-    missions: 'নাসার মিশন নজর রাখছে: SMAP, GPM, MODIS, VIIRS',
+    missions: 'নাসার মিশন নজর রাখছে: SMAP, GPM, MODIS, VIIRS, GRACE',
     areas: 'বাংলাদেশজুড়ে এলাকা যাচাই হয়েছে',
     liveFarms: 'জমিতে লাইভ নজর চলছে',
     demoFarms: 'ডেমো জমি',
@@ -52,7 +52,7 @@ export function LivePulse({ overview }: { overview?: MapOverview }) {
       viewport={{ once: true, margin: '-60px' }}
       className="glass grid grid-cols-2 gap-5 rounded-3xl p-5 sm:p-6 lg:grid-cols-4"
     >
-      <Stat icon={<Satellite className="size-5" aria-hidden="true" />} value={<AnimatedNumber value={4} locale={locale} />} label={t.missions} />
+      <Stat icon={<Satellite className="size-5" aria-hidden="true" />} value={<AnimatedNumber value={5} locale={locale} />} label={t.missions} />
       <Stat
         icon={<Grid3x3 className="size-5" aria-hidden="true" />}
         value={overview ? <AnimatedNumber value={overview.cells.length} locale={locale} /> : '—'}
@@ -60,7 +60,7 @@ export function LivePulse({ overview }: { overview?: MapOverview }) {
       />
       <Stat
         icon={<Tractor className="size-5" aria-hidden="true" />}
-        value={overview ? <AnimatedNumber value={overview.farms.length} locale={locale} /> : '—'}
+        value={overview?.farms.length ? <AnimatedNumber value={overview.farms.length} locale={locale} /> : '—'}
         label={live ? t.liveFarms : t.demoFarms}
       />
       <Stat icon={<ShieldCheck className="size-5" aria-hidden="true" />} value={<AnimatedNumber value={3} locale={locale} />} label={t.warnings} />

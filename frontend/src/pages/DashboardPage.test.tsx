@@ -170,6 +170,16 @@ describe('DashboardPage with my own farm', () => {
     expect(myFarms.list()).toEqual([])
   }, 15_000) // long multi-step flow
 
+  it('shows the server’s reason when a demo farm’s data is still downloading', async () => {
+    const detail = 'Still downloading NASA data for this field. Try again in a moment.'
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) =>
+      String(input).includes('/dashboard') ? new Response(JSON.stringify({ detail }), { status: 503 }) : new Response(JSON.stringify([])),
+    )
+    renderAt('/dashboard?farm=haor')
+    expect(await screen.findByText(detail)).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Act today: flood risk is high.' })).not.toBeInTheDocument()
+  })
+
   it('shows the server’s reason when a new field’s data is still downloading', async () => {
     saveMyFarm()
     mockWithMyFarm(() => new Response(JSON.stringify({ detail: 'Still downloading NASA data for this field. Try again in a moment.' }), { status: 503 }))

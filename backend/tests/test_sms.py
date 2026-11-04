@@ -118,6 +118,32 @@ def test_the_daily_log_writes_each_farm_once_a_day():
     assert (bogura["status"], bogura["text"]) == ("quiet", "")
 
 
+def live_setup_without_data(client_factory=None, **settings):
+    pipeline, _ = setup(client_factory)
+    app = create_app()
+    app.dependency_overrides[get_pipeline] = lambda: pipeline
+    app.dependency_overrides[get_settings] = lambda: Settings(data_mode="live", **settings)
+    return pipeline, TestClient(app)
+
+
+def test_no_sms_is_shown_or_logged_before_a_live_farms_data_arrives():
+    # Right after a deploy the store is empty. The demo Haor flood must not become today's alert.
+    pipeline, api = live_setup_without_data()
+    page = api.get("/api/v1/farms/sunamganj-haor/dashboard")
+    assert page.status_code == 503 and "Still downloading" in page.json()["detail"]
+    assert "এখনও আসছে" in api.get("/api/v1/farms/sunamganj-haor/dashboard", params={"lang": "bn"}).json()["detail"]
+
+    assert asyncio.run(write_daily_sms(pipeline, "live")) == 0
+    assert api.get("/api/v1/sms/history/sunamganj-haor").json() == []  # today's entry can still be written
+
+
+def test_no_real_sms_is_sent_before_a_live_farms_data_arrives():
+    sent: list[dict] = []
+    _, api = live_setup_without_data(twilio(sent), **REAL)
+    assert api.post("/api/v1/sms/send/sunamganj-haor").status_code == 503
+    assert sent == []
+
+
 def test_real_sms_needs_the_keys_and_the_team_numbers():
     _, api = setup()
     assert api.get("/api/v1/sms/status").json() == {"real_sending": False, "phones": 0, "sent_today": 0, "daily_limit": 10}

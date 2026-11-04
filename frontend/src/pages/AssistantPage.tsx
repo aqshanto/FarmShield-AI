@@ -31,8 +31,9 @@ export function AssistantPage() {
   const farmId = params.get('farm') ?? mine[0]?.id ?? farms.data?.[0]?.id ?? null
   const farm = farms.data?.find((f) => f.id === farmId) ?? null
   const myFarm = mine.find((f) => f.id === farmId) ?? null
+  // ~1 minute of quiet retries: long enough for a sleeping server, or NASA data after a restart.
   const dashboard = useAsync(farmId ? `${farmId}|${myFarm?.name ?? ''}|${lang}` : null, (signal) => api.dashboard(farmId!, { signal }, myFarm?.name, lang), {
-    retries: 3,
+    retries: 8,
   })
   const status = useAsync('assistant-status', (signal) => api.assistantStatus({ signal }), { retries: 3 })
   const dash = dashboard.data?.farm.id === farmId ? dashboard.data : undefined

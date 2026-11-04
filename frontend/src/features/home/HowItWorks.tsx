@@ -1,5 +1,5 @@
 import { motion, useScroll, useSpring } from 'framer-motion'
-import { CloudRain, Droplets, Gauge, Leaf, MessageCircle, Mic, Satellite, Sprout } from 'lucide-react'
+import { CloudRain, Droplets, Gauge, Leaf, MessageCircle, Mic, Satellite, Sprout, Waves } from 'lucide-react'
 import { type ReactNode, useRef } from 'react'
 import { RiskBadge } from '@/components/ui/RiskBadge'
 import { cn } from '@/lib/cn'
@@ -8,7 +8,7 @@ import { fadeUp, spring, stagger } from '@/lib/motion'
 
 const text = {
   en: {
-    missions: ['feels how wet the soil is', 'measures rain from space', 'sees how green crops are', 'knows what “normal green” is'],
+    missions: ['feels how wet the soil is', 'measures rain from space', 'sees how green crops are', 'knows what “normal green” is', 'tracks groundwater over the years'],
     reasons: ['Heavy rain on the way', 'Ground already full', 'Low-lying field'],
     compared: 'Compared with what is normal for this place and season.',
     rows: ['Flood risk', 'Water for the crop', 'Crop health'],
@@ -20,14 +20,14 @@ const text = {
     title: 'From space to your field, in time to act',
     step: (n: number) => `STEP ${n}`,
     steps: [
-      ['Satellites check every field, every day', 'Four NASA missions pass over Bangladesh daily, measuring rain, soil water and how green the crops are.'],
+      ['Satellites check every field, every day', 'NASA missions pass over Bangladesh daily, measuring rain, soil water and how green the crops are. A fifth, GRACE, follows groundwater year after year.'],
       ['FarmShield reads the signs', 'It compares today with what is normal for that place and season, and finds the reason behind every risk.'],
       ['One clear answer', 'No charts to decode. Three simple signals, and the one thing worth doing today.'],
       ['Ask in your own language', 'Type or speak a question in Bangla or English, and get a plain answer about your own field.'],
     ],
   },
   bn: {
-    missions: ['মাটি কতটা ভেজা তা বোঝে', 'মহাকাশ থেকে বৃষ্টি মাপে', 'ফসল কতটা সবুজ তা দেখে', 'জানে “স্বাভাবিক সবুজ” কেমন'],
+    missions: ['মাটি কতটা ভেজা তা বোঝে', 'মহাকাশ থেকে বৃষ্টি মাপে', 'ফসল কতটা সবুজ তা দেখে', 'জানে “স্বাভাবিক সবুজ” কেমন', 'বছরের পর বছর মাটির নিচের পানি দেখে'],
     reasons: ['ভারী বৃষ্টি আসছে', 'মাটি আগেই পানিতে ভরা', 'নিচু জমি'],
     compared: 'এই এলাকার এই মৌসুমের স্বাভাবিক অবস্থার সাথে তুলনা করে।',
     rows: ['বন্যার ঝুঁকি', 'ফসলের পানি', 'ফসলের অবস্থা'],
@@ -39,7 +39,7 @@ const text = {
     title: 'আকাশ থেকে মাঠে, সময় থাকতেই',
     step: (n: number) => `ধাপ ${'০১২৩৪'[n]}`,
     steps: [
-      ['প্রতিদিন স্যাটেলাইট জমি দেখে', 'নাসার চারটি মিশন প্রতিদিন বাংলাদেশের উপর দিয়ে যায়। বৃষ্টি কতটা হলো, মাটিতে পানি কতটা, ফসল কতটা সবুজ — সব মাপে।'],
+      ['প্রতিদিন স্যাটেলাইট জমি দেখে', 'নাসার মিশনগুলো প্রতিদিন বাংলাদেশের উপর দিয়ে যায়। বৃষ্টি কতটা হলো, মাটিতে পানি কতটা, ফসল কতটা সবুজ — সব মাপে। পঞ্চম মিশন, নাসা গ্রেস, বছরের পর বছর মাটির নিচের পানি দেখে।'],
       ['ফার্মশিল্ড লক্ষণ বোঝে', 'আজকের অবস্থা ওই এলাকার এই মৌসুমের স্বাভাবিক অবস্থার সাথে মিলিয়ে দেখে, আর কোন ঝুঁকি কেন, তা খুঁজে বের করে।'],
       ['এক কথায় পরিষ্কার উত্তর', 'জটিল চার্ট বোঝার দরকার নেই। তিনটা সহজ সংকেত, আর আজ কোন কাজটা সবচেয়ে জরুরি।'],
       ['নিজের ভাষায় জিজ্ঞেস করুন', 'বাংলা বা ইংরেজিতে লিখে বা মুখে বলে প্রশ্ন করুন। আপনার জমির ডেটা দেখে সহজ ভাষায় উত্তর পাবেন।'],
@@ -52,6 +52,7 @@ const missions = [
   { name: 'GPM', icon: CloudRain },
   { name: 'MODIS', icon: Leaf },
   { name: 'VIIRS', icon: Sprout },
+  { name: 'GRACE', icon: Waves },
 ]
 
 function SatellitesVisual() {
@@ -59,7 +60,7 @@ function SatellitesVisual() {
   return (
     <motion.ul variants={stagger(0.08)} className="grid grid-cols-2 gap-2">
       {missions.map((m, i) => (
-        <motion.li key={m.name} variants={fadeUp} className="flex items-center gap-2 rounded-xl bg-surface-2 p-2.5 ring-1 ring-line">
+        <motion.li key={m.name} variants={fadeUp} className="flex items-center gap-2 rounded-xl bg-surface-2 p-2.5 ring-1 ring-line last:col-span-2">
           <span className="relative grid size-8 place-items-center rounded-lg bg-sky-400/15 text-sky-300">
             <span className="absolute inset-0 animate-ping-soft rounded-lg bg-sky-300/20" aria-hidden="true" />
             <m.icon className="relative size-4" aria-hidden="true" />

@@ -88,6 +88,35 @@ def test_live_grid_failure_is_reported_and_not_retried_on_every_visit(monkeypatc
     assert len(calls) == 2
 
 
+def test_a_live_map_only_shows_farms_whose_data_has_arrived(monkeypatch):
+    import asyncio
+    from datetime import UTC, datetime
+
+    from app.pipeline.service import PipelineService
+    from app.pipeline.store import ObservationStore
+    from app.risk import grid
+    from app.services import map as map_service
+    from tests.test_water import pipeline as pipeline_with_barind_data
+
+    async def broken(*args, **kwargs):
+        raise RuntimeError("not under test")
+
+    monkeypatch.setattr(map_service, "_grid_failed", None)
+    monkeypatch.setattr(grid, "live_grid", broken)
+    now = datetime(2026, 10, 1, 6, tzinfo=UTC)
+
+    empty = PipelineService(ObservationStore(":memory:"), [], now=lambda: now)
+    nothing_yet = asyncio.run(map_service.build_map_overview("live", now=now, pipeline=empty))
+    assert nothing_yet.farms == [] and nothing_yet.grid_status == "warming"
+
+    monkeypatch.setattr(map_service, "_grid_failed", None)
+    one_farm = asyncio.run(map_service.build_map_overview("live", now=now, pipeline=pipeline_with_barind_data()))
+    assert [f.id for f in one_farm.farms] == ["barind-wheat"] and one_farm.grid_status == "warming"
+
+    # The modelled map, served while the live one builds, has no demo farm cards either.
+    assert asyncio.run(map_service.build_map_overview("live")).farms == []
+
+
 def _sample(farm_id, now):
     from app.services.dashboard import build_dashboard
 

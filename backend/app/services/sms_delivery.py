@@ -46,7 +46,7 @@ async def write_daily_sms(pipeline: PipelineService, data_mode: str) -> int:
             continue
         try:
             en, bn = sms_messages(await load_dashboard(location.id, data_mode, pipeline))
-        except Exception as error:  # one farm without data never stops the others
+        except Exception as error:  # a farm without data stops no other, and gets its entry after a later refresh
             log.warning("No daily SMS for %s: %s", location.id, getattr(error, "detail", None) or error)
             continue
         record = SmsRecord(location.id, today, "daily", "alert" if en.send else "quiet", en.text, bn.text, None, pipeline.now())

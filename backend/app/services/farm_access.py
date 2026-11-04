@@ -11,6 +11,15 @@ from app.services.custom_farms import CustomFarmError, ensure_data, is_custom_id
 from app.services.geocode import reverse_geocode
 from app.services.dashboard import FarmDataPendingError, FarmNotFoundError, build_custom_dashboard, build_dashboard
 
+STILL_DOWNLOADING = {
+    "en": "Still downloading NASA data for this field. Try again in a moment.",
+    "bn": "এই জমির নাসা ডেটা এখনও আসছে। একটু পরে আবার চেষ্টা করুন।",
+}
+
+
+def _still_downloading(lang: str) -> HTTPException:
+    return HTTPException(status_code=503, detail=STILL_DOWNLOADING.get(lang, STILL_DOWNLOADING["en"]))
+
 
 async def load_dashboard(farm_id: str, data_mode: str, pipeline: PipelineService, name: str | None = None, lang: str = "en") -> Dashboard:
     """Raises HTTPException with a farmer-friendly message when the farm can't be shown."""
@@ -32,8 +41,10 @@ async def load_dashboard(farm_id: str, data_mode: str, pipeline: PipelineService
             # SQLite reads and the risk engines: keep them off the event loop.
             return await run_in_threadpool(build_custom_dashboard, farm, pipeline, name, None, place)
         except FarmDataPendingError:
-            raise HTTPException(status_code=503, detail="Still downloading NASA data for this field. Try again in a moment.") from None
+            raise _still_downloading(lang) from None
     try:
         return await run_in_threadpool(build_dashboard, farm_id, data_mode, None, pipeline)
     except FarmNotFoundError:
         raise HTTPException(status_code=404, detail=f"Farm '{farm_id}' not found") from None
+    except FarmDataPendingError:
+        raise _still_downloading(lang) from None

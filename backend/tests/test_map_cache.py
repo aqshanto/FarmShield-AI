@@ -8,6 +8,7 @@ import pytest
 from app.services import map as map_service
 
 real_build = map_service.build_map_overview
+real_farm_dashboards = map_service._farm_dashboards
 
 
 @pytest.fixture
@@ -25,6 +26,7 @@ def builds(monkeypatch):
 
     monkeypatch.setattr(map_service, "build_map_overview", fake)
     monkeypatch.setattr(map_service, "COLD_WAIT_S", 0.05)
+    monkeypatch.setattr(map_service, "_farm_dashboards", lambda *args: [])  # the farms have their own test
     return state
 
 
@@ -43,6 +45,25 @@ def test_a_cold_visit_gets_the_modelled_map_at_once_then_the_live_one(builds):
     first, second = asyncio.run(go())
     assert first.grid_status == "warming" and not any(layer.live for layer in first.layers)
     assert second.grid_status == "live" and builds["count"] == 1
+
+
+def test_while_warming_each_visit_shows_the_farms_whose_data_has_arrived(builds, monkeypatch):
+    from tests.test_water import pipeline as pipeline_with_barind_data
+
+    monkeypatch.setattr(map_service, "_farm_dashboards", real_farm_dashboards)
+    builds["delay"] = 0.3
+    builds["status"] = "warming"
+    pipeline = pipeline_with_barind_data()
+
+    async def go():
+        cold = await map_service.get_map_overview("live", pipeline)
+        await asyncio.sleep(0.4)
+        cached = await map_service.get_map_overview("live", pipeline)
+        return cold, cached
+
+    cold, cached = asyncio.run(go())
+    assert [f.id for f in cold.farms] == ["barind-wheat"] and cold.grid_status == "warming"
+    assert [f.id for f in cached.farms] == ["barind-wheat"] and cached.grid_status == "warming"
 
 
 def test_a_quick_build_is_simply_awaited(builds, monkeypatch):

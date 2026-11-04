@@ -21,7 +21,7 @@ describe('HomePage', () => {
     renderHome()
     expect(screen.getByRole('heading', { level: 1, name: 'Know before the flood. Know before the drought.' })).toBeInTheDocument()
     expect(screen.getByText('Satellite eyes for every farm.')).toBeInTheDocument()
-    expect(screen.getByText('Live data from NASA SMAP · GPM · MODIS · VIIRS')).toBeInTheDocument()
+    expect(screen.getByText('Live data from NASA SMAP · GPM · MODIS · VIIRS · GRACE')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /See a live farm/ })).toHaveAttribute('href', '/dashboard')
     expect(screen.getByRole('link', { name: /Ask in বাংলা/ })).toHaveAttribute('href', '/assistant')
     expect(screen.getByRole('link', { name: /Explore the map/ })).toHaveAttribute('href', '/map')
@@ -39,6 +39,15 @@ describe('HomePage', () => {
     const risks = within(card).getByRole('list', { name: 'Barind Wheat Farm risks' })
     expect(within(risks).getByText('Danger')).toBeInTheDocument()
     expect(screen.getByText('land areas checked across Bangladesh')).toBeInTheDocument()
+  })
+
+  it('keeps loading, not "0 farms", while the farms’ NASA data is on its way', async () => {
+    vi.restoreAllMocks()
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(JSON.stringify({ ...mapOverviewFixture, data_mode: 'live', farms: [], grid_status: 'warming' })))
+    renderHome()
+    await screen.findByText('Live right now')
+    expect(screen.getByRole('status', { name: 'Loading farms' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /Open farm/ })).not.toBeInTheDocument()
   })
 
   it('keeps the story but hides the farm cards when the backend is unreachable', async () => {

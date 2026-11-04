@@ -102,7 +102,8 @@ export function LiveFarms({ farms, live, failed }: { farms?: MapFarm[]; live: bo
           {t.intro} {live ? t.live : t.demo}
         </p>
       </div>
-      {farms ? (
+      {/* Live, with no cards yet: the farms' NASA data is still on its way. */}
+      {farms?.length ? (
         <motion.ul
           variants={stagger(0.1)}
           initial="hidden"

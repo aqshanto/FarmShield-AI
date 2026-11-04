@@ -64,29 +64,39 @@ async function wake() {
 async function warm(mode) {
   let good = true
   console.log('Map')
-  // The first map visit may answer "warming" while the live grid builds; wait for it.
+  // The map answers "warming" while the live grid builds and until every farm's data is in; wait for it.
+  let map
   for (let i = 0; i < 12; i++) {
-    const map = await get('/map/overview')
-    const status = map.body?.grid_status ?? ''
-    if (!map.ok || status !== 'warming') {
-      good = report('Risk map', map, status) && good
-      break
-    }
+    map = await get('/map/overview')
+    if (!map.ok || map.body?.grid_status !== 'warming') break
     await sleep(10_000)
   }
+  const status = map.body?.grid_status ?? ''
+  good = report('Risk map', { ...map, ok: map.ok && status !== 'warming', status: map.ok ? 'still warming' : map.status }, status) && good
   good = report('Risk map (Bengali)', await get('/map/overview?lang=bn')) && good
 
   console.log('Demo farms')
   const farms = await get('/farms')
   for (const farm of farms.body ?? []) {
+    // 503 until the farm's NASA data has arrived: run this again in a minute.
     const d = await get(`/farms/${farm.id}/dashboard`)
-    good = report(farm.name, d, d.body ? `${d.body.overall.level}` : '') && good
+    good = report(farm.name, d, d.ok ? d.body.overall.level : '') && good
     good = report(`${farm.name} (Bengali)`, await get(`/farms/${farm.id}/dashboard?lang=bn`)) && good
   }
 
   if (mode !== 'live') {
     console.log('\nThe API runs the demo scenario: farms anywhere and spot checks need live mode. Skipping the world segment.')
     return good
+  }
+
+  console.log('Rotation planner')
+  for (const farm of farms.body ?? []) {
+    const plan = await get(`/farms/${farm.id}/rotation?priorities=&irrigation=true`)
+    // GRACE downloads last after a deploy, so an empty groundwater chart fails this check.
+    const years = plan.body?.groundwater?.length ?? 0
+    const ready = { ...plan, ok: plan.ok && years > 0, status: plan.ok ? 'no groundwater yet' : plan.status }
+    good = report(farm.name, ready, `${years} years of groundwater`) && good
+    good = report(`${farm.name} (Bengali)`, await get(`/farms/${farm.id}/rotation?priorities=&irrigation=true&lang=bn`)) && good
   }
 
   console.log('World segment')
@@ -96,7 +106,7 @@ async function warm(mode) {
   if (first) WORLD_FARMS.unshift(farmId(first.lat, first.lon, 'wheat'))
   for (const id of WORLD_FARMS) {
     const d = await get(`/farms/${id}/dashboard`)
-    const where = d.body ? `${d.body.farm.district}, ${d.body.farm.division} · ${d.body.overall.level}` : ''
+    const where = d.ok ? `${d.body.farm.district}, ${d.body.farm.division} · ${d.body.overall.level}` : ''
     good = report(`Farm ${id.slice(3)}`, d, where) && good
     good = report('  … in Bengali', await get(`/farms/${id}/dashboard?lang=bn`)) && good
   }

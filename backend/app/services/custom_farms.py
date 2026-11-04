@@ -133,8 +133,8 @@ async def _fetch_slow(pipeline: PipelineService, location: Location, days: int) 
         log.exception("Background fetch failed for %s", location.id)
 
 
-def last_data_time(pipeline: PipelineService, farm: CustomFarm, now: datetime) -> datetime:
+def last_data_time(pipeline: PipelineService, location: Location, now: datetime) -> datetime:
     """When NASA data for this field was last fetched (for "satellite pass … ago")."""
-    times = [r.finished_at for s in FAST_SOURCES + SLOW_SOURCES if (r := pipeline.store.last_fetch(s, farm.location.id, status="ok"))]
+    times = [r.finished_at for s in FAST_SOURCES + SLOW_SOURCES if (r := pipeline.store.last_fetch(s, location.id, status="ok"))]
     latest = max(times, default=now - timedelta(hours=1))
     return latest if latest.tzinfo else latest.replace(tzinfo=UTC)
