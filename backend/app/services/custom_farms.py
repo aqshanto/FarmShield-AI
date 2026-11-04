@@ -28,6 +28,9 @@ MAX_LAT, MIN_LAT = 75.0, -60.0  # no farmland beyond (and GPM stops at ±60°)
 # Quick sources answer a new field in seconds; the rest fill in over the next minutes.
 FAST_SOURCES = ["nasa_power", "open_meteo", "srtm", "power_climatology"]
 SLOW_SOURCES = ["modis", "viirs", "gpm_imerg", "smap"]
+# GRACE only matters to the rotation planner, so the map's point check doesn't download it.
+GROUNDWATER_SOURCE = "grace"
+GROUNDWATER_WAIT_S = 20.0
 
 
 class CustomFarmError(ValueError):
@@ -89,6 +92,18 @@ def parse_farm_id(farm_id: str) -> CustomFarm:
 # --- data ----------------------------------------------------------------------------------
 
 _background: dict[str, asyncio.Task] = {}
+_groundwater: dict[str, asyncio.Task] = {}
+
+
+async def ensure_groundwater(pipeline: PipelineService, location: Location) -> None:
+    """Fetch a field's GRACE history, waiting a little so its first plan usually has it.
+
+    A slow NASA answer doesn't hold the farmer up: the download carries on and the next look has it.
+    """
+    task = _groundwater.get(location.id)
+    if task is None or task.done():
+        task = _groundwater[location.id] = asyncio.create_task(pipeline.refresh_location(location, [GROUNDWATER_SOURCE]))
+    await asyncio.wait([task], timeout=GROUNDWATER_WAIT_S)
 
 
 async def ensure_data(pipeline: PipelineService, farm: CustomFarm, days: int = 60) -> None:

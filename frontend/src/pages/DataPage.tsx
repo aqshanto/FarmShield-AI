@@ -21,6 +21,10 @@ import { api } from '@/lib/api'
 import { fadeUp, stagger } from '@/lib/motion'
 import { useAsync } from '@/lib/useAsync'
 
+// Five cards with no gap: three then two on wide screens, the last one full width on tablets.
+const MISSION_GRID = 'grid gap-4 sm:grid-cols-2 xl:grid-cols-6'
+const MISSION_CELLS = ['xl:col-span-2', 'xl:col-span-2', 'xl:col-span-2', 'xl:col-span-3', 'sm:col-span-2 xl:col-span-3']
+
 const text = {
   en: {
     partial: 'Some NASA sources did not answer',
@@ -37,7 +41,7 @@ const text = {
     retry: 'Try again',
     eyebrow: 'NASA data pipeline',
     title: 'From orbit to your field',
-    intro: 'Real measurements from four NASA missions, checked for clouds and errors, stored, and ready for your farm’s risk alerts.',
+    intro: 'Real measurements from five NASA missions, checked for clouds and errors, stored, and ready for your farm’s risk alerts.',
     checking: 'Checking NASA…',
     refresh: 'Refresh from NASA',
     lastChecked: (ago: string) => `Last checked ${ago}`,
@@ -63,7 +67,7 @@ const text = {
     retry: 'আবার চেষ্টা করুন',
     eyebrow: 'নাসার ডেটা প্রবাহ',
     title: 'কক্ষপথ থেকে আপনার জমিতে',
-    intro: 'নাসার চারটি মিশনের আসল মাপ, মেঘ আর ভুল বাদ দিয়ে যাচাই করা, সংরক্ষিত, আর আপনার জমির ঝুঁকি-সতর্কতার জন্য তৈরি।',
+    intro: 'নাসার পাঁচটি মিশনের আসল মাপ, মেঘ আর ভুল বাদ দিয়ে যাচাই করা, সংরক্ষিত, আর আপনার জমির ঝুঁকি-সতর্কতার জন্য তৈরি।',
     checking: 'নাসা দেখছি…',
     refresh: 'নাসা থেকে হালনাগাদ',
     lastChecked: (ago: string) => `শেষ দেখা হয়েছে ${ago}`,
@@ -164,15 +168,16 @@ export function DataPage() {
             <h2 id="missions-title" className="text-xs font-bold tracking-[0.2em] text-leaf-300 uppercase">
               {t.missions}
             </h2>
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className={MISSION_GRID}>
               {MISSIONS.map((mission, i) => (
-                <MissionCard
-                  key={mission.id}
-                  index={i}
-                  mission={mission}
-                  sources={status.data!.sources}
-                  freshness={status.data!.missions.find((m) => m.mission === mission.id)}
-                />
+                <div key={mission.id} className={MISSION_CELLS[i]}>
+                  <MissionCard
+                    index={i}
+                    mission={mission}
+                    sources={status.data!.sources}
+                    freshness={status.data!.missions.find((m) => m.mission === mission.id)}
+                  />
+                </div>
               ))}
             </div>
           </section>
@@ -181,9 +186,11 @@ export function DataPage() {
           <ApprovalCallout links={approvalLinks(status.data.sources)} />
         </>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {[0, 1, 2, 3].map((i) => (
-            <SkeletonCard key={i} className="min-h-48" />
+        <div className={MISSION_GRID}>
+          {MISSION_CELLS.map((cell, i) => (
+            <div key={i} className={cell}>
+              <SkeletonCard className="min-h-48" />
+            </div>
           ))}
         </div>
       )}

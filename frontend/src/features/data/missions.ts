@@ -1,6 +1,8 @@
 import type { SourceStatus } from '@/types/api'
 
-export type MissionId = 'SMAP' | 'GPM' | 'MODIS' | 'VIIRS'
+export type MissionId = 'SMAP' | 'GPM' | 'MODIS' | 'VIIRS' | 'GRACE'
+
+export type MissionState = 'live' | 'baseline' | 'long-term' | 'stand-in' | 'token' | 'approve' | 'problem' | 'waiting'
 
 export interface MissionInfo {
   id: MissionId
@@ -13,6 +15,8 @@ export interface MissionInfo {
   // The mission's own data source, and the no-login stand-in used without a token.
   source: string
   standIn?: string
+  // How its data is used when it isn't today's reading (default: live).
+  okState?: MissionState
 }
 
 export const MISSIONS: MissionInfo[] = [
@@ -53,6 +57,17 @@ export const MISSIONS: MissionInfo[] = [
     taglineBn: 'দিন-রাতের ইনফ্রারেড ছবি তোলার যন্ত্র',
     measuresBn: 'বছরের এই সময়ে “স্বাভাবিক” সবুজ ভাব কেমন।',
     source: 'viirs',
+    okState: 'baseline',
+  },
+  {
+    id: 'GRACE',
+    name: 'GRACE',
+    tagline: 'Gravity Recovery and Climate Experiment',
+    measures: 'How much water is left under the ground, year after year. It sees a wide area, not one field.',
+    taglineBn: 'মাটির নিচের পানি মাপার মিশন',
+    measuresBn: 'বছরের পর বছর মাটির নিচে কতটা পানি থাকছে। এটি একটি জমি নয়, বড় এলাকা দেখে।',
+    source: 'grace',
+    okState: 'long-term',
   },
 ]
 
@@ -62,15 +77,15 @@ export const SOURCE_NAMES: Record<string, string> = {
   smap: 'SMAP',
   modis: 'MODIS',
   viirs: 'VIIRS',
+  grace: 'GRACE',
 }
-
-export type MissionState = 'live' | 'stand-in' | 'approve' | 'baseline' | 'problem' | 'waiting'
 
 export function missionState(mission: MissionInfo, sources: SourceStatus[]): MissionState {
   const own = sources.find((s) => s.id === mission.source)
   const standIn = mission.standIn ? sources.find((s) => s.id === mission.standIn) : undefined
   if (!own) return 'waiting'
-  if (own.state === 'ok') return mission.id === 'VIIRS' ? 'baseline' : 'live'
+  if (own.state === 'ok') return mission.okState ?? 'live'
+  if (own.state === 'needs_token' && !mission.standIn) return 'token'
   if (own.state === 'needs_token') return standIn?.state === 'ok' ? 'stand-in' : standIn?.state === 'error' ? 'problem' : 'waiting'
   if (own.state === 'needs_approval') return 'approve'
   if (own.state === 'error') return 'problem'

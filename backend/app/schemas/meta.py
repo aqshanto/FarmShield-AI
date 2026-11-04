@@ -2,7 +2,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-RiskModule = Literal["flood_risk", "water_stress", "crop_health"]
+RiskModule = Literal["flood_risk", "water_stress", "crop_health", "crop_rotation"]
 
 
 class HealthStatus(BaseModel):

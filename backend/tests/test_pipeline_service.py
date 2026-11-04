@@ -281,7 +281,7 @@ def test_data_status_endpoint(api):
     body = api.get("/api/v1/data/status").json()
     assert body["token_configured"] is False
     assert body["sources"][0]["id"] == "nasa_power" and body["sources"][0]["state"] == "ok"
-    assert {m["mission"] for m in body["missions"]} == {"SMAP", "GPM", "MODIS", "VIIRS"}
+    assert {m["mission"] for m in body["missions"]} == {"SMAP", "GPM", "MODIS", "VIIRS", "GRACE"}
     assert body["missions"][0]["latest_granule"].startswith("2026-09-28")
     assert body["last_run"]["ok"] == 1 and body["last_run"]["skipped"] == 0
 

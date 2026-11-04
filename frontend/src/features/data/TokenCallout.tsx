@@ -2,11 +2,11 @@ import { ExternalLink, KeyRound } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { useText } from '@/lib/i18n'
 
-// How to switch GPM and SMAP from the NASA POWER stand-in to the missions' own data.
+// How to switch GPM and SMAP from the NASA POWER stand-in to the missions' own data, and turn on GRACE.
 const text = {
   en: {
-    title: 'Unlock GPM and SMAP measurements',
-    body: 'Rainfall and soil moisture are coming from NASA POWER right now. With a free NASA Earthdata token, FarmShield reads them straight from the GPM and SMAP missions.',
+    title: 'Unlock GPM, SMAP and GRACE measurements',
+    body: 'Rainfall and soil moisture are coming from NASA POWER right now. With a free NASA Earthdata token, FarmShield reads them straight from the GPM and SMAP missions, and adds groundwater from GRACE.',
     create: 'Create an account at',
     choose: 'and choose',
     generate: 'Generate Token',
@@ -15,8 +15,8 @@ const text = {
     restart: 'Restart the backend, then press “Refresh from NASA”.',
   },
   bn: {
-    title: 'GPM আর SMAP-এর ডেটা চালু করুন',
-    body: 'এখন বৃষ্টি আর মাটির আর্দ্রতার ডেটা আসছে NASA POWER থেকে। বিনামূল্যের NASA Earthdata টোকেন দিলে ফার্মশিল্ড সরাসরি GPM আর SMAP মিশন থেকে ডেটা পড়বে।',
+    title: 'GPM, SMAP আর GRACE-এর ডেটা চালু করুন',
+    body: 'এখন বৃষ্টি আর মাটির আর্দ্রতার ডেটা আসছে NASA POWER থেকে। বিনামূল্যের NASA Earthdata টোকেন দিলে ফার্মশিল্ড সরাসরি GPM আর SMAP মিশন থেকে ডেটা পড়বে, আর নাসা গ্রেস থেকে মাটির নিচের পানির ডেটাও যোগ হবে।',
     create: 'এখানে অ্যাকাউন্ট খুলুন:',
     choose: 'তারপর বেছে নিন',
     generate: 'Generate Token',

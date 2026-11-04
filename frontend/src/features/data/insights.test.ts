@@ -80,4 +80,10 @@ describe('missionState', () => {
     expect(missionState(viirs, [source('viirs', 'pending')])).toBe('waiting')
     expect(missionState(viirs, [])).toBe('waiting')
   })
+
+  it('shows GRACE as long-term data, and asks for a token as it has no stand-in', () => {
+    const grace = MISSIONS.find((m) => m.id === 'GRACE')!
+    expect(missionState(grace, [source('grace', 'ok')])).toBe('long-term')
+    expect(missionState(grace, [source('grace', 'needs_token'), source('nasa_power', 'ok')])).toBe('token')
+  })
 })

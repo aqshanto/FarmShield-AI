@@ -34,4 +34,11 @@ NASA_SOURCES: tuple[DataSource, ...] = (
         measures="Environmental and land observation",
         used_for=["crop_health"],
     ),
+    DataSource(
+        id="grace",
+        name="GRACE",
+        full_name="Gravity Recovery and Climate Experiment (GRACE and GRACE-FO)",
+        measures="Groundwater",
+        used_for=["crop_rotation"],
+    ),
 )

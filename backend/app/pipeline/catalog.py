@@ -27,6 +27,7 @@ COLLECTIONS = [
     Collection("GPM", "C2723754859-GES_DISC", "GPM_3IMERGDL v07 daily rainfall"),
     Collection("MODIS", "C1748066515-LPCLOUD", "MOD13Q1 v061 vegetation index"),
     Collection("VIIRS", "C2519122065-LPCLOUD", "VJ113A1 v002 vegetation index (NOAA-20)"),
+    Collection("GRACE", "C2283200566-GES_DISC", "GRACEDADM_CLSM025GL_7D v3.0 weekly groundwater"),
 ]
 
 

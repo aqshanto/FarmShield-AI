@@ -33,8 +33,9 @@ function statusFixture(lastRunAt: string, overrides: Partial<DataStatus> = {}): 
       src('viirs', 'VIIRS', 'ok', 48),
       src('gpm_imerg', 'GPM', 'needs_token'),
       src('smap', 'SMAP', 'needs_token'),
+      src('grace', 'GRACE', 'needs_token'),
     ],
-    missions: ['SMAP', 'GPM', 'MODIS', 'VIIRS'].map((mission) => ({
+    missions: ['SMAP', 'GPM', 'MODIS', 'VIIRS', 'GRACE'].map((mission) => ({
       mission,
       product: mission,
       latest_granule: new Date(Date.now() - 2 * 86_400_000).toISOString(),
@@ -127,11 +128,14 @@ describe('DataPage', () => {
     expect(within(modis).getByText('22')).toBeInTheDocument()
     const viirs = screen.getByRole('heading', { name: 'VIIRS' }).closest('.glass') as HTMLElement
     expect(within(viirs).getByText('Baseline')).toBeInTheDocument()
+    const grace = screen.getByRole('heading', { name: 'GRACE' }).closest('.glass') as HTMLElement
+    expect(within(grace).getByText('Needs token')).toBeInTheDocument()
+    expect(within(grace).getByText(/sees a wide area, not one field/)).toBeInTheDocument()
   })
 
-  it('explains how to unlock GPM and SMAP when no token is set', async () => {
+  it('explains how to unlock GPM, SMAP and GRACE when no token is set', async () => {
     renderAt('/data')
-    expect(await screen.findByRole('heading', { name: 'Unlock GPM and SMAP measurements' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Unlock GPM, SMAP and GRACE measurements' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /urs\.earthdata\.nasa\.gov/ })).toHaveAttribute('href', 'https://urs.earthdata.nasa.gov/')
   })
 
@@ -139,7 +143,7 @@ describe('DataPage', () => {
     statusResponses = [statusFixture(new Date().toISOString(), { token_configured: true })]
     renderAt('/data')
     await screen.findByRole('heading', { name: 'SMAP' })
-    expect(screen.queryByRole('heading', { name: 'Unlock GPM and SMAP measurements' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Unlock GPM, SMAP and GRACE measurements' })).not.toBeInTheDocument()
   })
 
   it('shows the farm’s observations in plain words and charts', async () => {

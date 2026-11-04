@@ -13,6 +13,8 @@ Short records of choices that shape the project. Newest first.
 | Effect | Where running low, rotations needing ≥ 300 mm of irrigation lose 20% of their water score, say why, and Boro's warning cites GRACE | Pumping more from falling groundwater is the cost farmers can't see |
 | Haor | No groundwater penalty | Haor Boro is watered from the beels and rivers |
 | Honesty | Each such idea says GRACE sees a wide area, not one field; a tubewell's water level would sharpen it | GRACE's native footprint is hundreds of kilometres; the 0.25° product is a model downscaling |
+| Data page | A fifth mission card, marked "Long-term", not "Live" | The product arrives about 2 months late, which suits a yearly trend but isn't today's reading |
+| Farmers' own fields | The rotation planner fetches GRACE and waits up to 20 s; the download carries on if NASA is slower. The map's point check doesn't fetch it | Only the planner uses it, and ~25 requests per map click would be waste |
 
 Real-world check (31 Oct 2026): 25 readings per farm in ~21 s for all five farms; Barind's end-of-dry-season
 groundwater fell from the 85th percentile (2003) to 7–21 (2024–2026).

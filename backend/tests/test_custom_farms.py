@@ -13,7 +13,7 @@ from app.pipeline.service import PipelineService
 from app.pipeline.store import ObservationStore
 from app.risk.grid import in_bangladesh
 from app.services import custom_farms
-from app.services.custom_farms import FAST_SOURCES, SLOW_SOURCES, CustomFarmError, ensure_data, make_farm_id, parse_farm_id
+from app.services.custom_farms import FAST_SOURCES, SLOW_SOURCES, CustomFarmError, ensure_data, ensure_groundwater, make_farm_id, parse_farm_id
 from app.services.dashboard import FarmDataPendingError, build_custom_dashboard
 
 NOW = datetime(2026, 10, 1, 6, tzinfo=UTC)
@@ -128,6 +128,39 @@ def test_new_field_fetches_quick_sources_now_and_satellites_in_the_background():
     # A second visit within the cache lifetime downloads nothing.
     load(pipeline, DINAJPUR_MAIZE)
     assert all(len(s.calls) == 1 for s in sources.values())
+
+
+def test_groundwater_is_fetched_for_the_rotation_planner_not_the_map():
+    sources = {**seeded_sources(), "grace": Canned("grace", [])}
+    pipeline = make_pipeline(sources)
+    load(pipeline, DINAJPUR_MAIZE)  # what the map's point check does
+    assert sources["grace"].calls == []
+
+    location = parse_farm_id(DINAJPUR_MAIZE).location
+    asyncio.run(ensure_groundwater(pipeline, location))
+    assert sources["grace"].calls == [location.id]
+    custom_farms._groundwater.clear()
+
+
+def test_slow_groundwater_does_not_hold_up_the_plan(monkeypatch):
+    class Slow(Canned):
+        async def fetch(self, client, location, start, end):
+            await asyncio.sleep(0.2)
+            return await super().fetch(client, location, start, end)
+
+    sources = {"grace": Slow("grace", [])}
+    pipeline = make_pipeline(sources)
+    location = parse_farm_id(DINAJPUR_MAIZE).location
+    monkeypatch.setattr(custom_farms, "GROUNDWATER_WAIT_S", 0.01)
+
+    async def run():
+        await ensure_groundwater(pipeline, location)
+        assert sources["grace"].calls == []  # still downloading, and the plan moved on
+        await custom_farms._groundwater[location.id]
+        assert sources["grace"].calls == [location.id]  # the download finished anyway
+
+    asyncio.run(run())
+    custom_farms._groundwater.clear()
 
 
 def test_custom_dashboard_is_fully_live_with_the_crop_profile_and_name():

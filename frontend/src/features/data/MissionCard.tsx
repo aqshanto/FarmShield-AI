@@ -10,7 +10,9 @@ import { type MissionInfo, missionState, SOURCE_NAMES } from './missions'
 const stateBadge = {
   live: { tone: 'leaf', icon: <CheckCircle2 className="size-3.5" /> },
   baseline: { tone: 'sky', icon: <CheckCircle2 className="size-3.5" /> },
+  'long-term': { tone: 'sky', icon: <CheckCircle2 className="size-3.5" /> },
   'stand-in': { tone: 'harvest', icon: <KeyRound className="size-3.5" /> },
+  token: { tone: 'harvest', icon: <KeyRound className="size-3.5" /> },
   approve: { tone: 'harvest', icon: <KeyRound className="size-3.5" /> },
   problem: { tone: 'alert', icon: <AlertTriangle className="size-3.5" /> },
   waiting: { tone: 'neutral', icon: <Clock className="size-3.5" /> },
@@ -18,7 +20,7 @@ const stateBadge = {
 
 const text = {
   en: {
-    states: { live: 'Live', baseline: 'Baseline', 'stand-in': 'Using stand-in', approve: 'Approve', problem: 'Problem', waiting: 'Waiting' },
+    states: { live: 'Live', baseline: 'Baseline', 'long-term': 'Long-term', 'stand-in': 'Using stand-in', token: 'Needs token', approve: 'Approve', problem: 'Problem', waiting: 'Waiting' },
     newest: 'Newest data from space',
     unavailable: 'Unavailable',
     readings: 'Readings for your farms',
@@ -29,7 +31,7 @@ const text = {
     noAnswer: 'The source did not answer.',
   },
   bn: {
-    states: { live: 'লাইভ', baseline: 'স্বাভাবিক মান', 'stand-in': 'বিকল্প ডেটা', approve: 'অনুমোদন দিন', problem: 'সমস্যা', waiting: 'অপেক্ষায়' },
+    states: { live: 'লাইভ', baseline: 'স্বাভাবিক মান', 'long-term': 'দীর্ঘমেয়াদি', 'stand-in': 'বিকল্প ডেটা', token: 'টোকেন দরকার', approve: 'অনুমোদন দিন', problem: 'সমস্যা', waiting: 'অপেক্ষায়' },
     newest: 'মহাকাশ থেকে সর্বশেষ ডেটা',
     unavailable: 'পাওয়া যায়নি',
     readings: 'আপনার জমির জন্য ডেটা',
@@ -54,6 +56,7 @@ const PRODUCT_BN: Record<string, string> = {
   'daily 0.1° rainfall (Late run)': 'দৈনিক, ০.১° এলাকার বৃষ্টি (লেট রান)',
   '250 m 16-day NDVI (Terra + Aqua)': '২৫০ মিটার, ১৬ দিনের সবুজ ভাব (Terra + Aqua)',
   '500 m 16-day NDVI, 2013–2023 seasonal normal': '৫০০ মিটার, ১৬ দিনের সবুজ ভাব, ২০১৩–২০২৩ সালের মৌসুমি স্বাভাবিক',
+  'weekly 0.25° groundwater percentile (GRACE/GRACE-FO data assimilation)': 'সাপ্তাহিক, ০.২৫° এলাকার মাটির নিচের পানি (GRACE/GRACE-FO)',
 }
 
 function productText(product: string, lang: Lang) {
@@ -116,7 +119,7 @@ export function MissionCard({ mission, sources, freshness, index }: MissionCardP
       </dl>
 
       <p className="border-t border-line pt-2 text-[11px] text-ink-subtle">
-        {state === 'stand-in' ? t.standIn : state === 'approve' ? t.approve : state === 'problem' ? (own?.message ?? t.noAnswer) : productText(own?.product ?? '', lang)}
+        {state === 'stand-in' || state === 'token' ? t.standIn : state === 'approve' ? t.approve : state === 'problem' ? (own?.message ?? t.noAnswer) : productText(own?.product ?? '', lang)}
       </p>
     </Card>
   )

@@ -8,7 +8,7 @@ from app.pipeline.service import PipelineService
 from app.risk import rotation as engine
 from app.risk.region import in_bangladesh
 from app.schemas.rotation import ClimateMonth, GroundwaterYear, RotationCrop, RotationOption, RotationPlan, RotationStrategy
-from app.services.custom_farms import CustomFarmError, ensure_data, is_custom_id, parse_farm_id
+from app.services.custom_farms import CustomFarmError, ensure_data, ensure_groundwater, is_custom_id, parse_farm_id
 
 SOURCES = ["NASA POWER climate normals", "NASA SRTM terrain", "NASA MODIS greenness", "NASA VIIRS normal greenness", "NASA GRACE groundwater"]
 
@@ -85,6 +85,7 @@ async def build_rotation_plan(
             raise RotationFarmError(str(error)) from None
         location, crop, home = farm.location, farm.crop.name, farm.in_bangladesh
         await ensure_data(pipeline, farm)
+        await ensure_groundwater(pipeline, location)
     elif farm_id in SAMPLE_FARMS:
         f = SAMPLE_FARMS[farm_id]["farm"]
         location, crop, home = Location(f["id"], f["lat"], f["lon"]), f["crop"], in_bangladesh(f["lat"], f["lon"])

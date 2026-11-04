@@ -14,11 +14,11 @@ def test_health_reports_ok():
     assert body["data_mode"] in {"sample", "live"}
 
 
-def test_sources_lists_all_four_nasa_missions():
+def test_sources_lists_all_five_nasa_missions():
     response = client.get("/api/v1/sources")
     assert response.status_code == 200
     ids = {source["id"] for source in response.json()}
-    assert ids == {"smap", "gpm", "modis", "viirs"}
+    assert ids == {"smap", "gpm", "modis", "viirs", "grace"}
 
 
 def test_default_region_is_bangladesh():
