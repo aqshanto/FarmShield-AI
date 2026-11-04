@@ -8,6 +8,7 @@ Evidence comes from NASA data for the field:
   climate      NASA POWER long-term monthly normals: rain, normal daily high and low
   terrain      NASA SRTM: height above sea level (Bangladesh) or above the lowest land nearby
   greenness    NASA MODIS NDVI against the VIIRS seasonal normal
+  groundwater  NASA GRACE/GRACE-FO (data assimilation): groundwater at the end of each dry season
 
 Strategies are scored 0–100 on six things farmers weigh (soil health, water use, climate fit,
 pest-cycle break, income, family food); the farmer's priorities double the weight of what
@@ -53,6 +54,13 @@ SOIL_MISFIT: dict[tuple[str, str], tuple[int, str]] = {
     ("sandy", "jute"): (15, "{crop} grows short in sandy soil that dries out quickly"),
     ("sandy", "wheat"): (10, "{crop} needs more frequent irrigation in sandy soil"),
 }
+# Groundwater (GRACE): a dry season is "low" when its groundwater is in the driest quarter
+# of 1948–2012. A field's groundwater is running low when at least 4 of the last 10 dry
+# seasons were low and 2 more than in the first 10 (2003–2012): Barind went from 3 to 7.
+LOW_GROUNDWATER = 25
+GROUNDWATER_YEARS = 10
+THIRSTY_MM = 300  # a rotation needing this much irrigation pumps a lot of groundwater
+
 SOIL_GAPS = {
     "clay": "You said the soil is clay: a soil test for pH and organic matter would sharpen this",
     "loam": "You said the soil is loam: a soil test for pH and organic matter would sharpen this",
@@ -165,6 +173,7 @@ class FieldFacts:
     relief_m: float | None = None  # height above the lowest land nearby
     greenness_ratio: float | None = None  # latest clear MODIS NDVI ÷ VIIRS normal
     soil: str | None = None  # clay, loam or sandy, as the farmer describes it; None if not given
+    groundwater: dict = field(default_factory=dict)  # date → GRACE groundwater percentile (0–100)
 
 
 @dataclass
@@ -320,6 +329,31 @@ def _weights(priorities: set[str]) -> dict[str, float]:
     return weights
 
 
+def dry_season_groundwater(f: FieldFacts) -> list[tuple[int, float]]:
+    """(year, groundwater percentile) at the end of each dry season (the April–May reading)."""
+    by_year: dict[int, float] = {}
+    for day, value in sorted(f.groundwater.items()):
+        if day.month in (4, 5):
+            by_year.setdefault(day.year, value)
+    return sorted(by_year.items())
+
+
+def groundwater_low_years(f: FieldFacts) -> tuple[int, int] | None:
+    """Low dry seasons among the last 10 and the first 10; None without 15 years of record."""
+    seasons = [value for _, value in dry_season_groundwater(f)]
+    if len(seasons) < 15:
+        return None
+    low = lambda values: sum(v < LOW_GROUNDWATER for v in values)  # noqa: E731
+    return low(seasons[-GROUNDWATER_YEARS:]), low(seasons[:GROUNDWATER_YEARS])
+
+
+def groundwater_running_low(f: FieldFacts) -> bool:
+    """Pumping for irrigation draws on falling groundwater here (not on haor land, which is
+    watered from the beels and rivers)."""
+    years = groundwater_low_years(f)
+    return bool(years) and years[0] >= 4 and years[0] >= years[1] + 2 and not haor(f)
+
+
 def soil_misfit(f: FieldFacts, slot: Slot) -> tuple[int, str]:
     """Points off this crop's fit on the farmer's soil, and why (0 and "" when it suits)."""
     return SOIL_MISFIT.get((f.soil or "", slot.crop.word), (0, ""))
@@ -345,6 +379,8 @@ def score(f: FieldFacts, s: Strategy, priorities: set[str], irrigation: bool) ->
     water = 100 - s.irrigation_mm / 12
     if not irrigation and s.irrigation_mm > 150:
         water *= 0.3
+    if s.irrigation_mm >= THIRSTY_MM and groundwater_running_low(f):
+        water *= 0.8
     s.scores = {
         "soil": _clamp(
             35 + 20 * min(legumes, 2) + (10 * legumes if tired else 0) + 8 * len(families)
@@ -394,6 +430,9 @@ def explain(f: FieldFacts, s: Strategy, existing: Strategy, irrigation: bool) ->
         s.evidence.append(f"Needs about {s.irrigation_mm} mm of irrigation a year on top of the usual rain")
     else:
         s.evidence.append("Needs almost no irrigation: the usual rain covers it")
+    pumping = s.irrigation_mm >= THIRSTY_MM and groundwater_running_low(f)
+    if pumping:
+        s.evidence.append("Most of its water would be pumped from the ground, where NASA GRACE shows water running low at the end of recent dry seasons")
 
     # Benefits.
     benefits = []
@@ -425,6 +464,8 @@ def explain(f: FieldFacts, s: Strategy, existing: Strategy, irrigation: bool) ->
     s.gaps = [SOIL_GAPS.get(f.soil or "", "We don't know your soil type or test results: a soil test would sharpen this")]
     if on_haor:
         s.gaps.append("We can't see how high your field sits inside the haor: higher land drains sooner and can take a winter crop first")
+    if pumping:
+        s.gaps.append("NASA GRACE sees groundwater over a wide area, not under one field: your tubewell's water level would sharpen this")
     if s.tight:
         s.gaps.append("Choose short-duration varieties so each crop fits its window")
     elif not s.existing:
@@ -450,7 +491,16 @@ def explain(f: FieldFacts, s: Strategy, existing: Strategy, irrigation: bool) ->
     if not irrigation and s.irrigation_mm > 150:
         risks.append("This rotation needs dry-season irrigation, which you said you don't have")
     # Haor Boro is watered from the beels and rivers, so the groundwater warning doesn't apply there.
-    risks += [slot.crop.risk for slot in s.slots if slot.crop.risk and not (on_haor and slot.crop.id == "boro")]
+    # Where GRACE shows the groundwater running low, the warning cites it.
+    boro_risk = (
+        "NASA GRACE shows groundwater here running low at the end of recent dry seasons, and Boro's pumping draws it down further"
+        if groundwater_running_low(f) else None
+    )
+    risks += [
+        (boro_risk or slot.crop.risk) if slot.crop.id == "boro" else slot.crop.risk
+        for slot in s.slots
+        if slot.crop.risk and not (on_haor and slot.crop.id == "boro")
+    ]
     s.risks = list(dict.fromkeys(risks))[:3]
 
 
@@ -477,6 +527,11 @@ def field_notes(f: FieldFacts) -> list[str]:
             notes.append(f"The field sits {round(f.relief_m)} m above the lowest land nearby, so it drains well (NASA SRTM)")
     if f.greenness_ratio is not None and f.greenness_ratio < 0.85:
         notes.append("The field looked less green than normal lately (NASA MODIS compared with VIIRS): legumes help tired soil recover")
+    if years := groundwater_low_years(f):
+        notes.append(
+            f"At the end of the dry season, groundwater here was low in {years[0]} of the last {GROUNDWATER_YEARS} years, "
+            f"against {years[1]} of the first {GROUNDWATER_YEARS} (NASA GRACE)"
+        )
     return notes
 
 
@@ -491,6 +546,7 @@ class Plan:
     notes: list[str]
     wet_months: list[int]
     flood_months: list[int] = field(default_factory=list)
+    groundwater: list[tuple[int, float]] = field(default_factory=list)  # (year, end-of-dry-season percentile)
 
 
 def plan(f: FieldFacts, priorities: set[str] | None = None, irrigation: bool = True, existing_id: str | None = None) -> Plan:
@@ -538,4 +594,4 @@ def plan(f: FieldFacts, priorities: set[str] | None = None, irrigation: bool = T
         s.verdict = "Your rotation now" if s.existing else "Better than now" if delta >= 5 else "Weaker than now" if delta <= -5 else "Similar to now"
     if picked and picked[0].overall > existing.overall:
         picked[0].verdict = "Best match for your priorities"
-    return Plan(existing, picked, options, field_notes(f), wet_months(f), flooded)
+    return Plan(existing, picked, options, field_notes(f), wet_months(f), flooded, dry_season_groundwater(f))

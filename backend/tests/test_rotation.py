@@ -37,8 +37,19 @@ def climate(table) -> dict[int, MonthNormal]:
     return {m: MonthNormal(*v) for m, v in table.items()}
 
 
-def bd_field(crop="Boro rice", elevation=20.0, greenness=None, soil=None) -> FieldFacts:
-    return FieldFacts(True, crop, climate(BOGURA), elevation_m=elevation, greenness_ratio=greenness, soil=soil)
+def bd_field(crop="Boro rice", elevation=20.0, greenness=None, soil=None, groundwater=None) -> FieldFacts:
+    return FieldFacts(True, crop, climate(BOGURA), elevation_m=elevation, greenness_ratio=greenness, soil=soil, groundwater=groundwater or {})
+
+
+def groundwater(early_low: int, recent_low: int) -> dict:
+    """GRACE percentiles for 24 dry seasons (2003–2026): `early_low` low years among the first
+    10, `recent_low` among the last 10, plus a newest (August) week that must be ignored."""
+    values = {}
+    for i, year in enumerate(range(2003, 2027)):
+        low = i < early_low if i < 10 else (i - 14 < recent_low if i >= 14 else False)
+        values[date(year, 4, 25)] = 10.0 if low else 60.0
+    values[date(2026, 8, 31)] = 3.0
+    return values
 
 
 def all_text(p) -> list[str]:
@@ -131,8 +142,8 @@ def test_the_farmers_soil_changes_water_fit_and_risks():
     assert loam.existing.scores == unknown.existing.scores and loam.existing.irrigation_mm == unknown.existing.irrigation_mm
 
 
-def haor_field(crop="Boro rice", elevation=8.0, table=HAOR) -> FieldFacts:
-    return FieldFacts(True, crop, climate(table), elevation_m=elevation)
+def haor_field(crop="Boro rice", elevation=8.0, table=HAOR, groundwater=None) -> FieldFacts:
+    return FieldFacts(True, crop, climate(table), elevation_m=elevation, groundwater=groundwater or {})
 
 
 def test_haor_land_only_grows_in_the_dry_months():
@@ -170,6 +181,37 @@ def test_only_low_land_with_early_rains_is_treated_as_haor():
     assert engine.plan(world).flood_months == []
 
 
+GRACE_RISK = "NASA GRACE shows groundwater here running low at the end of recent dry seasons, and Boro's pumping draws it down further"
+
+
+def test_grace_groundwater_running_low_weighs_on_thirsty_rotations():
+    # Barind in real data: low in 7 of the last 10 dry seasons, against 3 of the first 10.
+    plain = engine.plan(bd_field())
+    falling = engine.plan(bd_field(groundwater=groundwater(3, 7)))
+    assert "At the end of the dry season, groundwater here was low in 7 of the last 10 years, against 3 of the first 10 (NASA GRACE)" in falling.notes
+    boro = falling.existing  # Boro → Aman: about 900 mm of pumping
+    assert GRACE_RISK in boro.risks
+    assert any("NASA GRACE shows water running low" in e for e in boro.evidence)
+    assert any("tubewell" in g for g in boro.gaps)
+    assert boro.scores["water"] < plain.existing.scores["water"]
+    assert [y for y, _ in falling.groundwater] == list(range(2003, 2027))  # the August week isn't a dry season
+
+
+def test_grace_groundwater_near_normal_changes_nothing_but_the_note():
+    plain = engine.plan(bd_field())
+    steady = engine.plan(bd_field(groundwater=groundwater(0, 2)))
+    assert any("low in 2 of the last 10 years, against 0 of the first 10" in n for n in steady.notes)
+    assert GRACE_RISK not in steady.existing.risks
+    assert steady.existing.scores == plain.existing.scores
+    assert engine.plan(bd_field(groundwater=dict(list(groundwater(2, 7).items())[:10]))).notes == plain.notes  # too short a record
+
+
+def test_haor_boro_is_watered_from_the_beels_not_groundwater():
+    p = engine.plan(haor_field(groundwater=groundwater(1, 6)))
+    assert any("low in 6 of the last 10 years" in n for n in p.notes)
+    assert not any("GRACE" in t for s in [p.existing, *p.alternatives] for t in s.risks + s.evidence)
+
+
 def test_world_farms_get_seasons_from_their_own_climate():
     f = FieldFacts(False, "Maize", climate(TEMPERATE), relief_m=10.0)
     p = engine.plan(f)
@@ -199,6 +241,9 @@ def rotation_texts():
         bd_field(crop="Potato", soil="clay"),
         bd_field(crop="Maize", soil="sandy"),
         bd_field(crop="Lentil", soil="loam"),
+        bd_field(groundwater=groundwater(2, 7)),
+        bd_field(crop="Wheat", groundwater=groundwater(0, 2)),
+        haor_field(groundwater=groundwater(1, 6)),
     ]
     for f in fields:
         for priorities in [set(), {"soil"}, {"water", "income"}, {"food"}]:
@@ -242,9 +287,11 @@ def test_rotation_endpoint_in_english_and_bengali():
     pipe = pipeline_with({
         "power_climatology": normals(BOGURA),
         "srtm": [Observation("srtm", "elevation", date(2000, 2, 11), 7.0, "m")],
+        "grace": [Observation("grace", "groundwater_percentile", d, v, "%") for d, v in groundwater(2, 7).items()],
     })
     client = client_for(pipe)
     body = client.get("/api/v1/farms/sunamganj-haor/rotation", params={"priorities": "water,nonsense"}).json()
+    assert len(body["groundwater"]) == 24 and body["groundwater"][0] == {"year": 2003, "percentile": 10}
     assert body["crop"] == "Boro rice" and body["in_bangladesh"] is True
     assert body["priorities"] == ["water"]
     assert body["existing_id"] == "boro-fallow-aman"

@@ -28,6 +28,7 @@ VariableId = Literal[
     "humidity",
     "temperature_mean_forecast",
     "humidity_forecast",
+    "groundwater_percentile",
 ]
 
 
@@ -87,5 +88,10 @@ VARIABLES: dict[VariableId, Variable] = {
         Variable("humidity", "Humidity", "%", "Daily mean relative humidity", ("nasa_power",)),
         Variable("temperature_mean_forecast", "Mean temperature forecast", "°C", "Forecast daily mean temperature", ("open_meteo",), lookahead_days=7),
         Variable("humidity_forecast", "Humidity forecast", "%", "Forecast daily mean relative humidity", ("open_meteo",), lookahead_days=7),
+        # One reading per year at the end of the dry season since 2003, plus the newest week.
+        Variable(
+            "groundwater_percentile", "Groundwater", "%", "Groundwater compared with 1948–2012: 0 = driest on record, 100 = wettest (GRACE)",
+            ("grace",), lookback_days=9000,
+        ),
     ]
 }

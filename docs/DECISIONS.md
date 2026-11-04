@@ -2,6 +2,30 @@
 
 Short records of choices that shape the project. Newest first.
 
+## 2026-10-31: NASA GRACE groundwater in the rotation planner
+
+| Topic | Decision | Why |
+|---|---|---|
+| Product | GRACEDADM_CLSM025GL_7D v3.0: GRACE/GRACE-FO data assimilation, weekly, 0.25°, groundwater percentile against 1948–2012 | Named in the challenge ("long-term water trends"); served by GES DISC over OPeNDAP like GPM, so one grid cell per request with the same token. The JPL mascon file has no OPeNDAP (one 44 MB netCDF) |
+| What we read | One week per year nearest 25 April since 2003, plus the newest week (~25 requests per farm the first time) | Late April is the end of the dry season, when Boro is pumped hardest and groundwater is lowest |
+| "Low" | A dry season below the 25th percentile (the driest quarter of 1948–2012) | Plain and checkable; each bar on the chart is coloured very low / low / normal / high |
+| Running low | At least 4 low dry seasons in the last 10, and 2 more than in the first 10 (2003–2012) | Real data: Barind 7 vs 3, Sunamganj 6 vs 1, Cumilla 4 vs 1, Dhaka 2 vs 2, Bogura 2 vs 0 |
+| Effect | Where running low, rotations needing ≥ 300 mm of irrigation lose 20% of their water score, say why, and Boro's warning cites GRACE | Pumping more from falling groundwater is the cost farmers can't see |
+| Haor | No groundwater penalty | Haor Boro is watered from the beels and rivers |
+| Honesty | Each such idea says GRACE sees a wide area, not one field; a tubewell's water level would sharpen it | GRACE's native footprint is hundreds of kilometres; the 0.25° product is a model downscaling |
+
+Real-world check (31 Oct 2026): 25 readings per farm in ~21 s for all five farms; Barind's end-of-dry-season
+groundwater fell from the 85th percentile (2003) to 7–21 (2024–2026).
+
+## 2026-10-31: Soil type in the rotation planner
+
+| Topic | Decision | Why |
+|---|---|---|
+| Question | "What is your soil like?": Not sure / Clay / Loam / Sandy (জানি না / এঁটেল / দোআঁশ / বেলে), with a feel test for each | The challenge asks for local soil information; farmers know their soil by feel, not by a test |
+| Water | Sandy +30% irrigation, clay −10% | Sandy soil drains water past the roots; clay holds it |
+| Fit | Points off: potato 25, maize and mungbean 15, tomato 10 on clay; rice 25, jute 15, wheat 10 on sandy soil; each with a reason in the risks | Typical agronomy, **to be checked with local experts** like the crop values |
+| Per field | The choice is remembered per field | Another field may have another soil |
+
 ## 2026-10-31: SMS alert preview
 
 | Topic | Decision | Why |

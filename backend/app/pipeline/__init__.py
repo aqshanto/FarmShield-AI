@@ -1,4 +1,4 @@
-"""NASA data pipeline: SMAP, GPM, MODIS and VIIRS (plus NASA POWER as a no-login stand-in)."""
+"""NASA data pipeline: SMAP, GPM, MODIS, VIIRS and GRACE (plus NASA POWER as a no-login stand-in)."""
 
 from functools import lru_cache
 
@@ -7,7 +7,7 @@ from app.data.sample.farms import SAMPLE_FARMS
 from app.pipeline.models import Location
 from app.pipeline.service import PipelineService
 from app.pipeline.sources.forecast import ForecastSource
-from app.pipeline.sources.opendap import ImergSource, SmapSource
+from app.pipeline.sources.opendap import GraceGroundwaterSource, ImergSource, SmapSource
 from app.pipeline.sources.ornl import ModisNdviSource, ViirsNormalSource
 from app.pipeline.sources.power import PowerSource
 from app.pipeline.sources.static import PowerClimatologySource, SrtmElevationSource
@@ -21,6 +21,7 @@ def build_sources(earthdata_token: str | None):
         ViirsNormalSource(),
         ImergSource(earthdata_token),
         SmapSource(earthdata_token),
+        GraceGroundwaterSource(earthdata_token),
         ForecastSource(),
         SrtmElevationSource(),
         PowerClimatologySource(),

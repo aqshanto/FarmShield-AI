@@ -1,7 +1,7 @@
 # FarmShield AI
 
 NASA-powered climate intelligence for farmers. FarmShield AI turns satellite data
-(SMAP, GPM, MODIS, VIIRS) into simple, visual flood, water-stress and crop-health
+(SMAP, GPM, MODIS, VIIRS, GRACE, with NASA POWER and SRTM) into simple, visual flood, water-stress and crop-health
 advice, in English and Bengali: one switch in the header turns every page, number and date
 into Bengali. It also plans next year's crops (comparing the current rotation with three
 ideas, haor land included) and previews the SMS a farmer on a basic phone would get today.

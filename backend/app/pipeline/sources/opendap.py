@@ -1,4 +1,4 @@
-"""Mission-native GPM IMERG rainfall and SMAP soil moisture via NASA Earthdata Cloud OPeNDAP.
+"""Mission-native GPM IMERG rainfall, SMAP soil moisture and GRACE groundwater via NASA Earthdata Cloud OPeNDAP.
 
 Granules are found through CMR (no login); each daily file is then subset to the single
 grid cell over the farm, so we download a few bytes instead of whole global files.
@@ -11,7 +11,7 @@ from datetime import date, datetime
 
 import httpx2
 
-from app.pipeline.grids import IMERG_NLAT, M09_COLS, ease2_m09_index, imerg_index
+from app.pipeline.grids import GRACE_NLON, IMERG_NLAT, M09_COLS, ease2_m09_index, grace_index, imerg_index
 from app.pipeline.http import get
 from app.pipeline.models import Location, Observation, VariableId
 from app.pipeline.sources.base import SourceInfo, TokenRequiredError
@@ -47,8 +47,10 @@ def pair_slice(index: int, size: int) -> tuple[str, int]:
     return f"[{index - 1}:{index}]", 1
 
 
-async def granule_links(client: httpx2.AsyncClient, collection: str, location: Location, start: date, end: date) -> dict[date, str]:
-    """OPeNDAP URL for each daily granule of a collection in the date range."""
+async def granule_links(
+    client: httpx2.AsyncClient, collection: str, location: Location, start: date, end: date, page_size: int = 200
+) -> dict[date, str]:
+    """OPeNDAP URL for each granule of a collection in the date range."""
     response = await get(
         client,
         CMR_GRANULES,
@@ -56,7 +58,7 @@ async def granule_links(client: httpx2.AsyncClient, collection: str, location: L
             "collection_concept_id": collection,
             "temporal": f"{start.isoformat()}T00:00:00Z,{end.isoformat()}T23:59:59Z",
             "point": f"{location.lon},{location.lat}",
-            "page_size": 200,
+            "page_size": page_size,
             "sort_key": "start_date",
         },
     )
@@ -84,11 +86,17 @@ class _OpendapPointSource:
     def valid(self, value: float) -> bool:
         raise NotImplementedError
 
+    page_size = 200  # granules listed per window
+
+    def pick(self, links: dict[date, str]) -> dict[date, str]:
+        """The granules to read: all of them, unless a source needs only some."""
+        return links
+
     async def fetch(self, client: httpx2.AsyncClient, location: Location, start: date, end: date) -> list[Observation]:
         if not self.token:
             raise TokenRequiredError("Set EARTHDATA_TOKEN in backend/.env to use this mission's own data")
 
-        links = await granule_links(client, self.collection, location, start, end)
+        links = self.pick(await granule_links(client, self.collection, location, start, end, self.page_size))
         ce, names, position = self.constraint(location)
         headers = {"Authorization": f"Bearer {self.token}"}
         semaphore = asyncio.Semaphore(6)
@@ -159,3 +167,55 @@ class SmapSource(_OpendapPointSource):
     def valid(self, value: float) -> bool:
         return 0.0 <= value <= 0.7  # fill is -9999
 
+
+# Boro is pumped hardest in March and April, and the rains refill the ground from May: late
+# April is when groundwater is lowest and matters most.
+DRY_SEASON_END = (4, 25)
+
+
+class GraceGroundwaterSource(_OpendapPointSource):
+    """Groundwater from GRACE and GRACE-FO, assimilated into a land model at 0.25°.
+
+    The value is a percentile against 1948–2012 (0 = driest on record). A long view is what
+    matters, so a first fetch reads one week per year near the end of the dry season since
+    2003 (about 25 requests), plus the newest week; later refreshes read only new weeks.
+    """
+
+    info = SourceInfo(
+        id="grace",
+        mission="GRACE",
+        provider="NASA GES DISC · Earthdata Cloud OPeNDAP",
+        product="GRACEDADM_CLSM025GL_7D v3.0 · weekly 0.25° groundwater percentile (GRACE/GRACE-FO data assimilation)",
+        variables=("groundwater_percentile",),
+        requires_token=True,
+        ttl_hours=24 * 7,  # a weekly product, published about two months late
+        overlap_days=14,
+        note="One reading per year at the end of the dry season since 2003, plus the newest week.",
+        min_window_days=9000,  # back to the start of the record (2003)
+        slow=True,
+        timeout_s=420,
+    )
+    collection = "C2283200566-GES_DISC"
+    variable = "groundwater_percentile"
+    unit = "%"
+    page_size = 2000  # ~52 weekly granules a year since 2003
+
+    def constraint(self, location: Location) -> tuple[str, list[str], int]:
+        ilat, ilon = grace_index(location.lat, location.lon)
+        lon_slice, position = pair_slice(ilon, GRACE_NLON)
+        return f"/gws_inst[0][{ilat}]{lon_slice}", ["gws_inst"], position
+
+    def valid(self, value: float) -> bool:
+        return 0.0 <= value <= 100.0  # fill is -9999
+
+    def pick(self, links: dict[date, str]) -> dict[date, str]:
+        """One week per year near the end of the dry season, and the newest week."""
+        if not links:
+            return {}
+        chosen = {max(links): links[max(links)]}
+        for year in {d.year for d in links}:
+            target = date(year, *DRY_SEASON_END)
+            nearest = min((d for d in links if d.year == year), key=lambda d: abs((d - target).days))
+            if abs((nearest - target).days) <= 7:
+                chosen[nearest] = links[nearest]
+        return chosen

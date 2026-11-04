@@ -367,6 +367,12 @@ export interface RotationStrategy {
   risks: string[]
 }
 
+// Groundwater at the end of one dry season against 1948–2012: 0 = driest on record (NASA GRACE).
+export interface GroundwaterYear {
+  year: number
+  percentile: number
+}
+
 export interface RotationPlan {
   farm_id: string
   crop: string
@@ -380,6 +386,7 @@ export interface RotationPlan {
   climate: { month: number; rain_mm: number; tmax: number; tmin: number }[]
   wet_months: number[]
   flood_months?: number[] // haor land under deep water: nothing is planted in these months
+  groundwater?: GroundwaterYear[] // end of each dry season since 2003 (NASA GRACE), oldest first
   field_notes: string[]
   sources: string[]
 }

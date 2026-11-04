@@ -94,6 +94,7 @@ function haorPlan(url: URL): RotationPlan {
 let fetchSpy: ReturnType<typeof vi.spyOn>
 let rotationStatus = 200
 let haorLand = false
+let groundwater: RotationPlan['groundwater'] = []
 
 beforeEach(() => {
   localStorage.clear()
@@ -101,13 +102,14 @@ beforeEach(() => {
   setLang('en')
   rotationStatus = 200
   haorLand = false
+  groundwater = []
   fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
     const url = new URL(String(input), 'http://test')
     const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status })
     if (url.pathname === '/api/v1/farms') return json(farmsFixture)
     if (/^\/api\/v1\/farms\/[^/]+\/rotation$/.test(url.pathname)) {
       if (rotationStatus !== 200) return json({ detail: 'nope' }, rotationStatus)
-      return json(haorLand ? haorPlan(url) : makePlan(url))
+      return json({ ...(haorLand ? haorPlan(url) : makePlan(url)), groundwater })
     }
     return json({ detail: 'not found' }, 404)
   })
@@ -164,6 +166,21 @@ describe('RotationPage', () => {
 
     await userEvent.click(screen.getByRole('radio', { name: 'Not sure' }))
     await waitFor(() => expect(rotationCalls().at(-1)).toBe('/api/v1/farms/barind/rotation?priorities=&irrigation=true'))
+  })
+
+  it('shows NASA GRACE groundwater at the end of each dry season', async () => {
+    groundwater = [
+      { year: 2003, percentile: 85 },
+      { year: 2004, percentile: 40 },
+      { year: 2024, percentile: 18 },
+      { year: 2025, percentile: 7 },
+    ]
+    renderAt()
+    const strip = await screen.findByRole('group', { name: 'Groundwater at the end of each dry season' })
+    expect(within(strip).getAllByRole('button')).toHaveLength(4)
+    expect(screen.getByText('2025: Very low')).toBeInTheDocument() // the newest year is read out first
+    await userEvent.hover(within(strip).getByRole('button', { name: '2003: High' }))
+    expect(screen.getByText('2003: High')).toBeInTheDocument()
   })
 
   it('opens benefits, gaps and local risks on demand', async () => {

@@ -7,10 +7,10 @@ from app.pipeline.models import Location
 from app.pipeline.service import PipelineService
 from app.risk import rotation as engine
 from app.risk.region import in_bangladesh
-from app.schemas.rotation import ClimateMonth, RotationCrop, RotationOption, RotationPlan, RotationStrategy
+from app.schemas.rotation import ClimateMonth, GroundwaterYear, RotationCrop, RotationOption, RotationPlan, RotationStrategy
 from app.services.custom_farms import CustomFarmError, ensure_data, is_custom_id, parse_farm_id
 
-SOURCES = ["NASA POWER climate normals", "NASA SRTM terrain", "NASA MODIS greenness", "NASA VIIRS normal greenness"]
+SOURCES = ["NASA POWER climate normals", "NASA SRTM terrain", "NASA MODIS greenness", "NASA VIIRS normal greenness", "NASA GRACE groundwater"]
 
 
 class RotationFarmError(LookupError):
@@ -108,6 +108,7 @@ async def build_rotation_plan(
         relief_m=next(iter(series.get("height_above_low", {}).values()), None),
         greenness_ratio=greenness_ratio(series),
         soil=soil if soil in engine.SOILS else None,
+        groundwater=series.get("groundwater_percentile", {}),
     )
     result = await asyncio.to_thread(engine.plan, facts, priorities, irrigation, existing_id)
     options = [RotationOption(id=o, name=pattern_name(o)) for o in result.existing_options if o in engine.PATTERNS_BY_ID]
@@ -127,6 +128,7 @@ async def build_rotation_plan(
         ],
         wet_months=result.wet_months,
         flood_months=result.flood_months,
+        groundwater=[GroundwaterYear(year=y, percentile=round(v)) for y, v in result.groundwater],
         field_notes=result.notes,
         sources=SOURCES,
     )

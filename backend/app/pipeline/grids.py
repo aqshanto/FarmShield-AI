@@ -15,6 +15,19 @@ def imerg_index(lat: float, lon: float) -> tuple[int, int]:
     return ilon, ilat
 
 
+# --- GRACE data assimilation: global 0.25° lat/lon grid from 60°S, dims [time][lat][lon] ---
+GRACE_RES = 0.25
+GRACE_NLAT = 600
+GRACE_NLON = 1440
+
+
+def grace_index(lat: float, lon: float) -> tuple[int, int]:
+    """(lat_index, lon_index) of the GRACE-DA cell containing the point."""
+    ilat = min(GRACE_NLAT - 1, max(0, math.floor((lat + 60) / GRACE_RES)))
+    ilon = min(GRACE_NLON - 1, max(0, math.floor((lon + 180) / GRACE_RES)))
+    return ilat, ilon
+
+
 # --- SMAP: EASE-Grid 2.0 global 9 km (EPSG:6933), 3856 cols × 1624 rows ---------------
 # Lambert cylindrical equal-area on WGS84, standard parallel 30°.
 A = 6378137.0

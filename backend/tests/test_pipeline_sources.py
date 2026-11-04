@@ -10,7 +10,7 @@ from app.pipeline.grids import M09_COLS, M09_ROWS, ease2_m09_index, ease2_xy, im
 from app.pipeline.http import get
 from app.pipeline.models import Location
 from app.pipeline.sources.base import ApprovalRequiredError, SourceError, TokenRequiredError
-from app.pipeline.sources.opendap import ImergSource, SmapSource, pair_slice, parse_opendap_values
+from app.pipeline.sources.opendap import GraceGroundwaterSource, ImergSource, SmapSource, pair_slice, parse_opendap_values
 from app.pipeline.sources.ornl import ModisNdviSource, ViirsNormalSource, classify, fetch_band
 from app.pipeline.sources.power import parse_power
 
@@ -242,6 +242,25 @@ def test_smap_falls_back_to_the_evening_pass():
 
     obs = run(go())
     assert [(o.variable, o.value, o.unit) for o in obs] == [("soil_moisture", 0.31, "m³/m³")]
+
+
+def test_grace_reads_the_end_of_each_dry_season_and_the_newest_week():
+    seen: list = []
+    weeks = {  # weekly granules: value of our cell (the pair's neighbour is 99)
+        "2003-04-21": 80, "2003-04-28": 70, "2003-08-04": 60,
+        "2004-04-26": 20, "2004-06-07": 30, "2004-09-06": 45,
+    }
+    handler = opendap_handler({day: f"/gws_inst[0][338], {value}, 99\n" for day, value in weeks.items()}, seen)
+
+    async def go():
+        async with client_for(handler) as client:
+            return await GraceGroundwaterSource("t").fetch(client, FARM, date(2003, 1, 1), date(2004, 12, 31))
+
+    obs = run(go())
+    # 28 April is nearer 25 April than 21 April; mid-year weeks are skipped except the newest.
+    assert [(o.date.isoformat(), o.value) for o in obs] == [("2003-04-28", 70), ("2004-04-26", 20), ("2004-09-06", 45)]
+    assert all(o.variable == "groundwater_percentile" and o.unit == "%" for o in obs)
+    assert parse_qs(urlparse(str(seen[0].url)).query)["dap4.ce"] == ["/gws_inst[0][338][1074:1075]"]
 
 
 # --- HTTP helper --------------------------------------------------------------------------

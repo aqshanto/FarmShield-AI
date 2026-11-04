@@ -111,6 +111,7 @@ sources (fetch) ──► clean & grade ──► SQLite store ──► serve (
 | SMAP | `opendap.SmapSource`: SPL3SMP_E v006 via OPeNDAP (EASE-Grid 2.0 9 km lookup in `grids.py`) | token | Soil moisture m³/m³ (AM pass, PM fallback) |
 | MODIS | `ornl.ModisNdviSource`: MOD13Q1 + MYD13Q1 v061 (Terra + Aqua) via ORNL DAAC | none | 16-day NDVI, graded by pixel reliability |
 | VIIRS | `ornl.ViirsNormalSource`: VNP13A1 via ORNL DAAC | none | 2013–2023 seasonal NDVI **normal** (median) |
+| GRACE | `opendap.GraceGroundwaterSource`: GRACEDADM_CLSM025GL_7D v3.0 via OPeNDAP | token | Groundwater percentile against 1948–2012: one week per year at the end of the dry season since 2003, plus the newest week |
 | (stand-in) | `power.PowerSource`: NASA POWER daily point API | none | Rainfall, surface/root-zone wetness, max temperature |
 | all four | `catalog.py`: CMR granule search | none | Newest granule time per mission |
 
@@ -368,7 +369,9 @@ The farmer's chosen priorities count double; "no dry-season irrigation" penalise
 
 | Piece | Where | Notes |
 |---|---|---|
-| Field facts | `services/rotation_plan.py` | NASA POWER monthly normals (rain, highs, lows), SRTM height, MODIS greenness vs the VIIRS normal |
+| Field facts | `services/rotation_plan.py` | NASA POWER monthly normals (rain, highs, lows), SRTM height, MODIS greenness vs the VIIRS normal, GRACE groundwater, and the farmer's soil (clay / loam / sandy) |
+| Groundwater | `rotation.py` `groundwater_running_low()` | Low dry seasons (GRACE percentile < 25) in the last 10 vs the first 10; when running low, thirsty rotations lose water score and Boro's warning cites GRACE (not on haor land). `GroundwaterStrip` draws one bar per year |
+| Soil | `rotation.py` `SOIL_WATER`, `SOIL_MISFIT` | Sandy +30% irrigation, clay −10%; crops that dislike the soil fit worse and say why |
 | Patterns | `rotation.py` | Bangladesh: 11 BRRI/BARI cropping patterns with their usual months. Elsewhere: three seasons from the place's own climate |
 | Haor | `rotation.py` `haor()` | Bangladesh, ≤ 12 m, April already wet, monsoon peak ≥ 16 mm/day. Flood months (each wet month + 1) are water, not bare land; only dry-season patterns (single Boro, Mustard → Boro, wheat, maize, lentil, potato) |
 | Explanations | `rotation.py` `explain()` | Why, NASA evidence, benefits, gaps, local risks for every idea; translated by `app/i18n` |

@@ -36,6 +36,11 @@ class ClimateMonth(BaseModel):
     tmin: float  # normal daily low, °C
 
 
+class GroundwaterYear(BaseModel):
+    year: int
+    percentile: int  # groundwater at the end of the dry season against 1948–2012 (NASA GRACE)
+
+
 class RotationPlan(BaseModel):
     farm_id: str
     crop: str
@@ -49,5 +54,6 @@ class RotationPlan(BaseModel):
     climate: list[ClimateMonth]
     wet_months: list[int]
     flood_months: list[int] = []  # haor land under deep water: no crop is planned in these months
+    groundwater: list[GroundwaterYear] = []  # one per year since 2003, oldest first
     field_notes: list[str]
     sources: list[str]

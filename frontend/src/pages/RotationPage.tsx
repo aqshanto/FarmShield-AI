@@ -8,6 +8,7 @@ import { OrbitLoader } from '@/components/ui/OrbitLoader'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { type FarmOption, FarmPicker } from '@/features/farms/FarmPicker'
 import { ClimateStrip } from '@/features/rotation/ClimateStrip'
+import { GroundwaterStrip } from '@/features/rotation/GroundwaterStrip'
 import { StrategyCard } from '@/features/rotation/StrategyCard'
 import { rotationText } from '@/features/rotation/strings'
 import { ApiError, api } from '@/lib/api'
@@ -269,6 +270,12 @@ export function RotationPage() {
               </Card>
             </div>
           </motion.div>
+
+          {data.groundwater && data.groundwater.length >= 3 && (
+            <motion.div variants={fadeUp}>
+              <GroundwaterStrip years={data.groundwater} lang={lang} t={t} />
+            </motion.div>
+          )}
 
           <motion.div variants={stagger(0.12)} className="grid gap-6 md:grid-cols-2">
             {[current, ...ideas].map((s, i) => (
