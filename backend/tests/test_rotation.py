@@ -197,6 +197,15 @@ def test_grace_groundwater_running_low_weighs_on_thirsty_rotations():
     assert [y for y, _ in falling.groundwater] == list(range(2003, 2027))  # the August week isn't a dry season
 
 
+def test_the_groundwater_chart_counts_the_same_low_years_as_the_note():
+    from app.services.rotation_plan import groundwater_years
+
+    readings = [(2010, 24.6), (2011, 25.0), (2012, 25.4)]
+    assert sum(v < engine.LOW_GROUNDWATER for _, v in readings) == 1
+    # The chart calls a year low below 25 (GroundwaterStrip.tsx).
+    assert [y.year for y in groundwater_years(readings) if y.percentile < 25] == [2010]
+
+
 def test_grace_groundwater_near_normal_changes_nothing_but_the_note():
     plain = engine.plan(bd_field())
     steady = engine.plan(bd_field(groundwater=groundwater(0, 2)))

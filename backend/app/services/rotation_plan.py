@@ -1,6 +1,7 @@
 """Builds a farm's rotation plan from its NASA data (the engine is app/risk/rotation.py)."""
 
 import asyncio
+import math
 
 from app.data.sample.farms import SAMPLE_FARMS
 from app.pipeline.models import Location
@@ -19,6 +20,12 @@ class RotationFarmError(LookupError):
 
 class RotationDataPendingError(RuntimeError):
     """The place's climate normals haven't been downloaded yet."""
+
+
+def groundwater_years(readings: list[tuple[int, float]]) -> list[GroundwaterYear]:
+    """Rounded down, never to nearest: 24.6 is a low year in the field note, and rounded up to
+    25 the chart would colour it normal, so the bars wouldn't add up to the note's count."""
+    return [GroundwaterYear(year=y, percentile=math.floor(v)) for y, v in readings]
 
 
 def _series(pipeline: PipelineService, location: Location) -> dict[str, dict]:
@@ -129,7 +136,7 @@ async def build_rotation_plan(
         ],
         wet_months=result.wet_months,
         flood_months=result.flood_months,
-        groundwater=[GroundwaterYear(year=y, percentile=round(v)) for y, v in result.groundwater],
+        groundwater=groundwater_years(result.groundwater),
         field_notes=result.notes,
         sources=SOURCES,
     )

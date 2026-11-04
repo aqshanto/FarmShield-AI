@@ -30,3 +30,6 @@ backend/data/
 
 # Local tool settings
 .claude/
+
+# Video production: voices, footage and renders stay on this drive
+video/
