@@ -108,3 +108,6 @@ footage, and Claude wrote the code that cuts the clips, adds subtitles and mixes
 
 **Tool:** Claude by Anthropic. The logo shows a shield (protection), a young plant (the farm) and a
 satellite orbit (NASA data from space). The team chose it and approved it.
+
+**Prompt:** we did not save the exact prompt used for the logo, so we can't quote it here. It is
+the only AI-generated image in the project.
