@@ -125,3 +125,15 @@ Deploying? See [docs/DEPLOY.md](docs/DEPLOY.md): API on Render (`render.yaml`), 
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for details, and
 [PLAN.md](PLAN.md) / [DEVELOPMENT_PROMPTS.md](DEVELOPMENT_PROMPTS.md) for the roadmap.
+
+## Use of AI
+
+FarmShield AI uses one AI tool, Claude by Anthropic: it words the farmer assistant's answers from
+the NASA facts the app has already worked out, it helped write the code and the video's editing
+code, and it made the logo. The risk ratings and rotation scores are fixed rules over NASA data, not
+AI. Prompts, data and reasons: [docs/AI_USE.md](docs/AI_USE.md).
+
+## License
+
+[MIT](LICENSE) © 2026 The Astro Voyagers. NASA data is open data from NASA Earthdata; map data
+© OpenStreetMap contributors.
