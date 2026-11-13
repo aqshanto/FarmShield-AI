@@ -31,6 +31,9 @@ USER_AGENT = "FarmShield-AI/1.0 (NASA Space Apps Challenge; https://github.com/a
 GEOCODE_TTL = timedelta(days=30)
 GEOCODE_TIMEOUT_S = 5
 GEOCODE_PAUSE = timedelta(minutes=10)
+# Photon is the only search that answers from Render (Nominatim blocks its IP), so one slow
+# reply must not switch place search off for everyone for long: a short pause is enough.
+PHOTON_PAUSE = timedelta(minutes=1)
 SNAP_DEG = 0.05  # ~5 km: nearby points share one cached name
 
 _geocode_lock = asyncio.Lock()
@@ -92,7 +95,7 @@ async def _nominatim(pipeline: PipelineService, url: str, params: dict):
 
 
 async def _photon(pipeline: PipelineService, url: str, params: dict):
-    """The backup service: same budget and pause rules as Nominatim."""
+    """The backup service: same time budget as Nominatim, but a shorter pause after a failure."""
     global _photon_paused_until
     if _photon_paused_until and pipeline.now() < _photon_paused_until:
         return None
@@ -106,7 +109,7 @@ async def _photon(pipeline: PipelineService, url: str, params: dict):
         return await asyncio.wait_for(call(), GEOCODE_TIMEOUT_S)
     except (SourceError, httpx2.HTTPError, ValueError, OSError, TimeoutError) as error:
         log.warning("Photon failed: %s", error or type(error).__name__)
-        _photon_paused_until = pipeline.now() + GEOCODE_PAUSE
+        _photon_paused_until = pipeline.now() + PHOTON_PAUSE
         return None
 
 

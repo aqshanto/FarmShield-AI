@@ -1,5 +1,6 @@
 import asyncio
 import re
+from datetime import timedelta
 
 import httpx2
 import pytest
@@ -108,6 +109,25 @@ def test_reverse_geocode_failure_is_quick_and_pauses_lookups(monkeypatch):
     # While both are paused, taps don't even ask.
     assert asyncio.run(reverse_geocode(pipeline, 10.0, 10.0, "en")) is None
     assert len(calls) == 2
+
+
+def test_photon_is_tried_again_after_a_short_pause(monkeypatch):
+    # Photon is the only search that answers from Render, so one failure mustn't switch
+    # place search off for long; Nominatim keeps its long pause.
+    monkeypatch.setattr(geo, "_last_geocode", 0.0)
+    monkeypatch.setattr(asyncio, "sleep", lambda *_, real=asyncio.sleep: real(0))
+    clock = [NOW]
+    calls = []
+    pipeline = PipelineService(
+        ObservationStore(":memory:"), [],
+        client_factory=lambda: httpx2.AsyncClient(transport=httpx2.MockTransport(lambda r: calls.append(r.url.host) or httpx2.Response(503))),
+        now=lambda: clock[0],
+    )
+    assert asyncio.run(geo.search_places(pipeline, "Kiambu", "en")) is None
+    assert calls == ["nominatim.openstreetmap.org", "photon.komoot.io"]
+    clock[0] = NOW + geo.PHOTON_PAUSE + timedelta(seconds=1)
+    asyncio.run(geo.search_places(pipeline, "Bogura", "en"))
+    assert calls[2:] == ["photon.komoot.io"]
 
 
 def test_photon_answers_when_nominatim_refuses_this_server():
